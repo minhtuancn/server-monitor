@@ -105,7 +105,7 @@ function initHeader(auth, i18n) {
     }
 
     // Language switcher
-    const currentLang = i18n.getLanguage();
+    const currentLang = i18n.getCurrentLanguage();
     const languageNames = {
         'en': 'English',
         'vi': 'Tiếng Việt',

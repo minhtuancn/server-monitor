@@ -45,7 +45,7 @@ export function translatePage() {
  * Initialize i18n for the page
  */
 export async function initI18n() {
-    const currentLang = i18n.getLanguage();
+    const currentLang = i18n.getCurrentLanguage();
     await i18n.loadLanguage(currentLang);
     translatePage();
 

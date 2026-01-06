@@ -477,7 +477,7 @@
       'de': 'Deutsch'
     };
 
-    const currentLang = i18n.getLanguage();
+    const currentLang = i18n.getCurrentLanguage();
     document.getElementById('currentLanguage').textContent = languageNames[currentLang] || 'English';
 
     // Toggle language dropdown
