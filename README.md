@@ -1,11 +1,14 @@
-# 🖥️ Server Monitor Dashboard v4.1
+# 🖥️ Server Monitor Dashboard v1.0
 
 **Multi-server monitoring system với real-time updates, web terminal, và advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-4.1--dev-blue)]()
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Tests](https://img.shields.io/badge/tests-23%2F25%20passing-green)]()
 [![Security](https://img.shields.io/badge/security-9%2F10-yellow)]()
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)
 
 ---
 
@@ -397,35 +400,40 @@ docker-compose up -d
 
 ## 📝 Changelog
 
-### v4.1 (2026-01-06)
-- ✅ Added WebSocket real-time updates
-- ✅ Implemented comprehensive testing suite
-- ✅ Enhanced security (rate limiting, CORS, validation)
-- ✅ Added security headers
-- ✅ Created start/stop scripts
-
-### v4.0 (2026-01-06)
-- ✅ Multi-server dashboard
-- ✅ Web terminal emulator
-- ✅ Email alerts system
-- ✅ Export functionality
+### v1.0.0 (2026-01-06) - Initial Release 🎉
+- ✅ Multi-server monitoring dashboard
+- ✅ Real-time updates via WebSocket
+- ✅ Web terminal emulator (xterm.js + SSH)
+- ✅ Email alerts system with SMTP
+- ✅ Export data (CSV/JSON)
 - ✅ SSH key management
-- ✅ Authentication system
+- ✅ JWT authentication system
+- ✅ Advanced security (rate limiting, CORS, validation)
+- ✅ Comprehensive testing suite (23 tests)
+- ✅ Production-ready deployment scripts
+- ✅ Complete documentation
 
 ---
 
 ## 📄 License
 
-Proprietary - Internal use only
+MIT License - See [LICENSE](LICENSE) file for details
+
+Copyright (c) 2026 Minh Tuấn
 
 ---
 
-## 👨‍💻 Authors
+## 👨‍💻 Author
 
-- Development: GitHub Copilot
-- Project: Server Monitoring System
-- Version: 4.1-dev
-- Date: January 2026
+**Minh Tuấn**
+- 📧 Email: [vietkeynet@gmail.com](mailto:vietkeynet@gmail.com)
+- 📱 WhatsApp/WeChat: +84912537003
+- 🐙 GitHub: [@minhtuancn](https://github.com/minhtuancn)
+- 🌐 Demo: [GitHub Pages](https://minhtuancn.github.io/server-monitor/)
+
+**Project**: Server Monitoring System  
+**Version**: 1.0.0  
+**Release Date**: January 6, 2026
 
 ---
 
@@ -441,20 +449,20 @@ For issues or questions:
 
 ## 🎯 Roadmap
 
-### v4.2 (Planned)
+### v1.1.0 (Planned - Q1 2026)
 - [ ] PostgreSQL support
 - [ ] Redis caching
 - [ ] Docker containerization
 - [ ] Swagger/OpenAPI documentation
 - [ ] Advanced alerting rules
-- [ ] Custom dashboards
+- [ ] GitHub Pages deployment
 
-### v5.0 (Future)
+### v2.0.0 (Planned - Q2 2026)
 - [ ] Kubernetes support
 - [ ] Multi-user management
 - [ ] Role-based access control (RBAC)
 - [ ] Advanced reporting
-- [ ] Mobile app
+- [ ] Mobile responsive improvements
 - [ ] Plugin system
 
 ---
