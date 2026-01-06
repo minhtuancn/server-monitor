@@ -252,6 +252,19 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception:
                 email_cfg = {}
 
+            # Import Telegram and Slack modules
+            try:
+                from telegram_bot import get_telegram_config
+                telegram_cfg = get_telegram_config() or {}
+            except Exception:
+                telegram_cfg = {}
+
+            try:
+                from slack_integration import get_slack_config
+                slack_cfg = get_slack_config() or {}
+            except Exception:
+                slack_cfg = {}
+
             settings = settings_mgr.get_all_settings()
             resp = {
                 'email': {
@@ -261,15 +274,59 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 },
                 'telegram': {
                     'enabled': bool(settings.get('telegram_enabled', False)),
-                    'configured': False
+                    'configured': bool(telegram_cfg.get('bot_token') and telegram_cfg.get('chat_id'))
                 },
                 'slack': {
                     'enabled': bool(settings.get('slack_enabled', False)),
-                    'configured': False
+                    'configured': bool(slack_cfg.get('webhook_url'))
                 }
             }
             self._set_headers()
             self.wfile.write(json.dumps(resp).encode())
+            return
+
+        elif path == '/api/telegram/config':
+            # Get Telegram config (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            try:
+                from telegram_bot import get_telegram_config
+                cfg = get_telegram_config() or {}
+                self._set_headers()
+                self.wfile.write(json.dumps(cfg).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+            return
+
+        elif path == '/api/slack/config':
+            # Get Slack config (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            try:
+                from slack_integration import get_slack_config
+                cfg = get_slack_config() or {}
+                self._set_headers()
+                self.wfile.write(json.dumps(cfg).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
             return
         
         # ==================== SERVER MANAGEMENT ====================
@@ -1299,6 +1356,48 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             
             self._set_headers()
             self.wfile.write(json.dumps(result).encode())
+        
+        # ==================== TELEGRAM/SLACK CONFIG ====================
+        elif path == '/api/telegram/config':
+            # Save Telegram config (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            try:
+                from telegram_bot import save_telegram_config
+                result = save_telegram_config(
+                    bot_token=data.get('bot_token', ''),
+                    chat_id=data.get('chat_id', ''),
+                    enabled=data.get('enabled', True)
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode())
+            return
+
+        elif path == '/api/slack/config':
+            # Save Slack config (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            try:
+                from slack_integration import save_slack_config
+                result = save_slack_config(
+                    webhook_url=data.get('webhook_url', ''),
+                    enabled=data.get('enabled', True)
+                )
+                self._set_headers()
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode())
+            return
         
         # ==================== NOTIFICATION TEST ====================
         elif path == '/api/notifications/test':

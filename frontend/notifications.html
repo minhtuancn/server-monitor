@@ -162,21 +162,22 @@
                 <div id="alertContainer"></div>
 
                 <div class="card">
-                    <h2>Notification Channels</h2>
-                    <p>Enable or disable channels and send test messages.</p>
+                    <h2 data-i18n="notifications.title">Notifications</h2>
+                    <p data-i18n="notifications.subtitle">Enable or disable channels and send test messages.</p>
 
                     <div class="channel-row" id="emailRow">
                         <div class="channel-meta">
                             <div class="icon"><i class="fas fa-envelope"></i></div>
                             <div>
-                                <div class="channel-name">Email</div>
+                                <div class="channel-name" data-i18n="notifications.email">Email</div>
                                 <div class="channel-status" id="emailStatus">—</div>
                             </div>
                         </div>
                         <div class="row-actions">
-                            <span class="badge" id="emailConfigured">Config: —</span>
-                            <button class="btn btn-secondary" id="emailTestBtn"><i class="fas fa-paper-plane"></i>
-                                Test</button>
+                            <span class="badge" id="emailConfigured" data-i18n="notifications.config">Config</span>:
+                            <span class="badge" id="emailConfiguredValue">—</span>
+                            <button class="btn btn-secondary" id="emailTestBtn"><i class="fas fa-paper-plane"></i> <span
+                                    data-i18n="notifications.test">Test</span></button>
                             <label><input type="checkbox" id="emailToggle" class="toggle"></label>
                         </div>
                     </div>
@@ -185,14 +186,15 @@
                         <div class="channel-meta">
                             <div class="icon"><i class="fab fa-telegram"></i></div>
                             <div>
-                                <div class="channel-name">Telegram</div>
+                                <div class="channel-name" data-i18n="notifications.telegram">Telegram</div>
                                 <div class="channel-status" id="telegramStatus">—</div>
                             </div>
                         </div>
                         <div class="row-actions">
-                            <span class="badge" id="telegramConfigured">Config: —</span>
+                            <span class="badge" id="telegramConfigured" data-i18n="notifications.config">Config</span>:
+                            <span class="badge" id="telegramConfiguredValue">—</span>
                             <button class="btn btn-secondary" id="telegramTestBtn"><i class="fas fa-paper-plane"></i>
-                                Test</button>
+                                <span data-i18n="notifications.test">Test</span></button>
                             <label><input type="checkbox" id="telegramToggle" class="toggle"></label>
                         </div>
                     </div>
@@ -201,16 +203,49 @@
                         <div class="channel-meta">
                             <div class="icon"><i class="fab fa-slack"></i></div>
                             <div>
-                                <div class="channel-name">Slack</div>
+                                <div class="channel-name" data-i18n="notifications.slack">Slack</div>
                                 <div class="channel-status" id="slackStatus">—</div>
                             </div>
                         </div>
                         <div class="row-actions">
-                            <span class="badge" id="slackConfigured">Config: —</span>
-                            <button class="btn btn-secondary" id="slackTestBtn"><i class="fas fa-paper-plane"></i>
-                                Test</button>
+                            <span class="badge" id="slackConfigured" data-i18n="notifications.config">Config</span>:
+                            <span class="badge" id="slackConfiguredValue">—</span>
+                            <button class="btn btn-secondary" id="slackTestBtn"><i class="fas fa-paper-plane"></i> <span
+                                    data-i18n="notifications.test">Test</span></button>
                             <label><input type="checkbox" id="slackToggle" class="toggle"></label>
                         </div>
+                    </div>
+                </div>
+                <!-- Telegram Config -->
+                <div class="card">
+                    <h2 data-i18n="settings.telegram_notifications">Telegram Notifications</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label data-i18n="notifications.bot_token">Bot Token</label>
+                            <input type="text" id="telegramBotToken"
+                                placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="notifications.chat_id">Chat ID</label>
+                            <input type="text" id="telegramChatId" placeholder="-1001234567890">
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn btn-primary" id="saveTelegramBtn"><i class="fas fa-save"></i> <span
+                                data-i18n="common.save">Save</span></button>
+                    </div>
+                </div>
+
+                <!-- Slack Config -->
+                <div class="card">
+                    <h2 data-i18n="settings.slack_notifications">Slack Notifications</h2>
+                    <div class="form-group">
+                        <label data-i18n="notifications.webhook_url">Webhook URL</label>
+                        <input type="text" id="slackWebhookUrl" placeholder="https://hooks.slack.com/services/...">
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn btn-primary" id="saveSlackBtn"><i class="fas fa-save"></i> <span
+                                data-i18n="common.save">Save</span></button>
                     </div>
                 </div>
             </div>
@@ -247,7 +282,7 @@
             const res = await fetch('/api/notifications/channels', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res.ok) throw new Error('Failed to load channels');
+            if (!res.ok) throw new Error(i18n.t('notifications.load_failed'));
             return await res.json();
         }
 
@@ -255,20 +290,20 @@
             const emailEnabled = !!ch.email?.enabled;
             const emailCfg = !!ch.email?.configured;
             document.getElementById('emailToggle').checked = emailEnabled;
-            document.getElementById('emailStatus').textContent = emailEnabled ? 'Enabled' : 'Disabled';
-            document.getElementById('emailConfigured').textContent = `Config: ${emailCfg ? 'Yes' : 'No'}`;
+            document.getElementById('emailStatus').textContent = emailEnabled ? i18n.t('notifications.enabled') : i18n.t('notifications.disabled');
+            document.getElementById('emailConfiguredValue').textContent = emailCfg ? i18n.t('notifications.config_yes') : i18n.t('notifications.config_no');
 
             const tgEnabled = !!ch.telegram?.enabled;
             const tgCfg = !!ch.telegram?.configured;
             document.getElementById('telegramToggle').checked = tgEnabled;
-            document.getElementById('telegramStatus').textContent = tgEnabled ? 'Enabled' : 'Disabled';
-            document.getElementById('telegramConfigured').textContent = `Config: ${tgCfg ? 'Yes' : 'No'}`;
+            document.getElementById('telegramStatus').textContent = tgEnabled ? i18n.t('notifications.enabled') : i18n.t('notifications.disabled');
+            document.getElementById('telegramConfiguredValue').textContent = tgCfg ? i18n.t('notifications.config_yes') : i18n.t('notifications.config_no');
 
             const slEnabled = !!ch.slack?.enabled;
             const slCfg = !!ch.slack?.configured;
             document.getElementById('slackToggle').checked = slEnabled;
-            document.getElementById('slackStatus').textContent = slEnabled ? 'Enabled' : 'Disabled';
-            document.getElementById('slackConfigured').textContent = `Config: ${slCfg ? 'Yes' : 'No'}`;
+            document.getElementById('slackStatus').textContent = slEnabled ? i18n.t('notifications.enabled') : i18n.t('notifications.disabled');
+            document.getElementById('slackConfiguredValue').textContent = slCfg ? i18n.t('notifications.config_yes') : i18n.t('notifications.config_no');
         }
 
         async function saveToggles() {
@@ -302,24 +337,95 @@
 
         function attachHandlers() {
             document.getElementById('emailToggle').addEventListener('change', async () => {
-                try { await saveToggles(); showAlert('success', 'Saved'); } catch (e) { showAlert('error', e.message); }
+                try { await saveToggles(); showAlert('success', i18n.t('notifications.saved')); } catch (e) { showAlert('error', e.message); }
             });
             document.getElementById('telegramToggle').addEventListener('change', async () => {
-                try { await saveToggles(); showAlert('success', 'Saved'); } catch (e) { showAlert('error', e.message); }
+                try { await saveToggles(); showAlert('success', i18n.t('notifications.saved')); } catch (e) { showAlert('error', e.message); }
             });
             document.getElementById('slackToggle').addEventListener('change', async () => {
-                try { await saveToggles(); showAlert('success', 'Saved'); } catch (e) { showAlert('error', e.message); }
+                try { await saveToggles(); showAlert('success', i18n.t('notifications.saved')); } catch (e) { showAlert('error', e.message); }
             });
 
             document.getElementById('emailTestBtn').addEventListener('click', async () => {
-                try { await sendTest('email'); showAlert('success', 'Email test sent'); } catch (e) { showAlert('error', e.message); }
+                try { await sendTest('email'); showAlert('success', i18n.t('notifications.email_test_sent')); } catch (e) { showAlert('error', e.message); }
             });
             document.getElementById('telegramTestBtn').addEventListener('click', async () => {
-                try { await sendTest('telegram'); showAlert('error', 'Telegram not configured'); } catch (e) { showAlert('error', e.message); }
+                try { await sendTest('telegram'); showAlert('success', i18n.t('notifications.telegram_test_sent')); } catch (e) { showAlert('error', e.message); }
             });
             document.getElementById('slackTestBtn').addEventListener('click', async () => {
-                try { await sendTest('slack'); showAlert('error', 'Slack not configured'); } catch (e) { showAlert('error', e.message); }
+                try { await sendTest('slack'); showAlert('success', i18n.t('notifications.slack_test_sent')); } catch (e) { showAlert('error', e.message); }
             });
+
+            const saveTg = document.getElementById('saveTelegramBtn');
+            if (saveTg) {
+                saveTg.addEventListener('click', async () => {
+                    try {
+                        await saveTelegramConfig();
+                        showAlert('success', i18n.t('notifications.save_success'));
+                        const channels = await fetchChannels();
+                        renderChannels(channels);
+                    } catch (e) { showAlert('error', e.message || i18n.t('notifications.save_failed')); }
+                });
+            }
+
+            const saveSl = document.getElementById('saveSlackBtn');
+            if (saveSl) {
+                saveSl.addEventListener('click', async () => {
+                    try {
+                        await saveSlackConfig();
+                        showAlert('success', i18n.t('notifications.save_success'));
+                        const channels = await fetchChannels();
+                        renderChannels(channels);
+                    } catch (e) { showAlert('error', e.message || i18n.t('notifications.save_failed')); }
+                });
+            }
+        }
+
+        async function fetchTelegramConfig() {
+            const token = auth.getToken();
+            const res = await fetch('/api/telegram/config', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) return null;
+            return res.json();
+        }
+
+        async function saveTelegramConfig() {
+            const token = auth.getToken();
+            const body = {
+                bot_token: document.getElementById('telegramBotToken').value.trim(),
+                chat_id: document.getElementById('telegramChatId').value.trim(),
+                enabled: document.getElementById('telegramToggle').checked
+            };
+            const res = await fetch('/api/telegram/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || i18n.t('notifications.save_failed'));
+            return data;
+        }
+
+        async function fetchSlackConfig() {
+            const token = auth.getToken();
+            const res = await fetch('/api/slack/config', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) return null;
+            return res.json();
+        }
+
+        async function saveSlackConfig() {
+            const token = auth.getToken();
+            const body = {
+                webhook_url: document.getElementById('slackWebhookUrl').value.trim(),
+                enabled: document.getElementById('slackToggle').checked
+            };
+            const res = await fetch('/api/slack/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || i18n.t('notifications.save_failed'));
+            return data;
         }
 
         async function init() {
@@ -332,6 +438,15 @@
             try {
                 const channels = await fetchChannels();
                 renderChannels(channels);
+                const tg = await fetchTelegramConfig();
+                if (tg) {
+                    document.getElementById('telegramBotToken').value = tg.bot_token || '';
+                    document.getElementById('telegramChatId').value = tg.chat_id || '';
+                }
+                const sl = await fetchSlackConfig();
+                if (sl) {
+                    document.getElementById('slackWebhookUrl').value = sl.webhook_url || '';
+                }
             } catch (e) {
                 showAlert('error', e.message);
             }

@@ -161,5 +161,29 @@
         "unauthorized": "Bạn không có quyền thực hiện hành động này.",
         "not_found": "Không tìm thấy tài nguyên được yêu cầu.",
         "server_error": "Lỗi máy chủ. Vui lòng liên hệ hỗ trợ."
+    },
+    "notifications": {
+        "title": "Thông báo",
+        "subtitle": "Bật/tắt các kênh và gửi tin nhắn kiểm tra.",
+        "email": "Email",
+        "telegram": "Telegram",
+        "slack": "Slack",
+        "enabled": "Đã bật",
+        "disabled": "Đã tắt",
+        "config": "Cấu hình",
+        "config_yes": "Có",
+        "config_no": "Không",
+        "test": "Kiểm tra",
+        "saved": "Đã lưu",
+        "load_failed": "Tải kênh thất bại",
+        "not_configured": "Chưa cấu hình",
+        "bot_token": "Bot Token",
+        "chat_id": "Chat ID",
+        "webhook_url": "Webhook URL",
+        "save_success": "Lưu cấu hình thành công",
+        "save_failed": "Lưu cấu hình thất bại",
+        "email_test_sent": "Đã gửi kiểm tra Email",
+        "telegram_test_sent": "Đã gửi kiểm tra Telegram",
+        "slack_test_sent": "Đã gửi kiểm tra Slack"
     }
 }

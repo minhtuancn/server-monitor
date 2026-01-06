@@ -161,5 +161,29 @@
         "unauthorized": "You don't have permission to perform this action.",
         "not_found": "The requested resource was not found.",
         "server_error": "Server error. Please contact support."
+    },
+    "notifications": {
+        "title": "Notifications",
+        "subtitle": "Enable or disable channels and send test messages.",
+        "email": "Email",
+        "telegram": "Telegram",
+        "slack": "Slack",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "config": "Config",
+        "config_yes": "Yes",
+        "config_no": "No",
+        "test": "Test",
+        "saved": "Saved",
+        "load_failed": "Failed to load channels",
+        "not_configured": "Not configured",
+        "bot_token": "Bot Token",
+        "chat_id": "Chat ID",
+        "webhook_url": "Webhook URL",
+        "save_success": "Configuration saved successfully",
+        "save_failed": "Failed to save configuration",
+        "email_test_sent": "Email test sent",
+        "telegram_test_sent": "Telegram test sent",
+        "slack_test_sent": "Slack test sent"
     }
 }
