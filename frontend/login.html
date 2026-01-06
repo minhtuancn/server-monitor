@@ -173,6 +173,7 @@
 
     <script type="module">
         import i18n from '/assets/js/i18n.js';
+        import auth from '/assets/js/auth.js';
 
         // Configuration - Dynamic API URL based on current host
         const API_URL = window.location.origin.replace(/:\d+$/, '') + ':9083';
@@ -207,22 +208,9 @@
             loginBtn.textContent = i18n ? i18n.t('common.loading') : 'Logging in...';
 
             try {
-                const response = await fetch(`${API_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
+                const success = await auth.login(username, password);
 
-                const data = await response.json();
-
-                if (data.success) {
-                    // Store token in localStorage
-                    localStorage.setItem('auth_token', data.token);
-                    localStorage.setItem('username', data.username);
-                    localStorage.setItem('expires_at', data.expires_at);
-
+                if (success) {
                     showAlert(i18n ? i18n.t('auth.loginSuccess') : 'Login successful! Redirecting...', 'success');
 
                     // Redirect to dashboard
@@ -230,10 +218,10 @@
                         window.location.href = 'dashboard.html';
                     }, 1000);
                 } else {
-                    showAlert(data.error || (i18n ? i18n.t('auth.loginFailed') : 'Login failed'));
+                    showAlert(i18n ? i18n.t('auth.loginFailed') : 'Login failed');
                 }
             } catch (error) {
-                showAlert(i18n ? i18n.t('errors.networkError') : 'Connection error. Please check if the API server is running.');
+                showAlert(error.message || (i18n ? i18n.t('errors.networkError') : 'Connection error. Please check if the API server is running.'));
                 console.error('Login error:', error);
             } finally {
                 loginBtn.disabled = false;
@@ -243,26 +231,8 @@
 
         // Check if already logged in
         window.addEventListener('load', async () => {
-            const token = localStorage.getItem('auth_token');
-
-            if (token) {
-                try {
-                    const response = await fetch(`${API_URL}/api/auth/verify`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    const data = await response.json();
-
-                    if (data.valid) {
-                        // Already logged in, redirect to dashboard
-                        window.location.href = 'dashboard.html';
-                    }
-                } catch (error) {
-                    // Token invalid or API not reachable
-                    localStorage.clear();
-                }
+            if (auth.isAuthenticated()) {
+                window.location.href = 'dashboard.html';
             }
         });
 
