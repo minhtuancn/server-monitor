@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH Key Management - Server Monitor v4.0</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --danger: #f56565;
+            --info: #4299e1;
+            --dark: #1a202c;
+            --gray: #718096;
+            --light: #f7fafc;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: var(--dark);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #38a169;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+        }
+        
+        .btn-outline:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--light);
+        }
+        
+        .card-header h2 {
+            font-size: 20px;
+            color: var(--dark);
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            text-align: left;
+            padding: 12px;
+            background: var(--light);
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 14px;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+        
+        tr:hover {
+            background: var(--light);
+        }
+        
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .badge-warning {
+            background: #fed7aa;
+            color: #7c2d12;
+        }
+        
+        .badge-info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h3 {
+            font-size: 20px;
+        }
+        
+        .close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--gray);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .form-group small {
+            color: var(--gray);
+            font-size: 12px;
+        }
+        
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .alert-danger {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gray);
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1><i class="fas fa-key"></i> SSH Key Management</h1>
+        <div class="header-actions">
+            <button class="btn btn-outline" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </button>
+            <button class="btn btn-success" onclick="openAddModal()">
+                <i class="fas fa-plus"></i> Add SSH Key
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Alert Messages -->
+        <div id="alertContainer"></div>
+
+        <!-- SSH Keys List -->
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-list"></i> SSH Keys</h2>
+                <button class="btn btn-primary btn-sm" onclick="loadKeys()">
+                    <i class="fas fa-sync"></i> Refresh
+                </button>
+            </div>
+            
+            <div id="keysContent">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading SSH keys...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit SSH Key Modal -->
+    <div id="keyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Add SSH Key</h3>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            
+            <form id="keyForm" onsubmit="saveKey(event)">
+                <input type="hidden" id="keyId">
+                
+                <div class="form-group">
+                    <label for="keyName">Key Name <span style="color: red;">*</span></label>
+                    <input type="text" id="keyName" required placeholder="e.g., Production Server Key">
+                    <small>A unique name to identify this SSH key</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="keyPath">Private Key Path <span style="color: red;">*</span></label>
+                    <input type="text" id="keyPath" required placeholder="/root/.ssh/id_rsa">
+                    <small>Full path to the private key file on this server</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="keyType">Key Type</label>
+                    <select id="keyType">
+                        <option value="rsa">RSA</option>
+                        <option value="ed25519">Ed25519</option>
+                        <option value="ecdsa">ECDSA</option>
+                        <option value="dsa">DSA</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="publicKey">Public Key (optional)</label>
+                    <textarea id="publicKey" placeholder="ssh-rsa AAAAB3NzaC1yc2EA..."></textarea>
+                    <small>Optional: Paste the public key content here for reference</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="passphrase">Passphrase (if key is encrypted)</label>
+                    <input type="password" id="passphrase" placeholder="Leave empty if key has no passphrase">
+                    <small>Only required if the private key is password-protected</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description / Notes</label>
+                    <textarea id="description" placeholder="Add notes about this key, which servers it's used for, etc."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <button type="submit" class="btn btn-success" style="flex: 1;">
+                        <i class="fas fa-save"></i> Save SSH Key
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Test SSH Key Modal -->
+    <div id="testModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Test SSH Key Connection</h3>
+                <button class="close" onclick="closeTestModal()">&times;</button>
+            </div>
+            
+            <form id="testForm" onsubmit="testKey(event)">
+                <input type="hidden" id="testKeyId">
+                
+                <div class="form-group">
+                    <label for="testHost">Host <span style="color: red;">*</span></label>
+                    <input type="text" id="testHost" required placeholder="192.168.1.100">
+                </div>
+                
+                <div class="form-group">
+                    <label for="testPort">Port</label>
+                    <input type="number" id="testPort" value="22" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="testUsername">Username <span style="color: red;">*</span></label>
+                    <input type="text" id="testUsername" required placeholder="root">
+                </div>
+                
+                <div id="testResult"></div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-plug"></i> Test Connection
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="closeTestModal()">
+                        Close
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect API port based on frontend port
+        const currentPort = window.location.port || '80';
+        const apiPort = currentPort === '9081' ? '9083' : (currentPort === '8081' ? '8083' : '9083');
+        const API_BASE = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
+        let authToken = localStorage.getItem('authToken');
+        let sshKeys = [];
+
+        // Check authentication
+        if (!authToken) {
+            window.location.href = 'login.html';
+        }
+
+        // Load SSH keys on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadKeys();
+        });
+
+        // Load all SSH keys
+        async function loadKeys() {
+            try {
+                const response = await fetch(`${API_BASE}/api/ssh-keys`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to load SSH keys');
+                }
+
+                sshKeys = await response.json();
+                renderKeys();
+            } catch (error) {
+                console.error('Error loading SSH keys:', error);
+                showAlert('Failed to load SSH keys: ' + error.message, 'danger');
+                document.getElementById('keysContent').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error Loading SSH Keys</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render SSH keys table
+        function renderKeys() {
+            const container = document.getElementById('keysContent');
+
+            if (sshKeys.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-key"></i>
+                        <h3>No SSH Keys Found</h3>
+                        <p>Add your first SSH key to start managing server connections</p>
+                        <button class="btn btn-success" onclick="openAddModal()" style="margin-top: 20px;">
+                            <i class="fas fa-plus"></i> Add SSH Key
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Key Type</th>
+                                <th>Private Key Path</th>
+                                <th>Fingerprint</th>
+                                <th>Description</th>
+                                <th>Last Used</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            sshKeys.forEach(key => {
+                const lastUsed = key.last_used ? new Date(key.last_used).toLocaleString() : 'Never';
+                const fingerprint = key.fingerprint ? key.fingerprint.substring(0, 16) + '...' : 'N/A';
+                
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(key.name)}</strong></td>
+                        <td><span class="badge badge-info">${key.key_type.toUpperCase()}</span></td>
+                        <td><code style="font-size: 12px;">${escapeHtml(key.private_key_path)}</code></td>
+                        <td><small>${fingerprint}</small></td>
+                        <td>${escapeHtml(key.description || '-')}</td>
+                        <td><small>${lastUsed}</small></td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-primary btn-sm" onclick="openTestModal(${key.id})" title="Test Connection">
+                                    <i class="fas fa-plug"></i>
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="openEditModal(${key.id})" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteKey(${key.id}, '${escapeHtml(key.name)}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Open add modal
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = 'Add SSH Key';
+            document.getElementById('keyForm').reset();
+            document.getElementById('keyId').value = '';
+            document.getElementById('keyModal').classList.add('show');
+        }
+
+        // Open edit modal
+        function openEditModal(keyId) {
+            const key = sshKeys.find(k => k.id === keyId);
+            if (!key) return;
+
+            document.getElementById('modalTitle').textContent = 'Edit SSH Key';
+            document.getElementById('keyId').value = key.id;
+            document.getElementById('keyName').value = key.name;
+            document.getElementById('keyPath').value = key.private_key_path;
+            document.getElementById('keyType').value = key.key_type;
+            document.getElementById('publicKey').value = key.public_key || '';
+            document.getElementById('description').value = key.description || '';
+            // Don't populate passphrase for security
+            document.getElementById('passphrase').value = '';
+
+            document.getElementById('keyModal').classList.add('show');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('keyModal').classList.remove('show');
+        }
+
+        // Save SSH key (add or update)
+        async function saveKey(event) {
+            event.preventDefault();
+
+            const keyId = document.getElementById('keyId').value;
+            const data = {
+                name: document.getElementById('keyName').value,
+                private_key_path: document.getElementById('keyPath').value,
+                key_type: document.getElementById('keyType').value,
+                public_key: document.getElementById('publicKey').value,
+                passphrase: document.getElementById('passphrase').value,
+                description: document.getElementById('description').value
+            };
+
+            try {
+                const url = keyId ? `${API_BASE}/api/ssh-keys/${keyId}` : `${API_BASE}/api/ssh-keys`;
+                const method = keyId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    closeModal();
+                    loadKeys();
+                } else {
+                    showAlert('Error: ' + result.error, 'danger');
+                }
+            } catch (error) {
+                console.error('Error saving SSH key:', error);
+                showAlert('Failed to save SSH key: ' + error.message, 'danger');
+            }
+        }
+
+        // Delete SSH key
+        async function deleteKey(keyId, keyName) {
+            if (!confirm(`Are you sure you want to delete SSH key "${keyName}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/ssh-keys/${keyId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadKeys();
+                } else {
+                    showAlert('Error: ' + result.error, 'danger');
+                }
+            } catch (error) {
+                console.error('Error deleting SSH key:', error);
+                showAlert('Failed to delete SSH key: ' + error.message, 'danger');
+            }
+        }
+
+        // Open test modal
+        function openTestModal(keyId) {
+            document.getElementById('testKeyId').value = keyId;
+            document.getElementById('testForm').reset();
+            document.getElementById('testPort').value = '22';
+            document.getElementById('testResult').innerHTML = '';
+            document.getElementById('testModal').classList.add('show');
+        }
+
+        // Close test modal
+        function closeTestModal() {
+            document.getElementById('testModal').classList.remove('show');
+        }
+
+        // Test SSH key connection
+        async function testKey(event) {
+            event.preventDefault();
+
+            const keyId = document.getElementById('testKeyId').value;
+            const data = {
+                host: document.getElementById('testHost').value,
+                port: parseInt(document.getElementById('testPort').value),
+                username: document.getElementById('testUsername').value
+            };
+
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin"></i> Testing connection...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/ssh-keys/${keyId}/test`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> ${result.message}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> Connection failed: ${result.error}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error testing SSH key:', error);
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle"></i> Test failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // Show alert message
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+                ${message}
+            `;
+            container.appendChild(alert);
+
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modals on ESC key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+                closeTestModal();
+            }
+        });
+    </script>
+</body>
+</html>

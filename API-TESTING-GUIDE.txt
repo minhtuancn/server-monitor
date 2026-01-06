@@ -1,0 +1,501 @@
+╔═══════════════════════════════════════════════════════════╗
+║  API TESTING GUIDE - Multi-Server Monitor v4             ║
+╚═══════════════════════════════════════════════════════════╝
+
+QUICK START
+═══════════════════════════════════════════════════════════
+
+1. Start the API server:
+   $ cd /opt/server-monitor-dev
+   $ ./start-central.sh
+
+2. Create admin user (if not done):
+   $ cd backend
+   $ python3 database.py
+
+3. Test the API endpoints below
+
+═══════════════════════════════════════════════════════════
+
+AUTHENTICATION ENDPOINTS
+═══════════════════════════════════════════════════════════
+
+1. Login
+   ─────────────────────────────────────────────────────────
+   POST /api/auth/login
+   
+   Request:
+   curl -X POST http://localhost:9083/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{
+       "username": "admin",
+       "password": "admin123"
+     }'
+   
+   Response:
+   {
+     "success": true,
+     "token": "qwZ9x..._long_token_...",
+     "username": "admin",
+     "expires_at": "2025-01-13T23:59:59"
+   }
+   
+   ⚠️  Save the token for subsequent requests!
+
+2. Verify Session
+   ─────────────────────────────────────────────────────────
+   GET /api/auth/verify
+   
+   Request:
+   curl http://localhost:9083/api/auth/verify \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   
+   Response:
+   {
+     "valid": true,
+     "username": "admin",
+     "role": "admin"
+   }
+
+3. Logout
+   ─────────────────────────────────────────────────────────
+   POST /api/auth/logout
+   
+   Request:
+   curl -X POST http://localhost:9083/api/auth/logout \
+     -H "Authorization: Bearer YOUR_TOKEN_HERE"
+   
+   Response:
+   {
+     "success": true
+   }
+
+═══════════════════════════════════════════════════════════
+
+SERVER MANAGEMENT
+═══════════════════════════════════════════════════════════
+
+1. Add Server with SSH Key
+   ─────────────────────────────────────────────────────────
+   POST /api/servers
+   
+   Request:
+   curl -X POST http://localhost:9083/api/servers \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "My LXC Container",
+       "host": "192.168.1.100",
+       "port": 22,
+       "username": "root",
+       "description": "Production server",
+       "ssh_key_path": "~/.ssh/id_rsa",
+       "agent_port": 8083,
+       "tags": "lxc,production"
+     }'
+
+2. Add Server with Password
+   ─────────────────────────────────────────────────────────
+   POST /api/servers
+   
+   Request:
+   curl -X POST http://localhost:9083/api/servers \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Password Server",
+       "host": "192.168.1.101",
+       "port": 22,
+       "username": "admin",
+       "ssh_password": "secretpass123",
+       "description": "Test server with password",
+       "agent_port": 8083
+     }'
+
+3. List All Servers (Public - No Auth Required)
+   ─────────────────────────────────────────────────────────
+   GET /api/servers
+   
+   Request:
+   curl http://localhost:9083/api/servers
+   
+   Response:
+   [
+     {
+       "id": 1,
+       "name": "My LXC Container",
+       "host": "192.168.1.100",
+       "port": 22,
+       "username": "root",
+       "status": "online",
+       "last_seen": "2025-01-06T10:30:00",
+       "description": "Production server"
+     }
+   ]
+   
+   Note: ssh_key_path and ssh_password are hidden for public access
+
+4. Get Server Details
+   ─────────────────────────────────────────────────────────
+   GET /api/servers/<id>
+   
+   Request:
+   curl http://localhost:9083/api/servers/1
+
+5. Update Server
+   ─────────────────────────────────────────────────────────
+   PUT /api/servers/<id>
+   
+   Request:
+   curl -X PUT http://localhost:9083/api/servers/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "description": "Updated description",
+       "timezone": "America/New_York"
+     }'
+
+6. Delete Server
+   ─────────────────────────────────────────────────────────
+   DELETE /api/servers/<id>
+   
+   Request:
+   curl -X DELETE http://localhost:9083/api/servers/1 \
+     -H "Authorization: Bearer YOUR_TOKEN"
+
+7. Test SSH Connection
+   ─────────────────────────────────────────────────────────
+   POST /api/servers/test
+   
+   Request:
+   curl -X POST http://localhost:9083/api/servers/test \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "host": "192.168.1.100",
+       "port": 22,
+       "username": "root",
+       "ssh_key_path": "~/.ssh/id_rsa"
+     }'
+   
+   Or with password:
+   curl -X POST http://localhost:9083/api/servers/test \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "host": "192.168.1.100",
+       "port": 22,
+       "username": "root",
+       "password": "secretpass"
+     }'
+
+═══════════════════════════════════════════════════════════
+
+MONITORING & STATISTICS
+═══════════════════════════════════════════════════════════
+
+1. Get Single Server Stats
+   ─────────────────────────────────────────────────────────
+   GET /api/remote/stats/<server_id>
+   
+   Request:
+   curl http://localhost:9083/api/remote/stats/1
+   
+   Response:
+   {
+     "cpu": {
+       "percent": 45.2,
+       "count": 4
+     },
+     "memory": {
+       "total": 8192,
+       "used": 4096,
+       "percent": 50.0
+     },
+     "disk": {...},
+     "network": {...},
+     "processes": [...],
+     "services": [...],
+     "server_info": {
+       "id": 1,
+       "name": "My Server",
+       "host": "192.168.1.100"
+     }
+   }
+
+2. Get All Servers Stats
+   ─────────────────────────────────────────────────────────
+   GET /api/remote/stats/all
+   
+   Request:
+   curl http://localhost:9083/api/remote/stats/all
+   
+   Note: Returns array of all server stats
+
+3. Get Overview Statistics (Public)
+   ─────────────────────────────────────────────────────────
+   GET /api/stats/overview
+   
+   Request:
+   curl http://localhost:9083/api/stats/overview
+   
+   Response:
+   {
+     "total_servers": 10,
+     "online_servers": 8,
+     "offline_servers": 2,
+     "unknown_servers": 0,
+     "unread_alerts": 3
+   }
+
+═══════════════════════════════════════════════════════════
+
+AGENT MANAGEMENT
+═══════════════════════════════════════════════════════════
+
+1. Deploy Agent to Server
+   ─────────────────────────────────────────────────────────
+   POST /api/remote/agent/deploy/<server_id>
+   
+   Request:
+   curl -X POST http://localhost:9083/api/remote/agent/deploy/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "remote_path": "/opt/monitoring_agent.py"
+     }'
+   
+   Response:
+   {
+     "success": true,
+     "message": "Agent deployed to /opt/monitoring_agent.py"
+   }
+
+2. Start Agent on Server
+   ─────────────────────────────────────────────────────────
+   POST /api/remote/agent/start/<server_id>
+   
+   Request:
+   curl -X POST http://localhost:9083/api/remote/agent/start/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "agent_path": "/opt/monitoring_agent.py"
+     }'
+
+3. Execute Remote Action
+   ─────────────────────────────────────────────────────────
+   POST /api/remote/action/<server_id>
+   
+   Kill Process:
+   curl -X POST http://localhost:9083/api/remote/action/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "action_type": "kill_process",
+       "action_data": {
+         "pid": 12345
+       }
+     }'
+   
+   Restart Service:
+   curl -X POST http://localhost:9083/api/remote/action/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "action_type": "service_action",
+       "action_data": {
+         "service": "nginx",
+         "action": "restart"
+       }
+     }'
+   
+   Docker Command:
+   curl -X POST http://localhost:9083/api/remote/action/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "action_type": "docker_action",
+       "action_data": {
+         "container": "my-app",
+         "action": "restart"
+       }
+     }'
+
+═══════════════════════════════════════════════════════════
+
+COMMAND SNIPPETS
+═══════════════════════════════════════════════════════════
+
+1. Create Snippet
+   ─────────────────────────────────────────────────────────
+   POST /api/snippets
+   
+   Request:
+   curl -X POST http://localhost:9083/api/snippets \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "System Update",
+       "command": "apt-get update && apt-get upgrade -y",
+       "description": "Update all system packages",
+       "category": "system",
+       "is_sudo": 1
+     }'
+
+2. List All Snippets
+   ─────────────────────────────────────────────────────────
+   GET /api/snippets
+   
+   Request:
+   curl http://localhost:9083/api/snippets
+   
+   Filter by category:
+   curl http://localhost:9083/api/snippets?category=docker
+
+3. Get Snippet Details
+   ─────────────────────────────────────────────────────────
+   GET /api/snippets/<id>
+   
+   Request:
+   curl http://localhost:9083/api/snippets/1
+
+4. Update Snippet
+   ─────────────────────────────────────────────────────────
+   PUT /api/snippets/<id>
+   
+   Request:
+   curl -X PUT http://localhost:9083/api/snippets/1 \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "description": "Updated description",
+       "command": "apt update && apt upgrade -y"
+     }'
+
+5. Delete Snippet
+   ─────────────────────────────────────────────────────────
+   DELETE /api/snippets/<id>
+   
+   Request:
+   curl -X DELETE http://localhost:9083/api/snippets/1 \
+     -H "Authorization: Bearer YOUR_TOKEN"
+
+═══════════════════════════════════════════════════════════
+
+ALERTS
+═══════════════════════════════════════════════════════════
+
+1. Get All Alerts
+   ─────────────────────────────────────────────────────────
+   GET /api/alerts
+   
+   Request:
+   curl http://localhost:9083/api/alerts
+   
+   Filter by server:
+   curl http://localhost:9083/api/alerts?server_id=1
+   
+   Filter by read status:
+   curl http://localhost:9083/api/alerts?is_read=0
+
+═══════════════════════════════════════════════════════════
+
+WEB TERMINAL (WebSocket)
+═══════════════════════════════════════════════════════════
+
+1. Start Terminal Server:
+   $ cd /opt/server-monitor-dev/backend
+   $ python3 terminal.py
+
+2. Connect with JavaScript:
+   
+   const ws = new WebSocket('ws://localhost:9084');
+   
+   // Send authentication + server ID
+   ws.onopen = () => {
+     ws.send(JSON.stringify({
+       token: 'YOUR_TOKEN',
+       server_id: 1
+     }));
+   };
+   
+   // Receive messages
+   ws.onmessage = (event) => {
+     const data = JSON.parse(event.data);
+     
+     if (data.type === 'connected') {
+       console.log('Connected:', data.message);
+     } else if (data.type === 'output') {
+       console.log('Output:', data.data);
+     } else if (data.type === 'error') {
+       console.error('Error:', data.message);
+     }
+   };
+   
+   // Send input
+   ws.send(JSON.stringify({
+     type: 'input',
+     data: 'ls -la\n'
+   }));
+   
+   // Resize terminal
+   ws.send(JSON.stringify({
+     type: 'resize',
+     cols: 120,
+     rows: 30
+   }));
+
+═══════════════════════════════════════════════════════════
+
+COMMON WORKFLOWS
+═══════════════════════════════════════════════════════════
+
+1. Complete Server Setup Flow:
+   ─────────────────────────────────────────────────────────
+   a) Login to get token
+   b) Add server with POST /api/servers
+   c) Test connection with POST /api/servers/test
+   d) Deploy agent with POST /api/remote/agent/deploy/<id>
+   e) Start agent with POST /api/remote/agent/start/<id>
+   f) Get stats with GET /api/remote/stats/<id>
+
+2. Monitor All Servers:
+   ─────────────────────────────────────────────────────────
+   a) GET /api/remote/stats/all
+   b) Parse results and display in dashboard
+   c) Poll every 5-10 seconds for updates
+
+3. Execute Commands:
+   ─────────────────────────────────────────────────────────
+   a) Create snippet with POST /api/snippets
+   b) Get snippet with GET /api/snippets/<id>
+   c) Execute via POST /api/remote/action/<server_id>
+
+═══════════════════════════════════════════════════════════
+
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════
+
+1. "Authentication required" error
+   → Make sure to include Authorization header:
+     -H "Authorization: Bearer YOUR_TOKEN"
+
+2. "Connection failed" error
+   → Check if SSH credentials are correct
+   → Test with: POST /api/servers/test
+
+3. "Agent not running" error
+   → Deploy agent first: POST /api/remote/agent/deploy/<id>
+   → Start agent: POST /api/remote/agent/start/<id>
+
+4. "Invalid session" error
+   → Token expired (7 days), login again
+   → Check token with: GET /api/auth/verify
+
+═══════════════════════════════════════════════════════════
+
+For more information, see:
+  - INSTALL.txt           - Installation guide
+  - CHANGELOG-V4.txt      - What's new in v4
+  - MULTI-SERVER-GUIDE.md - Complete documentation

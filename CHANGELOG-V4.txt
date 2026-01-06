@@ -1,0 +1,257 @@
+╔═══════════════════════════════════════════════════════════╗
+║  CHANGELOG - Multi-Server Monitor v4                     ║
+╚═══════════════════════════════════════════════════════════╝
+
+VERSION 4.0 - Major Update (2025-01-06)
+════════════════════════════════════════════════════════════
+
+🔐 AUTHENTICATION & SECURITY
+────────────────────────────────────────────────────────────
+✅ Full authentication system with session tokens
+✅ Login/logout endpoints (POST /api/auth/login, /api/auth/logout)
+✅ Session verification (GET /api/auth/verify)
+✅ Admin users table with password hashing (SHA256)
+✅ Session expiration (7 days, auto-cleanup on startup)
+✅ Public read-only endpoints (servers list, stats overview)
+✅ Protected admin endpoints (require authentication token)
+✅ SSH password encryption in database (XOR + Base64)
+✅ Support for both SSH key AND password authentication
+
+📊 DATABASE ENHANCEMENTS
+────────────────────────────────────────────────────────────
+✅ Added 'timezone' column to servers table (default: UTC)
+✅ Added 'connection_timeout' column (default: 10 seconds)
+✅ Added 'ssh_password' column (encrypted storage)
+✅ New 'admin_users' table for authentication
+✅ New 'sessions' table for token management
+✅ New 'command_snippets' table for reusable commands
+✅ Session cleanup function (cleanup_expired_sessions)
+✅ Full CRUD operations for command snippets
+
+💻 COMMAND SNIPPETS SYSTEM
+────────────────────────────────────────────────────────────
+✅ Create/Read/Update/Delete command snippets
+✅ Organize by category (general, docker, system, etc.)
+✅ Mark sudo requirement flag
+✅ Track creator (user_id)
+✅ API endpoints:
+   - GET /api/snippets - List all snippets
+   - POST /api/snippets - Create new snippet
+   - GET /api/snippets/<id> - Get snippet details
+   - PUT /api/snippets/<id> - Update snippet
+   - DELETE /api/snippets/<id> - Delete snippet
+
+🖥️  WEB TERMINAL
+────────────────────────────────────────────────────────────
+✅ WebSocket-based SSH terminal (terminal.py)
+✅ Real-time bidirectional communication
+✅ Terminal resize support
+✅ Session management per user+server
+✅ Authentication required (token-based)
+✅ Runs on separate port (9084)
+✅ Protocol:
+   - Connect: ws://server:9084
+   - Init: {"token": "...", "server_id": 123}
+   - Input: {"type": "input", "data": "command\n"}
+   - Output: {"type": "output", "data": "..."}
+   - Resize: {"type": "resize", "cols": 120, "rows": 30}
+
+⚡ PERFORMANCE OPTIMIZATIONS
+────────────────────────────────────────────────────────────
+✅ Connection timeout optimization
+✅ ThreadPoolExecutor for async operations
+✅ Quick connection test (5s timeout)
+✅ Normal operations (10s timeout)
+✅ Function: get_remote_agent_data_with_timeout()
+✅ Configurable timeout per server
+✅ Non-blocking timeout handling with futures
+
+🔧 API IMPROVEMENTS
+────────────────────────────────────────────────────────────
+✅ Updated central_api.py to v4
+✅ Authentication middleware for all POST/PUT/DELETE
+✅ Helper function: get_server_with_auth() - auto-decrypts passwords
+✅ Helper function: verify_auth_token() - validates session
+✅ All SSH operations now support password parameter
+✅ SSH password support in:
+   - test_connection()
+   - deploy_agent()
+   - start_remote_agent()
+   - execute_remote_action()
+   - get_remote_agent_data()
+
+🎨 FRONTEND
+────────────────────────────────────────────────────────────
+✅ Login page (login.html)
+✅ Beautiful gradient design
+✅ Mobile-responsive
+✅ localStorage token management
+✅ Auto-redirect if already logged in
+✅ Error handling with user feedback
+✅ Success/error alerts
+
+📝 NEW API ENDPOINTS
+────────────────────────────────────────────────────────────
+Authentication:
+  POST   /api/auth/login          - Login with username/password
+  POST   /api/auth/logout         - Logout (invalidate token)
+  GET    /api/auth/verify         - Verify current session
+
+Command Snippets:
+  GET    /api/snippets            - List all snippets (filter by category)
+  POST   /api/snippets            - Create new snippet (auth required)
+  GET    /api/snippets/<id>       - Get snippet by ID
+  PUT    /api/snippets/<id>       - Update snippet (auth required)
+  DELETE /api/snippets/<id>       - Delete snippet (auth required)
+
+Existing endpoints now protected:
+  POST   /api/servers             - Add server (auth required)
+  PUT    /api/servers/<id>        - Update server (auth required)
+  DELETE /api/servers/<id>        - Delete server (auth required)
+  POST   /api/servers/test        - Test connection (auth required)
+  POST   /api/remote/agent/*      - Agent operations (auth required)
+  POST   /api/remote/action/*     - Remote actions (auth required)
+
+Public endpoints (no auth):
+  GET    /api/servers             - List servers (sensitive data hidden)
+  GET    /api/stats/overview      - Get overview statistics
+
+🔄 BREAKING CHANGES
+────────────────────────────────────────────────────────────
+⚠️  Authentication now required for most operations
+⚠️  Client must include 'Authorization: Bearer <token>' header
+⚠️  Database schema changed (auto-migrated on first run)
+⚠️  Default admin user created on first init
+⚠️  Sessions expire after 7 days
+
+📦 DEPENDENCIES
+────────────────────────────────────────────────────────────
+NEW:
+  - websockets  (for web terminal)
+
+EXISTING:
+  - paramiko    (SSH connections)
+
+Install:
+  $ pip3 install paramiko websockets
+
+🚀 HOW TO UPGRADE FROM V3
+────────────────────────────────────────────────────────────
+
+1. Stop running services:
+   $ pkill -f central_api.py
+
+2. Install new dependencies:
+   $ pip3 install websockets
+
+3. Initialize database (adds new tables):
+   $ cd /opt/server-monitor-dev/backend
+   $ python3 database.py
+
+4. Start central server:
+   $ cd /opt/server-monitor-dev
+   $ ./start-central.sh
+
+5. (Optional) Start terminal server:
+   $ cd /opt/server-monitor-dev/backend
+   $ python3 terminal.py
+
+6. Login with default credentials:
+   Username: admin
+   Password: admin123
+   
+   ⚠️  CHANGE PASSWORD IMMEDIATELY!
+
+📖 USAGE EXAMPLES
+────────────────────────────────────────────────────────────
+
+1. Login:
+   $ curl -X POST http://localhost:9083/api/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"admin123"}'
+   
+   Response:
+   {
+     "success": true,
+     "token": "abc123...",
+     "username": "admin",
+     "expires_at": "2025-01-13T23:59:59"
+   }
+
+2. Add server with password:
+   $ curl -X POST http://localhost:9083/api/servers \
+     -H "Authorization: Bearer abc123..." \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "My Server",
+       "host": "192.168.1.100",
+       "username": "root",
+       "ssh_password": "mypassword",
+       "port": 22,
+       "agent_port": 8083
+     }'
+
+3. Create command snippet:
+   $ curl -X POST http://localhost:9083/api/snippets \
+     -H "Authorization: Bearer abc123..." \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "System Update",
+       "command": "apt-get update && apt-get upgrade -y",
+       "description": "Update system packages",
+       "category": "system",
+       "is_sudo": 1
+     }'
+
+4. Connect to web terminal:
+   const ws = new WebSocket('ws://localhost:9084');
+   
+   ws.onopen = () => {
+     ws.send(JSON.stringify({
+       token: 'abc123...',
+       server_id: 1
+     }));
+   };
+   
+   ws.onmessage = (event) => {
+     const data = JSON.parse(event.data);
+     if (data.type === 'output') {
+       console.log(data.data);
+     }
+   };
+   
+   // Send command
+   ws.send(JSON.stringify({
+     type: 'input',
+     data: 'ls -la\n'
+   }));
+
+🐛 BUG FIXES
+────────────────────────────────────────────────────────────
+✅ Fixed SSH password not being passed to remote operations
+✅ Fixed session cleanup not running
+✅ Fixed connection pool not handling password auth
+✅ Fixed server list exposing sensitive data to public
+
+🔮 FUTURE ENHANCEMENTS (Not Yet Implemented)
+────────────────────────────────────────────────────────────
+⏳ Full dashboard HTML interface
+⏳ Real-time charts and graphs
+⏳ Alert notifications (email/webhook)
+⏳ Multi-user role management (viewer/operator/admin)
+⏳ Server groups and bulk operations
+⏳ Scheduled tasks and cron jobs
+⏳ File browser and transfer
+⏳ Log viewer and search
+⏳ Two-factor authentication (2FA)
+⏳ LDAP/Active Directory integration
+
+═══════════════════════════════════════════════════════════
+
+For questions or issues, check the documentation:
+  - INSTALL.txt           - Installation guide
+  - MULTI-SERVER-GUIDE.md - Complete user guide
+  - README-MULTI-SERVER.md - Quick start
+
+Version: 4.0
+Date: 2025-01-06

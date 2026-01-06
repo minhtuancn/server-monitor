@@ -1,0 +1,18 @@
+[Unit]
+Description=Advanced Server Dashboard API v2
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/bin/python3 /root/server_dashboard_api_v2.py
+Restart=always
+RestartSec=5
+
+# Resource limits
+MemoryMax=50M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target

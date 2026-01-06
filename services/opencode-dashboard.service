@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenCode Status Dashboard Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/html
+ExecStart=/usr/bin/python3 /root/status_webserver.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

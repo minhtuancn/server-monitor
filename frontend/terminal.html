@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terminal - Server Monitor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --success: #48bb78;
+            --warning: #ed8936;
+            --danger: #f56565;
+            --dark: #1a202c;
+            --terminal-bg: #0d1117;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--terminal-bg);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .terminal-header {
+            background: var(--dark);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .terminal-header .left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .terminal-header .server-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .terminal-header .server-host {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .terminal-header .status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .status.connected {
+            background: rgba(72, 187, 120, 0.2);
+            color: var(--success);
+        }
+        
+        .status.disconnected {
+            background: rgba(245, 101, 101, 0.2);
+            color: var(--danger);
+        }
+        
+        .status.connecting {
+            background: rgba(237, 137, 54, 0.2);
+            color: var(--warning);
+        }
+        
+        .terminal-header .actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #444;
+            color: #ccc;
+        }
+        
+        .btn-outline:hover {
+            background: #333;
+            border-color: #555;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        /* Terminal Container */
+        .terminal-container {
+            flex: 1;
+            padding: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #terminal {
+            flex: 1;
+            width: 100%;
+        }
+        
+        /* Connection overlay */
+        .connection-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        .connection-overlay.hidden {
+            display: none;
+        }
+        
+        .connection-overlay .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .connection-overlay .message {
+            font-size: 16px;
+            color: #888;
+        }
+        
+        .connection-overlay .error {
+            color: var(--danger);
+            margin-top: 10px;
+        }
+        
+        .connection-overlay .retry-btn {
+            margin-top: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Quick commands bar */
+        .quick-commands {
+            background: #161b22;
+            padding: 8px 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
+        
+        .quick-cmd {
+            padding: 5px 12px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            color: #c9d1d9;
+            font-size: 12px;
+            cursor: pointer;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            transition: all 0.2s;
+        }
+        
+        .quick-cmd:hover {
+            background: #30363d;
+            border-color: #484f58;
+        }
+        
+        /* Mobile keyboard button */
+        .mobile-keyboard-btn {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+        
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 2000;
+        }
+        
+        .toast {
+            padding: 12px 20px;
+            background: var(--dark);
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s;
+            font-size: 14px;
+        }
+        
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.warning { background: var(--warning); }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .terminal-header {
+                padding: 10px 15px;
+            }
+            
+            .terminal-header .server-host {
+                display: none;
+            }
+            
+            .btn span {
+                display: none;
+            }
+            
+            .btn {
+                padding: 8px 10px;
+            }
+            
+            .mobile-keyboard-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .quick-commands {
+                padding: 8px 10px;
+            }
+            
+            .quick-cmd {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+        }
+        
+        /* Custom scrollbar for terminal */
+        .xterm-viewport::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        .xterm-viewport::-webkit-scrollbar-track {
+            background: #161b22;
+        }
+        
+        .xterm-viewport::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 5px;
+        }
+        
+        .xterm-viewport::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="terminal-header">
+        <div class="left">
+            <a href="dashboard.html" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                <span>Back</span>
+            </a>
+            <div>
+                <div class="server-name" id="serverName">Loading...</div>
+                <div class="server-host" id="serverHost"></div>
+            </div>
+            <span class="status connecting" id="connectionStatus">Connecting...</span>
+        </div>
+        <div class="actions">
+            <button class="btn btn-outline" onclick="copySelection()" title="Copy">
+                <i class="fas fa-copy"></i>
+                <span>Copy</span>
+            </button>
+            <button class="btn btn-outline" onclick="pasteClipboard()" title="Paste">
+                <i class="fas fa-paste"></i>
+                <span>Paste</span>
+            </button>
+            <button class="btn btn-outline" onclick="clearTerminal()" title="Clear">
+                <i class="fas fa-eraser"></i>
+                <span>Clear</span>
+            </button>
+            <button class="btn btn-danger" onclick="disconnect()" title="Disconnect">
+                <i class="fas fa-plug"></i>
+                <span>Disconnect</span>
+            </button>
+        </div>
+    </header>
+    
+    <!-- Terminal -->
+    <div class="terminal-container">
+        <div id="terminal"></div>
+    </div>
+    
+    <!-- Quick Commands -->
+    <div class="quick-commands">
+        <button class="quick-cmd" onclick="sendCommand('ls -la\n')">ls -la</button>
+        <button class="quick-cmd" onclick="sendCommand('htop\n')">htop</button>
+        <button class="quick-cmd" onclick="sendCommand('df -h\n')">df -h</button>
+        <button class="quick-cmd" onclick="sendCommand('free -m\n')">free -m</button>
+        <button class="quick-cmd" onclick="sendCommand('top -bn1 | head -20\n')">top</button>
+        <button class="quick-cmd" onclick="sendCommand('docker ps\n')">docker ps</button>
+        <button class="quick-cmd" onclick="sendCommand('systemctl status\n')">systemctl</button>
+        <button class="quick-cmd" onclick="sendCommand('netstat -tlnp\n')">netstat</button>
+        <button class="quick-cmd" onclick="sendCommand('\x03')">Ctrl+C</button>
+        <button class="quick-cmd" onclick="sendCommand('\x04')">Ctrl+D</button>
+    </div>
+    
+    <!-- Mobile Keyboard Button -->
+    <button class="mobile-keyboard-btn" onclick="focusTerminal()">
+        <i class="fas fa-keyboard"></i>
+    </button>
+    
+    <!-- Connection Overlay -->
+    <div class="connection-overlay" id="connectionOverlay">
+        <div class="spinner"></div>
+        <div class="message" id="overlayMessage">Connecting to server...</div>
+        <div class="error" id="overlayError" style="display: none;"></div>
+        <button class="btn btn-primary retry-btn" id="retryBtn" style="display: none;" onclick="reconnect()">
+            <i class="fas fa-redo"></i> Retry
+        </button>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/xterm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/addons/fit/fit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/5.3.0/addons/web-links/web-links.min.js"></script>
+    <script>
+        // Configuration
+        // Auto-detect API port based on frontend port
+        const currentPort = window.location.port || '80';
+        const apiPort = currentPort === '9081' ? '9083' : (currentPort === '8081' ? '8083' : '9083');
+        const wsPort = currentPort === '9081' ? '9084' : (currentPort === '8081' ? '8084' : '9084');
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
+        const WS_URL = `${window.location.protocol.replace('http', 'ws')}//${window.location.hostname}:${wsPort}`;
+        
+        // Get server ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverId = urlParams.get('server');
+        const authToken = localStorage.getItem('auth_token');
+        
+        // Terminal instance
+        let term = null;
+        let fitAddon = null;
+        let ws = null;
+        let isConnected = false;
+        let serverInfo = null;
+        
+        // Initialize terminal
+        function initTerminal() {
+            term = new Terminal({
+                cursorBlink: true,
+                cursorStyle: 'block',
+                fontSize: 14,
+                fontFamily: '"Menlo", "Monaco", "Courier New", monospace',
+                theme: {
+                    background: '#0d1117',
+                    foreground: '#c9d1d9',
+                    cursor: '#58a6ff',
+                    cursorAccent: '#0d1117',
+                    selection: 'rgba(56, 139, 253, 0.4)',
+                    black: '#484f58',
+                    red: '#ff7b72',
+                    green: '#3fb950',
+                    yellow: '#d29922',
+                    blue: '#58a6ff',
+                    magenta: '#bc8cff',
+                    cyan: '#39c5cf',
+                    white: '#b1bac4',
+                    brightBlack: '#6e7681',
+                    brightRed: '#ffa198',
+                    brightGreen: '#56d364',
+                    brightYellow: '#e3b341',
+                    brightBlue: '#79c0ff',
+                    brightMagenta: '#d2a8ff',
+                    brightCyan: '#56d4dd',
+                    brightWhite: '#f0f6fc'
+                },
+                allowProposedApi: true,
+                scrollback: 5000
+            });
+            
+            // Load addons
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            
+            // Web links addon
+            const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+            term.loadAddon(webLinksAddon);
+            
+            // Open terminal
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+            
+            // Handle input
+            term.onData((data) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'input',
+                        data: data
+                    }));
+                }
+            });
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                if (fitAddon) {
+                    fitAddon.fit();
+                    sendResize();
+                }
+            });
+            
+            // Welcome message
+            term.writeln('\x1b[1;36m========================================\x1b[0m');
+            term.writeln('\x1b[1;36m  Multi-Server Monitor - Web Terminal  \x1b[0m');
+            term.writeln('\x1b[1;36m========================================\x1b[0m');
+            term.writeln('');
+        }
+        
+        // Connect to WebSocket
+        async function connect() {
+            if (!serverId) {
+                showError('No server ID provided');
+                return;
+            }
+            
+            if (!authToken) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Get server info first
+            try {
+                const response = await fetch(`${API_URL}/api/servers/${serverId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to get server info');
+                }
+                
+                serverInfo = await response.json();
+                document.getElementById('serverName').textContent = serverInfo.name;
+                document.getElementById('serverHost').textContent = serverInfo.host;
+            } catch (error) {
+                showError('Failed to load server info');
+                return;
+            }
+            
+            // Connect WebSocket
+            showOverlay('Connecting to ' + serverInfo.name + '...');
+            
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    // Send authentication
+                    ws.send(JSON.stringify({
+                        token: authToken,
+                        server_id: parseInt(serverId)
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        
+                        switch (msg.type) {
+                            case 'connected':
+                                isConnected = true;
+                                hideOverlay();
+                                updateStatus('connected', 'Connected');
+                                term.writeln('\x1b[1;32m' + msg.message + '\x1b[0m');
+                                term.writeln('');
+                                sendResize();
+                                term.focus();
+                                break;
+                                
+                            case 'output':
+                                term.write(msg.data);
+                                break;
+                                
+                            case 'error':
+                                term.writeln('\x1b[1;31mError: ' + msg.message + '\x1b[0m');
+                                if (!isConnected) {
+                                    showError(msg.message);
+                                }
+                                break;
+                                
+                            case 'disconnected':
+                                isConnected = false;
+                                updateStatus('disconnected', 'Disconnected');
+                                term.writeln('');
+                                term.writeln('\x1b[1;33m' + msg.message + '\x1b[0m');
+                                showToast('Disconnected from server', 'warning');
+                                break;
+                        }
+                    } catch (e) {
+                        console.error('Parse error:', e);
+                    }
+                };
+                
+                ws.onclose = () => {
+                    if (isConnected) {
+                        isConnected = false;
+                        updateStatus('disconnected', 'Disconnected');
+                        term.writeln('');
+                        term.writeln('\x1b[1;31mConnection closed\x1b[0m');
+                        showToast('Connection closed', 'error');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    showError('Connection failed. Make sure terminal server is running.');
+                };
+                
+            } catch (error) {
+                showError('Failed to connect: ' + error.message);
+            }
+        }
+        
+        // Send terminal resize
+        function sendResize() {
+            if (ws && ws.readyState === WebSocket.OPEN && fitAddon) {
+                const dims = fitAddon.proposeDimensions();
+                if (dims) {
+                    ws.send(JSON.stringify({
+                        type: 'resize',
+                        cols: dims.cols,
+                        rows: dims.rows
+                    }));
+                }
+            }
+        }
+        
+        // Send command
+        function sendCommand(cmd) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'input',
+                    data: cmd
+                }));
+            }
+        }
+        
+        // Disconnect
+        function disconnect() {
+            if (ws) {
+                ws.send(JSON.stringify({ type: 'close' }));
+                ws.close();
+            }
+            window.location.href = 'dashboard.html';
+        }
+        
+        // Reconnect
+        function reconnect() {
+            hideOverlay();
+            if (ws) {
+                ws.close();
+            }
+            term.clear();
+            connect();
+        }
+        
+        // Clear terminal
+        function clearTerminal() {
+            if (term) {
+                term.clear();
+            }
+        }
+        
+        // Focus terminal (for mobile)
+        function focusTerminal() {
+            if (term) {
+                term.focus();
+            }
+        }
+        
+        // Copy selection
+        function copySelection() {
+            if (term) {
+                const selection = term.getSelection();
+                if (selection) {
+                    navigator.clipboard.writeText(selection).then(() => {
+                        showToast('Copied to clipboard', 'success');
+                    });
+                } else {
+                    showToast('No text selected', 'warning');
+                }
+            }
+        }
+        
+        // Paste from clipboard
+        async function pasteClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'input',
+                        data: text
+                    }));
+                }
+            } catch (error) {
+                showToast('Failed to paste', 'error');
+            }
+        }
+        
+        // Update connection status
+        function updateStatus(state, text) {
+            const status = document.getElementById('connectionStatus');
+            status.className = 'status ' + state;
+            status.textContent = text;
+        }
+        
+        // Show overlay
+        function showOverlay(message) {
+            const overlay = document.getElementById('connectionOverlay');
+            const msgEl = document.getElementById('overlayMessage');
+            const errEl = document.getElementById('overlayError');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            overlay.classList.remove('hidden');
+            msgEl.textContent = message;
+            errEl.style.display = 'none';
+            retryBtn.style.display = 'none';
+        }
+        
+        // Hide overlay
+        function hideOverlay() {
+            document.getElementById('connectionOverlay').classList.add('hidden');
+        }
+        
+        // Show error in overlay
+        function showError(message) {
+            const overlay = document.getElementById('connectionOverlay');
+            const msgEl = document.getElementById('overlayMessage');
+            const errEl = document.getElementById('overlayError');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            overlay.classList.remove('hidden');
+            msgEl.textContent = 'Connection Failed';
+            errEl.textContent = message;
+            errEl.style.display = 'block';
+            retryBtn.style.display = 'flex';
+            
+            updateStatus('disconnected', 'Disconnected');
+        }
+        
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Check authentication
+        async function checkAuth() {
+            if (!authToken) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/auth/verify`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const data = await response.json();
+                
+                if (!data.valid) {
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                return false;
+            }
+        }
+        
+        // Initialize
+        async function init() {
+            if (!serverId) {
+                alert('No server ID provided. Redirecting to dashboard.');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+            
+            if (await checkAuth()) {
+                initTerminal();
+                connect();
+            }
+        }
+        
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+Shift+C for copy
+            if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                e.preventDefault();
+                copySelection();
+            }
+            // Ctrl+Shift+V for paste
+            if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+                e.preventDefault();
+                pasteClipboard();
+            }
+        });
+        
+        // Start
+        init();
+    </script>
+</body>
+</html>

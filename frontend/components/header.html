@@ -1,0 +1,406 @@
+<!-- ============================================
+     Server Monitor v4.0 - Shared Header Component
+     Purple gradient header with navigation and user dropdown
+     ============================================ -->
+
+<style>
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-xl);
+    gap: var(--space-xl);
+  }
+
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    color: white;
+    text-decoration: none;
+    font-size: var(--text-xl);
+    font-weight: var(--font-bold);
+  }
+
+  .header-logo:hover {
+    opacity: 0.9;
+  }
+
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    flex: 1;
+  }
+
+  .header-nav a {
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-medium);
+    transition: all var(--transition-fast);
+  }
+
+  .header-nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .header-nav a.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  .header-user {
+    position: relative;
+  }
+
+  .header-user-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    color: white;
+    cursor: pointer;
+    font-weight: var(--font-medium);
+    transition: all var(--transition-fast);
+  }
+
+  .header-user-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .header-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-bold);
+  }
+
+  .header-user-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + var(--space-sm));
+    right: 0;
+    min-width: 220px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xl);
+    z-index: var(--z-dropdown);
+    overflow: hidden;
+  }
+
+  .header-user-dropdown.show {
+    display: block;
+  }
+
+  .header-user-info {
+    padding: var(--space-md);
+    border-bottom: 1px solid var(--border-primary);
+    background-color: var(--bg-tertiary);
+  }
+
+  .header-user-name {
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+  }
+
+  .header-user-role {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+  }
+
+  .header-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: background-color var(--transition-fast);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: var(--text-sm);
+  }
+
+  .header-dropdown-item:hover {
+    background-color: var(--bg-tertiary);
+  }
+
+  .header-dropdown-divider {
+    height: 1px;
+    background-color: var(--border-primary);
+  }
+
+  .header-toggle-sidebar {
+    display: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: var(--space-sm);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .header-toggle-sidebar:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  @media (max-width: 768px) {
+    .header-nav {
+      display: none;
+    }
+
+    .header-toggle-sidebar {
+      display: block;
+    }
+
+    .header-logo {
+      font-size: var(--text-lg);
+    }
+  }
+</style>
+
+<div class="app-header">
+  <!-- Toggle Sidebar (Mobile) -->
+  <button class="header-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Sidebar">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+
+  <!-- Logo -->
+  <a href="/dashboard.html" class="header-logo">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="white">
+      <rect x="4" y="4" width="10" height="10" rx="2"/>
+      <rect x="18" y="4" width="10" height="10" rx="2"/>
+      <rect x="4" y="18" width="10" height="10" rx="2"/>
+      <rect x="18" y="18" width="10" height="10" rx="2"/>
+    </svg>
+    <span>Server Monitor</span>
+  </a>
+
+  <!-- Navigation -->
+  <nav class="header-nav">
+    <a href="/dashboard.html" data-page="dashboard">Dashboard</a>
+    <a href="/ssh-keys.html" data-page="ssh-keys">SSH Keys</a>
+    <a href="/snippets.html" data-page="snippets">Snippets</a>
+    <a href="/groups.html" data-page="groups">Groups</a>
+    <a href="/email-settings.html" data-page="email">Settings</a>
+  </nav>
+
+  <!-- User Dropdown -->
+  <div class="header-user">
+    <button class="header-user-btn" id="userMenuBtn">
+      <div class="header-user-avatar" id="userAvatar">A</div>
+      <span id="userName">Admin</span>
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+
+    <div class="header-user-dropdown" id="userDropdown">
+      <div class="header-user-info">
+        <div class="header-user-name" id="dropdownUserName">Admin</div>
+        <div class="header-user-role">Administrator</div>
+      </div>
+
+      <a href="/profile.html" class="header-dropdown-item">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        Profile
+      </a>
+
+      <a href="/settings.html" class="header-dropdown-item">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+        </svg>
+        Settings
+      </a>
+
+      <button class="header-dropdown-item" id="changePasswordBtn">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        Change Password
+      </button>
+
+      <div class="header-dropdown-divider"></div>
+
+      <button class="header-dropdown-item" id="logoutBtn">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        Logout
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import auth from '/assets/js/auth.js';
+  import { showToast, confirm } from '/assets/js/utils.js';
+
+  // Initialize header
+  function initHeader() {
+    // Get user info
+    const user = auth.getUser();
+    if (user && user.username) {
+      const username = user.username;
+      document.getElementById('userName').textContent = username;
+      document.getElementById('dropdownUserName').textContent = username;
+      document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+    }
+
+    // Set active navigation link
+    const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
+    document.querySelectorAll('.header-nav a').forEach(link => {
+      if (link.getAttribute('data-page') === currentPage) {
+        link.classList.add('active');
+      }
+    });
+
+    // Toggle user dropdown
+    const userMenuBtn = document.getElementById('userMenuBtn');
+    const userDropdown = document.getElementById('userDropdown');
+
+    userMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      userDropdown.classList.toggle('show');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+      userDropdown.classList.remove('show');
+    });
+
+    userDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Logout handler
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      const confirmed = await confirm('Are you sure you want to logout?', 'Logout');
+      if (confirmed) {
+        await auth.logout();
+      }
+    });
+
+    // Change password handler
+    document.getElementById('changePasswordBtn').addEventListener('click', () => {
+      showChangePasswordModal();
+    });
+
+    // Toggle sidebar (mobile)
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    if (toggleSidebarBtn) {
+      toggleSidebarBtn.addEventListener('click', () => {
+        const sidebar = document.querySelector('.app-sidebar');
+        if (sidebar) {
+          sidebar.classList.toggle('collapsed');
+        }
+      });
+    }
+  }
+
+  // Show change password modal
+  function showChangePasswordModal() {
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.id = 'changePasswordModal';
+    modal.innerHTML = `
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3 class="modal-title">Change Password</h3>
+          <button class="modal-close" onclick="document.getElementById('changePasswordModal').remove()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm">
+            <div class="form-group">
+              <label class="form-label">Current Password</label>
+              <input type="password" class="form-control" id="currentPassword" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">New Password</label>
+              <input type="password" class="form-control" id="newPassword" required minlength="6">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" class="form-control" id="confirmPassword" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="document.getElementById('changePasswordModal').remove()">Cancel</button>
+          <button class="btn btn-primary" id="submitChangePassword">Change Password</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Handle form submission
+    document.getElementById('submitChangePassword').addEventListener('click', async () => {
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        showToast('Please fill all fields', 'warning');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showToast('New passwords do not match', 'warning');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        showToast('Password must be at least 6 characters', 'warning');
+        return;
+      }
+
+      const result = await auth.changePassword(currentPassword, newPassword);
+      
+      if (result.success) {
+        showToast('Password changed successfully', 'success');
+        modal.remove();
+      } else {
+        showToast(result.error || 'Failed to change password', 'danger');
+      }
+    });
+
+    // Focus first input
+    document.getElementById('currentPassword').focus();
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHeader);
+  } else {
+    initHeader();
+  }
+</script>

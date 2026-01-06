@@ -1,0 +1,291 @@
+<!-- ============================================
+     Server Monitor v4.0 - Shared Sidebar Component
+     Left sidebar navigation with collapsible sections
+     ============================================ -->
+
+<style>
+  .sidebar-menu {
+    padding: var(--space-md) 0;
+  }
+
+  .sidebar-section {
+    margin-bottom: var(--space-lg);
+  }
+
+  .sidebar-section-title {
+    padding: var(--space-sm) var(--space-lg);
+    font-size: var(--text-xs);
+    font-weight: var(--font-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-size: var(--text-sm);
+    position: relative;
+  }
+
+  .sidebar-item:hover {
+    background-color: var(--bg-tertiary);
+  }
+
+  .sidebar-item.active {
+    background-color: var(--bg-tertiary);
+    border-left: 3px solid var(--accent);
+    padding-left: calc(var(--space-lg) - 3px);
+    color: var(--accent-light);
+  }
+
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dark) 100%);
+  }
+
+  .sidebar-item-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .sidebar-item-text {
+    flex: 1;
+  }
+
+  .sidebar-item-badge {
+    font-size: var(--text-xs);
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    background-color: var(--accent);
+    color: white;
+    font-weight: var(--font-semibold);
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background-color: var(--border-primary);
+    margin: var(--space-md) var(--space-lg);
+  }
+
+  .sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--space-lg);
+    border-top: 1px solid var(--border-primary);
+    background-color: var(--bg-secondary);
+  }
+
+  .sidebar-version {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Collapsed state */
+  .app-sidebar.collapsed .sidebar-item-text,
+  .app-sidebar.collapsed .sidebar-item-badge,
+  .app-sidebar.collapsed .sidebar-section-title,
+  .app-sidebar.collapsed .sidebar-footer {
+    display: none;
+  }
+
+  .app-sidebar.collapsed .sidebar-item {
+    justify-content: center;
+    padding: var(--space-md);
+  }
+
+  @media (max-width: 768px) {
+    .app-sidebar {
+      transform: translateX(0);
+    }
+    
+    .app-sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+  }
+</style>
+
+<div class="sidebar-menu">
+  <!-- Main Section -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Main</div>
+    
+    <a href="/dashboard.html" class="sidebar-item" data-page="dashboard">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Dashboard</span>
+    </a>
+
+    <a href="/servers.html" class="sidebar-item" data-page="servers">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+          <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+          <line x1="6" y1="6" x2="6.01" y2="6"></line>
+          <line x1="6" y1="18" x2="6.01" y2="18"></line>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Servers</span>
+      <span class="sidebar-item-badge" id="serverCount">0</span>
+    </a>
+
+    <a href="/groups.html" class="sidebar-item" data-page="groups">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Server Groups</span>
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- Tools Section -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Tools</div>
+
+    <a href="/terminal.html" class="sidebar-item" data-page="terminal">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Terminal</span>
+    </a>
+
+    <a href="/snippets.html" class="sidebar-item" data-page="snippets">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Command Snippets</span>
+    </a>
+
+    <a href="/network-tools.html" class="sidebar-item" data-page="network-tools">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="2"></circle>
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Network Tools</span>
+    </a>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <!-- Configuration Section -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Configuration</div>
+
+    <a href="/ssh-keys.html" class="sidebar-item" data-page="ssh-keys">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">SSH Keys</span>
+    </a>
+
+    <a href="/email-settings.html" class="sidebar-item" data-page="email-settings">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+          <polyline points="22,6 12,13 2,6"></polyline>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Email Alerts</span>
+    </a>
+
+    <a href="/settings.html" class="sidebar-item" data-page="settings">
+      <span class="sidebar-item-icon">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+        </svg>
+      </span>
+      <span class="sidebar-item-text">Settings</span>
+    </a>
+  </div>
+</div>
+
+<div class="sidebar-footer">
+  <div class="sidebar-version">Server Monitor v4.0</div>
+</div>
+
+<script type="module">
+  import api from '/assets/js/api.js';
+
+  // Initialize sidebar
+  function initSidebar() {
+    // Set active navigation link
+    const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
+    document.querySelectorAll('.sidebar-item').forEach(link => {
+      if (link.getAttribute('data-page') === currentPage) {
+        link.classList.add('active');
+      }
+    });
+
+    // Load server count
+    loadServerCount();
+  }
+
+  // Load server count for badge
+  async function loadServerCount() {
+    try {
+      const servers = await api.getServers();
+      const count = servers?.length || 0;
+      const badge = document.getElementById('serverCount');
+      if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'block' : 'none';
+      }
+    } catch (error) {
+      console.error('Failed to load server count:', error);
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebar);
+  } else {
+    initSidebar();
+  }
+
+  // Refresh server count periodically
+  setInterval(loadServerCount, 30000); // Every 30 seconds
+</script>

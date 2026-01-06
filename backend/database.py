@@ -1,0 +1,1107 @@
+#!/usr/bin/env python3
+
+"""
+Database module for multi-server monitoring
+Manages server list, credentials, and monitoring history
+"""
+
+import sqlite3
+import json
+from datetime import datetime
+import os
+import hashlib
+import secrets
+import base64
+
+DB_PATH = '/opt/server-monitor-dev/data/servers.db'
+
+# Simple encryption key (in production, use environment variable)
+ENCRYPTION_KEY = b'monitoring_secret_key_32_bytes!!'
+
+def hash_password(password):
+    """Hash password using SHA256 (for admin users)"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password, hashed):
+    """Verify password against hash"""
+    return hash_password(password) == hashed
+
+def encrypt_ssh_password(password):
+    """Simple XOR encryption for SSH passwords (for storage)"""
+    if not password:
+        return ''
+    result = bytearray()
+    key = ENCRYPTION_KEY
+    for i, char in enumerate(password.encode()):
+        result.append(char ^ key[i % len(key)])
+    return base64.b64encode(bytes(result)).decode()
+
+def decrypt_ssh_password(encrypted):
+    """Decrypt SSH password"""
+    if not encrypted:
+        return ''
+    try:
+        data = base64.b64decode(encrypted)
+        result = bytearray()
+        key = ENCRYPTION_KEY
+        for i, byte in enumerate(data):
+            result.append(byte ^ key[i % len(key)])
+        return bytes(result).decode()
+    except:
+        return ''
+
+def generate_token():
+    """Generate random session token"""
+    return secrets.token_urlsafe(32)
+
+def init_database():
+    """Initialize database and create tables"""
+    # Create data directory if not exists
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Servers table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            host TEXT NOT NULL UNIQUE,
+            port INTEGER DEFAULT 22,
+            username TEXT NOT NULL,
+            description TEXT,
+            ssh_key_path TEXT,
+            ssh_password TEXT,
+            agent_port INTEGER DEFAULT 8083,
+            agent_installed INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'unknown',
+            last_seen TIMESTAMP,
+            tags TEXT,
+            timezone TEXT DEFAULT 'UTC',
+            connection_timeout INTEGER DEFAULT 10,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Admin users table (for authentication)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            role TEXT DEFAULT 'admin',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP
+        )
+    ''')
+    
+    # Session tokens table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Monitoring history table (optional - for long-term storage)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS monitoring_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            metric_type TEXT NOT NULL,
+            metric_data TEXT NOT NULL,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Alerts table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            alert_type TEXT NOT NULL,
+            message TEXT NOT NULL,
+            severity TEXT DEFAULT 'warning',
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Command snippets table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS command_snippets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            command TEXT NOT NULL,
+            category TEXT DEFAULT 'general',
+            is_sudo INTEGER DEFAULT 0,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    # SSH keys management table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ssh_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT,
+            key_type TEXT DEFAULT 'rsa',
+            private_key_path TEXT NOT NULL,
+            public_key TEXT,
+            fingerprint TEXT,
+            passphrase TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_used TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+def get_connection():
+    """Get database connection"""
+    init_database()  # Ensure DB exists
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
+
+# ==================== SERVER MANAGEMENT ====================
+
+def add_server(name, host, port, username, description='', ssh_key_path='', ssh_password='', agent_port=8083, tags=''):
+    """Add a new server to monitor"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Encrypt password if provided
+        if ssh_password:
+            ssh_password = encrypt_ssh_password(ssh_password)
+        
+        cursor.execute('''
+            INSERT INTO servers (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags))
+        
+        conn.commit()
+        server_id = cursor.lastrowid
+        conn.close()
+        
+        return {'success': True, 'server_id': server_id, 'message': f'Server {name} added successfully'}
+    
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': f'Server with host {host} already exists'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_servers(status=None):
+    """Get all servers or filter by status"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if status:
+        cursor.execute('SELECT * FROM servers WHERE status = ? ORDER BY name', (status,))
+    else:
+        cursor.execute('SELECT * FROM servers ORDER BY name')
+    
+    columns = [desc[0] for desc in cursor.description]
+    servers = []
+    
+    for row in cursor.fetchall():
+        server = dict(zip(columns, row))
+        servers.append(server)
+    
+    conn.close()
+    return servers
+
+def get_server(server_id, decrypt_password=False):
+    """Get a single server by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM servers WHERE id = ?', (server_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    server = dict(zip(columns, row))
+    
+    # Decrypt SSH password if requested and exists
+    if decrypt_password and server.get('ssh_password'):
+        server['ssh_password'] = decrypt_ssh_password(server['ssh_password'])
+    
+    conn.close()
+    return server
+
+def update_server(server_id, **kwargs):
+    """Update server information"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    allowed_fields = ['name', 'host', 'port', 'username', 'description', 'ssh_key_path', 'ssh_password', 'agent_port', 'tags', 'status', 'agent_installed']
+    
+    updates = []
+    values = []
+    
+    for key, value in kwargs.items():
+        if key in allowed_fields:
+            # Encrypt password if updating password
+            if key == 'ssh_password' and value:
+                value = encrypt_ssh_password(value)
+            updates.append(f'{key} = ?')
+            values.append(value)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No valid fields to update'}
+    
+    updates.append('updated_at = CURRENT_TIMESTAMP')
+    values.append(server_id)
+    
+    query = f"UPDATE servers SET {', '.join(updates)} WHERE id = ?"
+    
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Server {server_id} updated successfully'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_server(server_id):
+    """Delete a server"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM servers WHERE id = ?', (server_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Server not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Server {server_id} deleted successfully'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def update_server_status(server_id, status, last_seen=None):
+    """Update server online/offline status"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if last_seen is None:
+        last_seen = datetime.now().isoformat()
+    
+    cursor.execute('''
+        UPDATE servers 
+        SET status = ?, last_seen = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (status, last_seen, server_id))
+    
+    conn.commit()
+    conn.close()
+
+# ==================== MONITORING HISTORY ====================
+
+def save_monitoring_data(server_id, metric_type, metric_data):
+    """Save monitoring data to history"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Convert dict to JSON string
+    if isinstance(metric_data, dict):
+        metric_data = json.dumps(metric_data)
+    
+    cursor.execute('''
+        INSERT INTO monitoring_history (server_id, metric_type, metric_data)
+        VALUES (?, ?, ?)
+    ''', (server_id, metric_type, metric_data))
+    
+    conn.commit()
+    conn.close()
+
+def get_monitoring_history(server_id, metric_type=None, hours=24):
+    """Get monitoring history for a server"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if metric_type:
+        cursor.execute('''
+            SELECT * FROM monitoring_history 
+            WHERE server_id = ? AND metric_type = ?
+            AND timestamp >= datetime('now', '-' || ? || ' hours')
+            ORDER BY timestamp DESC
+        ''', (server_id, metric_type, hours))
+    else:
+        cursor.execute('''
+            SELECT * FROM monitoring_history 
+            WHERE server_id = ?
+            AND timestamp >= datetime('now', '-' || ? || ' hours')
+            ORDER BY timestamp DESC
+        ''', (server_id, hours))
+    
+    columns = [desc[0] for desc in cursor.description]
+    history = []
+    
+    for row in cursor.fetchall():
+        item = dict(zip(columns, row))
+        # Parse JSON data
+        try:
+            item['metric_data'] = json.loads(item['metric_data'])
+        except:
+            pass
+        history.append(item)
+    
+    conn.close()
+    return history
+
+def cleanup_old_history(days=7):
+    """Delete monitoring history older than N days"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        DELETE FROM monitoring_history 
+        WHERE timestamp < datetime('now', '-' || ? || ' days')
+    ''', (days,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return deleted
+
+# ==================== ALERTS ====================
+
+def create_alert(server_id, alert_type, message, severity='warning'):
+    """Create an alert"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO alerts (server_id, alert_type, message, severity)
+        VALUES (?, ?, ?, ?)
+    ''', (server_id, alert_type, message, severity))
+    
+    conn.commit()
+    alert_id = cursor.lastrowid
+    conn.close()
+    
+    return alert_id
+
+def get_alerts(server_id=None, is_read=None, limit=50):
+    """Get alerts"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM alerts WHERE 1=1'
+    params = []
+    
+    if server_id:
+        query += ' AND server_id = ?'
+        params.append(server_id)
+    
+    if is_read is not None:
+        query += ' AND is_read = ?'
+        params.append(is_read)
+    
+    query += ' ORDER BY created_at DESC LIMIT ?'
+    params.append(limit)
+    
+    cursor.execute(query, params)
+    
+    columns = [desc[0] for desc in cursor.description]
+    alerts = []
+    
+    for row in cursor.fetchall():
+        alert = dict(zip(columns, row))
+        alerts.append(alert)
+    
+    conn.close()
+    return alerts
+
+def mark_alert_read(alert_id):
+    """Mark an alert as read"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('UPDATE alerts SET is_read = 1 WHERE id = ?', (alert_id,))
+    
+    conn.commit()
+    conn.close()
+
+# ==================== STATISTICS ====================
+
+def get_server_stats():
+    """Get overview statistics"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) FROM servers')
+    total_servers = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM servers WHERE status = 'online'")
+    online_servers = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM servers WHERE status = 'offline'")
+    offline_servers = cursor.fetchone()[0]
+    
+    cursor.execute('SELECT COUNT(*) FROM alerts WHERE is_read = 0')
+    unread_alerts = cursor.fetchone()[0]
+    
+    conn.close()
+    
+    return {
+        'total_servers': total_servers,
+        'online_servers': online_servers,
+        'offline_servers': offline_servers,
+        'unknown_servers': total_servers - online_servers - offline_servers,
+        'unread_alerts': unread_alerts
+    }
+
+# ==================== AUTHENTICATION ====================
+
+def create_admin_user(username, password, email='', role='admin'):
+    """Create a new admin user"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        password_hash = hash_password(password)
+        
+        cursor.execute('''
+            INSERT INTO admin_users (username, password_hash, email, role)
+            VALUES (?, ?, ?, ?)
+        ''', (username, password_hash, email, role))
+        
+        conn.commit()
+        user_id = cursor.lastrowid
+        conn.close()
+        
+        return {'success': True, 'user_id': user_id, 'message': f'Admin user {username} created'}
+    
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': f'Username {username} already exists'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def authenticate_user(username, password):
+    """Authenticate user and create session"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, password_hash, is_active FROM admin_users WHERE username = ?', (username,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return {'success': False, 'error': 'Invalid username or password'}
+    
+    user_id, password_hash, is_active = row
+    
+    if not is_active:
+        conn.close()
+        return {'success': False, 'error': 'Account is disabled'}
+    
+    if not verify_password(password, password_hash):
+        conn.close()
+        return {'success': False, 'error': 'Invalid username or password'}
+    
+    # Create session token (expires in 7 days)
+    token = generate_token()
+    from datetime import timedelta
+    expires_at = (datetime.now() + timedelta(days=7)).isoformat()
+    
+    cursor.execute('''
+        INSERT INTO sessions (user_id, token, expires_at)
+        VALUES (?, ?, ?)
+    ''', (user_id, token, expires_at))
+    
+    # Update last login
+    cursor.execute('''
+        UPDATE admin_users 
+        SET last_login = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (user_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    return {
+        'success': True,
+        'token': token,
+        'username': username,
+        'expires_at': expires_at
+    }
+
+def verify_session(token):
+    """Verify session token"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT s.user_id, u.username, u.role, s.expires_at
+        FROM sessions s
+        JOIN admin_users u ON s.user_id = u.id
+        WHERE s.token = ? AND u.is_active = 1
+    ''', (token,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return {'valid': False, 'error': 'Invalid session'}
+    
+    user_id, username, role, expires_at = row
+    
+    # Check if expired
+    if datetime.fromisoformat(expires_at) < datetime.now():
+        return {'valid': False, 'error': 'Session expired'}
+    
+    return {
+        'valid': True,
+        'user_id': user_id,
+        'username': username,
+        'role': role
+    }
+
+def logout_user(token):
+    """Delete session token"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM sessions WHERE token = ?', (token,))
+    deleted = cursor.rowcount
+    
+    conn.commit()
+    conn.close()
+    
+    return {'success': deleted > 0}
+
+def get_all_users():
+    """Get all admin users"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, username, email, role, is_active, created_at, last_login 
+        FROM admin_users 
+        ORDER BY created_at DESC
+    ''')
+    
+    columns = [desc[0] for desc in cursor.description]
+    users = []
+    
+    for row in cursor.fetchall():
+        user = dict(zip(columns, row))
+        users.append(user)
+    
+    conn.close()
+    return users
+
+def change_password(username, old_password, new_password):
+    """Change user password"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, password_hash FROM admin_users WHERE username = ?', (username,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return {'success': False, 'error': 'User not found'}
+    
+    user_id, current_hash = row
+    
+    if not verify_password(old_password, current_hash):
+        conn.close()
+        return {'success': False, 'error': 'Invalid current password'}
+    
+    new_hash = hash_password(new_password)
+    
+    cursor.execute('''
+        UPDATE admin_users 
+        SET password_hash = ? 
+        WHERE id = ?
+    ''', (new_hash, user_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return {'success': True, 'message': 'Password changed successfully'}
+
+def cleanup_expired_sessions(days=7):
+    """Delete sessions older than N days (default 7 days = 1 week)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        DELETE FROM sessions 
+        WHERE datetime(created_at, '+' || ? || ' days') < datetime('now')
+    """, (days,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return {'deleted': deleted, 'message': f'Deleted {deleted} expired sessions'}
+
+# ==================== COMMAND SNIPPETS ====================
+
+def add_snippet(name, command, description='', category='general', is_sudo=0, created_by=None):
+    """Add a command snippet"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO command_snippets (name, command, description, category, is_sudo, created_by)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, command, description, category, is_sudo, created_by))
+        
+        conn.commit()
+        snippet_id = cursor.lastrowid
+        conn.close()
+        
+        return {'success': True, 'snippet_id': snippet_id, 'message': f'Snippet {name} created'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_snippets(category=None):
+    """Get all command snippets or filter by category"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if category:
+        cursor.execute('SELECT * FROM command_snippets WHERE category = ? ORDER BY name', (category,))
+    else:
+        cursor.execute('SELECT * FROM command_snippets ORDER BY category, name')
+    
+    columns = [desc[0] for desc in cursor.description]
+    snippets = []
+    
+    for row in cursor.fetchall():
+        snippet = dict(zip(columns, row))
+        snippets.append(snippet)
+    
+    conn.close()
+    return snippets
+
+def get_snippet(snippet_id):
+    """Get a single snippet by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM command_snippets WHERE id = ?', (snippet_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    snippet = dict(zip(columns, row))
+    
+    conn.close()
+    return snippet
+
+def update_snippet(snippet_id, **kwargs):
+    """Update snippet information"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    allowed_fields = ['name', 'command', 'description', 'category', 'is_sudo']
+    
+    updates = []
+    values = []
+    
+    for key, value in kwargs.items():
+        if key in allowed_fields:
+            updates.append(f'{key} = ?')
+            values.append(value)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No valid fields to update'}
+    
+    updates.append('updated_at = CURRENT_TIMESTAMP')
+    values.append(snippet_id)
+    
+    query = f"UPDATE command_snippets SET {', '.join(updates)} WHERE id = ?"
+    
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Snippet {snippet_id} updated'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_snippet(snippet_id):
+    """Delete a snippet"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM command_snippets WHERE id = ?', (snippet_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Snippet not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Snippet {snippet_id} deleted'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+# ==================== SSH KEYS MANAGEMENT ====================
+
+def add_ssh_key(name, private_key_path, description='', key_type='rsa', public_key='', passphrase='', created_by=None):
+    """Add a new SSH key"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Encrypt passphrase if provided
+        if passphrase:
+            passphrase = encrypt_ssh_password(passphrase)
+        
+        # Generate fingerprint from private key
+        fingerprint = None
+        if os.path.exists(private_key_path):
+            try:
+                import paramiko
+                key = paramiko.RSAKey.from_private_key_file(private_key_path)
+                fingerprint = key.get_fingerprint().hex()
+            except:
+                pass
+        
+        cursor.execute('''
+            INSERT INTO ssh_keys (name, private_key_path, description, key_type, public_key, fingerprint, passphrase, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, private_key_path, description, key_type, public_key, fingerprint, passphrase, created_by))
+        
+        conn.commit()
+        key_id = cursor.lastrowid
+        conn.close()
+        
+        return {'success': True, 'key_id': key_id, 'message': f'SSH key {name} added successfully'}
+    
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': f'SSH key with name {name} already exists'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_ssh_keys():
+    """Get all SSH keys"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, name, description, key_type, private_key_path, public_key, fingerprint, 
+               created_at, updated_at, last_used
+        FROM ssh_keys 
+        ORDER BY name
+    ''')
+    
+    columns = [desc[0] for desc in cursor.description]
+    keys = []
+    
+    for row in cursor.fetchall():
+        key = dict(zip(columns, row))
+        keys.append(key)
+    
+    conn.close()
+    return keys
+
+def get_ssh_key(key_id, decrypt_passphrase=False):
+    """Get a single SSH key by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM ssh_keys WHERE id = ?', (key_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    key = dict(zip(columns, row))
+    
+    # Decrypt passphrase if requested and exists
+    if decrypt_passphrase and key.get('passphrase'):
+        key['passphrase'] = decrypt_ssh_password(key['passphrase'])
+    
+    conn.close()
+    return key
+
+def update_ssh_key(key_id, **kwargs):
+    """Update SSH key information"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    allowed_fields = ['name', 'description', 'key_type', 'private_key_path', 'public_key', 'passphrase']
+    
+    updates = []
+    values = []
+    
+    for key, value in kwargs.items():
+        if key in allowed_fields:
+            # Encrypt passphrase if updating
+            if key == 'passphrase' and value:
+                value = encrypt_ssh_password(value)
+            updates.append(f'{key} = ?')
+            values.append(value)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No valid fields to update'}
+    
+    updates.append('updated_at = CURRENT_TIMESTAMP')
+    values.append(key_id)
+    
+    query = f"UPDATE ssh_keys SET {', '.join(updates)} WHERE id = ?"
+    
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'SSH key {key_id} updated successfully'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_ssh_key(key_id):
+    """Delete an SSH key"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM ssh_keys WHERE id = ?', (key_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'SSH key not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'SSH key {key_id} deleted successfully'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def update_ssh_key_last_used(key_id):
+    """Update last used timestamp for SSH key"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE ssh_keys 
+        SET last_used = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (key_id,))
+    
+    conn.commit()
+    conn.close()
+
+def get_ssh_key_by_name(name):
+    """Get SSH key by name"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM ssh_keys WHERE name = ?', (name,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    key = dict(zip(columns, row))
+    
+    conn.close()
+    return key
+
+# ==================== EXPORT FUNCTIONS ====================
+
+def export_servers_csv():
+    """Export servers list to CSV format"""
+    import csv
+    from io import StringIO
+    
+    servers = get_servers()
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(['ID', 'Name', 'Host', 'Port', 'Username', 'Description', 'Status', 'Tags', 'Agent Port', 'Last Seen', 'Created At'])
+    
+    # Data
+    for server in servers:
+        writer.writerow([
+            server.get('id'),
+            server.get('name'),
+            server.get('host'),
+            server.get('port'),
+            server.get('username'),
+            server.get('description', ''),
+            server.get('status'),
+            server.get('tags', ''),
+            server.get('agent_port'),
+            server.get('last_seen', ''),
+            server.get('created_at', '')
+        ])
+    
+    return output.getvalue()
+
+def export_monitoring_history_csv(server_id=None, start_date=None, end_date=None):
+    """Export monitoring history to CSV"""
+    import csv
+    from io import StringIO
+    
+    history = get_monitoring_history(server_id, start_date, end_date)
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(['Timestamp', 'Server ID', 'Metric Type', 'CPU %', 'Memory %', 'Disk %', 'Network RX', 'Network TX'])
+    
+    # Data
+    for item in history:
+        metric_data = item.get('metric_data', {})
+        if isinstance(metric_data, str):
+            try:
+                metric_data = json.loads(metric_data)
+            except:
+                metric_data = {}
+        
+        writer.writerow([
+            item.get('timestamp'),
+            item.get('server_id'),
+            item.get('metric_type'),
+            metric_data.get('cpu', ''),
+            metric_data.get('memory', ''),
+            metric_data.get('disk', ''),
+            metric_data.get('network_rx', ''),
+            metric_data.get('network_tx', '')
+        ])
+    
+    return output.getvalue()
+
+def export_servers_json():
+    """Export servers to JSON format"""
+    servers = get_servers()
+    return json.dumps(servers, indent=2, ensure_ascii=False)
+
+def export_monitoring_history_json(server_id=None, start_date=None, end_date=None):
+    """Export monitoring history to JSON"""
+    history = get_monitoring_history(server_id, start_date, end_date)
+    return json.dumps(history, indent=2, ensure_ascii=False)
+
+def export_alerts_csv(server_id=None, is_read=None):
+    """Export alerts to CSV"""
+    import csv
+    from io import StringIO
+    
+    alerts = get_alerts(server_id, is_read, limit=1000)
+    
+    output = StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(['ID', 'Server ID', 'Alert Type', 'Message', 'Severity', 'Is Read', 'Created At'])
+    
+    # Data
+    for alert in alerts:
+        writer.writerow([
+            alert.get('id'),
+            alert.get('server_id'),
+            alert.get('alert_type'),
+            alert.get('message'),
+            alert.get('severity'),
+            'Yes' if alert.get('is_read') else 'No',
+            alert.get('created_at')
+        ])
+    
+    return output.getvalue()
+
+if __name__ == '__main__':
+    # Initialize database
+    init_database()
+    print("Database initialized successfully!")
+    
+    # Create default admin user
+    admin_result = create_admin_user('admin', 'admin123', 'admin@example.com')
+    print("\nAdmin user:", admin_result)
+    
+    # Test: Add a sample server
+    result = add_server(
+        name='Test LXC Container',
+        host='192.168.1.100',
+        port=22,
+        username='root',
+        description='Test container for monitoring',
+        ssh_key_path='~/.ssh/id_rsa',
+        agent_port=8083,
+        tags='lxc,test,production'
+    )
+    
+    print("\nTest server:", result)
+    
+    # Get all servers
+    servers = get_servers()
+    print("\nServers:", len(servers))
+    
+    # Get stats
+    stats = get_server_stats()
+    print("\nStats:", stats)

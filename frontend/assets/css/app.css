@@ -1,0 +1,72 @@
+/* ============================================
+   Server Monitor v4.0 - Main Application CSS
+   Import all stylesheets in correct order
+   ============================================ */
+
+/* 1. Theme Variables (must be first) */
+@import url('themes.css');
+
+/* 2. Component Styles */
+@import url('components.css');
+
+/* 3. Page-specific overrides (if any) */
+
+/* Global Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-hover);
+}
+
+/* Selection Styling */
+::selection {
+  background-color: var(--accent);
+  color: white;
+}
+
+::-moz-selection {
+  background-color: var(--accent);
+  color: white;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus Outline */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+  .app-header,
+  .app-sidebar,
+  .btn,
+  .no-print {
+    display: none !important;
+  }
+  
+  .app-main {
+    margin: 0 !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+}
