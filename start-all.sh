@@ -124,10 +124,11 @@ echo -e "${BLUE}Starting services...${NC}"
 # Start Central API
 start_service \
     "Central API" \
-    "python3 central_api.py" \
+    "python3 backend/central_api.py" \
     "$BASE_DIR/api.pid" \
     "$LOGS_DIR/central_api.log" \
-    $API_PORT
+    $API_PORT \
+    "$BASE_DIR"
 
 # Start WebSocket Server
 start_service \
