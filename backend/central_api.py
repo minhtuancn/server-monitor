@@ -39,7 +39,7 @@ def get_server_with_auth(server_id):
     return server
 
 def verify_auth_token(handler):
-    """Verify authentication token from Authorization header"""
+    """Verify authentication token from Authorization header (JWT or old format)"""
     auth_header = handler.headers.get('Authorization', '')
     
     # Allow public endpoints without auth (read-only)
@@ -53,7 +53,18 @@ def verify_auth_token(handler):
     
     token = auth_header.replace('Bearer ', '').strip()
     
-    # Verify token with database
+    # Try JWT token first
+    user_data = security.AuthMiddleware.decode_token(token)
+    if user_data:
+        return {
+            'valid': True,
+            'user_id': user_data.get('user_id'),
+            'username': user_data.get('username'),
+            'role': user_data.get('role', 'user'),
+            'permissions': user_data.get('permissions', [])
+        }
+    
+    # Fallback to old session token for backward compatibility
     result = db.verify_session(token)
     return result
 
