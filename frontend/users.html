@@ -400,24 +400,13 @@
 </head>
 
 <body>
-    <!-- Header -->
-    <div class="header">
-        <h1><i class="fas fa-users"></i> User Management</h1>
-        <div class="header-actions">
-            <div class="user-info">
-                <div class="user-avatar" id="userAvatar">A</div>
-                <div>
-                    <div class="user-name" id="userName">Admin</div>
-                    <div class="user-role" id="userRole">Administrator</div>
-                </div>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="location.href='dashboard.html'">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </button>
-        </div>
-    </div>
+    <div class="app-container">
+        <!-- Shared Header/Sidebar -->
+        <div id="headerContainer"></div>
+        <div id="sidebarContainer"></div>
 
-    <!-- Main Content -->
+        <!-- Main Content -->
+        <main class="app-main with-sidebar">
     <div class="users-container">
         <!-- Alert Container -->
         <div id="alertContainer"></div>
@@ -598,9 +587,28 @@
         </div>
     </div>
 
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/auth.js"></script>
-    <script>
+    </main>
+    </div>
+
+    <script type="module">
+        import api from '/assets/js/api.js';
+        import auth from '/assets/js/auth.js';
+        import i18n from '/assets/js/i18n.js';
+        import { loadHeaderAndSidebar } from '/assets/js/component-loader.js';
+
+        // Auth guard: only admin can access
+        if (!auth.isAuthenticated() || !auth.hasRole('admin')) {
+            window.location.href = '/login.html';
+        }
+
+        // Load shared components then i18n
+        (async () => {
+            await loadHeaderAndSidebar();
+            const currentLang = i18n.getCurrentLanguage();
+            await i18n.loadLanguage(currentLang);
+            document.documentElement.lang = currentLang;
+        })();
+
         let allUsers = [];
         let currentUser = null;
 
@@ -624,23 +632,20 @@
         });
 
         function checkAuth() {
-            const user = getCurrentUser();
+            const user = auth.getCurrentUser();
             if (!user) {
-                window.location.href = 'login.html';
+                window.location.href = '/login.html';
                 return;
             }
 
             // Only admins can access user management
             if (user.role !== 'admin') {
                 showAlert('Access denied. Admin access required.', 'error');
-                setTimeout(() => window.location.href = 'dashboard.html', 2000);
+                setTimeout(() => window.location.href = '/dashboard.html', 2000);
                 return;
             }
 
             currentUser = user;
-            document.getElementById('userName').textContent = user.username;
-            document.getElementById('userRole').textContent = user.role;
-            document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
         }
 
         async function loadUsers() {
@@ -968,14 +973,9 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        function getCurrentUser() {
-            const userStr = localStorage.getItem('user');
-            return userStr ? JSON.parse(userStr) : null;
-        }
-
-        function getToken() {
-            return localStorage.getItem('token');
-        }
+        // Bridge existing code to new auth module
+        function getCurrentUser() { return auth.getCurrentUser(); }
+        function getToken() { return auth.getToken(); }
     </script>
 </body>
 
