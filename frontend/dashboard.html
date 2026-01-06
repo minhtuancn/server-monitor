@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -193,22 +194,24 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="app-container">
         <!-- Header Placeholder -->
-        <div class="app-header" id="headerContainer">
-            <div>Loading...</div>
-        </div>
+        <div id="headerContainer"></div>
 
         <!-- Sidebar Placeholder -->
-        <div class="app-sidebar" id="sidebarContainer">
-            <div style="padding: 20px;">Loading...</div>
-        </div>
+        <div id="sidebarContainer"></div>
 
         <!-- Main Content -->
         <main class="app-main with-sidebar">
@@ -319,7 +322,7 @@
         async function loadServers() {
             try {
                 const servers = await api.getServers();
-                
+
                 // Update stats
                 const total = servers.length;
                 const online = servers.filter(s => s.status === 'online').length;
@@ -347,7 +350,7 @@
         // Render servers grid
         function renderServers(servers) {
             const container = document.getElementById('serversContainer');
-            
+
             if (servers.length === 0) {
                 container.innerHTML = `
                     <div class="loading">
@@ -393,12 +396,12 @@
                     `).join('')}
                 </div>
             `;
-            
+
             container.innerHTML = html;
         }
 
         // Refresh data
-        window.refreshData = async function() {
+        window.refreshData = async function () {
             await loadServers();
             showToast('Refreshed successfully', 'success');
         };
@@ -407,13 +410,13 @@
         async function init() {
             // Load components first
             await loadHeaderAndSidebar();
-            
+
             // Then init i18n
             await initI18n();
-            
+
             // Finally load data
             await loadServers();
-            
+
             // Auto refresh every 30 seconds
             setInterval(loadServers, 30000);
         }
@@ -421,4 +424,5 @@
         init();
     </script>
 </body>
+
 </html>
