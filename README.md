@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Tests](https://img.shields.io/badge/tests-23%2F25%20passing-green)]()
 [![Security](https://img.shields.io/badge/security-9%2F10-yellow)]()
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--v3-green)](LICENSE)
 
 📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)
 
@@ -417,7 +417,9 @@ docker-compose up -d
 
 ## 📄 License
 
-MIT License - See [LICENSE](LICENSE) file for details
+GPL v3 License - See [LICENSE](LICENSE) file for details.
+
+This project is licensed under the GNU General Public License v3.0.
 
 Copyright (c) 2026 Minh Tuấn
 
