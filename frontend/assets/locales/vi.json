@@ -1,0 +1,165 @@
+{
+    "common": {
+        "save": "Lưu",
+        "cancel": "Hủy",
+        "delete": "Xóa",
+        "edit": "Sửa",
+        "add": "Thêm",
+        "search": "Tìm kiếm",
+        "filter": "Lọc",
+        "refresh": "Làm mới",
+        "loading": "Đang tải...",
+        "success": "Thành công",
+        "error": "Lỗi",
+        "warning": "Cảnh báo",
+        "info": "Thông tin",
+        "yes": "Có",
+        "no": "Không",
+        "ok": "Đồng ý",
+        "close": "Đóng",
+        "back": "Quay lại",
+        "next": "Tiếp theo",
+        "previous": "Trước",
+        "submit": "Gửi",
+        "reset": "Đặt lại",
+        "clear": "Xóa"
+    },
+    "menu": {
+        "dashboard": "Tổng quan",
+        "servers": "Máy chủ",
+        "server_groups": "Nhóm máy chủ",
+        "terminal": "Terminal",
+        "snippets": "Lệnh nhanh",
+        "network_tools": "Công cụ mạng",
+        "ssh_keys": "Khóa SSH",
+        "email_alerts": "Cảnh báo Email",
+        "users": "Quản lý người dùng",
+        "settings": "Cài đặt hệ thống",
+        "audit_logs": "Nhật ký",
+        "logout": "Đăng xuất"
+    },
+    "dashboard": {
+        "title": "Tổng quan",
+        "total_servers": "Tổng số máy chủ",
+        "online_servers": "Đang hoạt động",
+        "offline_servers": "Ngoại tuyến",
+        "cpu_usage": "Sử dụng CPU",
+        "memory_usage": "Sử dụng RAM",
+        "disk_usage": "Sử dụng ổ đĩa",
+        "uptime": "Thời gian hoạt động",
+        "last_update": "Cập nhật lần cuối"
+    },
+    "users": {
+        "title": "Quản lý người dùng",
+        "add_user": "Thêm người dùng",
+        "edit_user": "Sửa người dùng",
+        "delete_user": "Xóa người dùng",
+        "username": "Tên đăng nhập",
+        "email": "Email",
+        "role": "Vai trò",
+        "status": "Trạng thái",
+        "active": "Hoạt động",
+        "inactive": "Không hoạt động",
+        "last_login": "Đăng nhập lần cuối",
+        "created_at": "Ngày tạo",
+        "password": "Mật khẩu",
+        "confirm_password": "Xác nhận mật khẩu",
+        "change_password": "Đổi mật khẩu",
+        "roles": {
+            "admin": "Quản trị viên",
+            "user": "Người dùng",
+            "operator": "Vận hành viên",
+            "auditor": "Kiểm toán viên"
+        },
+        "messages": {
+            "user_added": "Đã thêm người dùng thành công",
+            "user_updated": "Đã cập nhật người dùng thành công",
+            "user_deleted": "Đã xóa người dùng thành công",
+            "password_changed": "Đã đổi mật khẩu thành công",
+            "delete_confirm": "Bạn có chắc muốn xóa người dùng này?"
+        }
+    },
+    "settings": {
+        "title": "Cài đặt hệ thống",
+        "general": "Cài đặt chung",
+        "timezone": "Múi giờ",
+        "language": "Ngôn ngữ",
+        "theme": "Giao diện",
+        "date_format": "Định dạng ngày",
+        "time_format": "Định dạng giờ",
+        "number_format": "Định dạng số",
+        "currency": "Tiền tệ",
+        "notifications": "Thông báo",
+        "email_notifications": "Thông báo Email",
+        "telegram_notifications": "Thông báo Telegram",
+        "slack_notifications": "Thông báo Slack",
+        "themes": {
+            "light": "Sáng",
+            "dark": "Tối",
+            "auto": "Tự động"
+        },
+        "time_formats": {
+            "12h": "12 giờ",
+            "24h": "24 giờ"
+        },
+        "messages": {
+            "saved": "Đã lưu cài đặt thành công",
+            "reset": "Đã đặt lại cài đặt mặc định",
+            "save_error": "Không thể lưu cài đặt"
+        }
+    },
+    "servers": {
+        "title": "Máy chủ",
+        "add_server": "Thêm máy chủ",
+        "edit_server": "Sửa máy chủ",
+        "delete_server": "Xóa máy chủ",
+        "server_name": "Tên máy chủ",
+        "hostname": "Hostname/IP",
+        "port": "Cổng",
+        "username": "Tên đăng nhập",
+        "password": "Mật khẩu",
+        "ssh_key": "Khóa SSH",
+        "description": "Mô tả",
+        "tags": "Thẻ",
+        "status": "Trạng thái",
+        "online": "Trực tuyến",
+        "offline": "Ngoại tuyến",
+        "connecting": "Đang kết nối",
+        "messages": {
+            "server_added": "Đã thêm máy chủ thành công",
+            "server_updated": "Đã cập nhật máy chủ thành công",
+            "server_deleted": "Đã xóa máy chủ thành công",
+            "connection_test": "Đang kiểm tra kết nối...",
+            "connection_success": "Kết nối thành công",
+            "connection_failed": "Kết nối thất bại",
+            "delete_confirm": "Bạn có chắc muốn xóa máy chủ này?"
+        }
+    },
+    "auth": {
+        "login": "Đăng nhập",
+        "logout": "Đăng xuất",
+        "username": "Tên đăng nhập",
+        "password": "Mật khẩu",
+        "remember_me": "Ghi nhớ đăng nhập",
+        "forgot_password": "Quên mật khẩu?",
+        "login_failed": "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
+        "session_expired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        "welcome_back": "Chào mừng trở lại!"
+    },
+    "time": {
+        "just_now": "Vừa xong",
+        "minutes_ago": "{count} phút trước",
+        "hours_ago": "{count} giờ trước",
+        "days_ago": "{count} ngày trước",
+        "yesterday": "Hôm qua",
+        "today": "Hôm nay",
+        "tomorrow": "Ngày mai"
+    },
+    "errors": {
+        "generic": "Đã xảy ra lỗi. Vui lòng thử lại.",
+        "network": "Lỗi kết nối. Vui lòng kiểm tra kết nối mạng.",
+        "unauthorized": "Bạn không có quyền thực hiện hành động này.",
+        "not_found": "Không tìm thấy tài nguyên được yêu cầu.",
+        "server_error": "Lỗi máy chủ. Vui lòng liên hệ hỗ trợ."
+    }
+}
