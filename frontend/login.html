@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Multi-Server Monitor</title>
+    <title data-i18n="auth.login">Login</title> - <span>Multi-Server Monitor</span>
     <style>
         * {
             margin: 0;
@@ -150,16 +150,16 @@
         
         <form id="loginForm">
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username" data-i18n="auth.username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
             </div>
             
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password" data-i18n="auth.password">Password</label>
                 <input type="password" id="password" name="password" required autocomplete="current-password">
             </div>
             
-            <button type="submit" class="btn" id="loginBtn">
+            <button type="submit" class="btn" id="loginBtn" data-i18n="auth.login">
                 Login
             </button>
         </form>
@@ -168,6 +168,27 @@
             Multi-Server Monitor v4 &copy; 2025
         </div>
     </div>
+    
+    <script type="module">
+        import i18n from '/assets/js/i18n.js';
+        
+        // Initialize i18n
+        async function initI18n() {
+            const currentLang = i18n.getLanguage();
+            await i18n.loadLanguage(currentLang);
+            translatePage();
+            document.documentElement.lang = currentLang;
+        }
+        
+        function translatePage() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                element.textContent = i18n.t(key);
+            });
+        }
+        
+        initI18n();
+    </script>
     
     <script>
         // Configuration - Dynamic API URL based on current host
@@ -200,7 +221,7 @@
             
             // Disable button
             loginBtn.disabled = true;
-            loginBtn.textContent = 'Logging in...';
+            loginBtn.textContent = i18n ? i18n.t('common.loading') : 'Logging in...';
             
             try {
                 const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -219,21 +240,21 @@
                     localStorage.setItem('username', data.username);
                     localStorage.setItem('expires_at', data.expires_at);
                     
-                    showAlert('Login successful! Redirecting...', 'success');
+                    showAlert(i18n ? i18n.t('auth.loginSuccess') : 'Login successful! Redirecting...', 'success');
                     
                     // Redirect to dashboard
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';
                     }, 1000);
                 } else {
-                    showAlert(data.error || 'Login failed');
+                    showAlert(data.error || (i18n ? i18n.t('auth.loginFailed') : 'Login failed'));
                 }
             } catch (error) {
-                showAlert('Connection error. Please check if the API server is running.');
+                showAlert(i18n ? i18n.t('errors.networkError') : 'Connection error. Please check if the API server is running.');
                 console.error('Login error:', error);
             } finally {
                 loginBtn.disabled = false;
-                loginBtn.textContent = 'Login';
+                loginBtn.textContent = i18n ? i18n.t('auth.login') : 'Login';
             }
         });
         
