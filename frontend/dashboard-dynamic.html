@@ -84,6 +84,19 @@
             line-height: 1.2;
         }
 
+        .stat-change {
+            font-size: var(--text-xs);
+            margin-top: 5px;
+        }
+
+        .stat-change.positive {
+            color: var(--success);
+        }
+
+        .stat-change.negative {
+            color: var(--danger);
+        }
+
         .page-header {
             display: flex;
             justify-content: space-between;
@@ -200,15 +213,11 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header Placeholder -->
-        <div class="app-header" id="headerContainer">
-            <div>Loading...</div>
-        </div>
+        <!-- Header -->
+        <div class="app-header" id="headerContainer"></div>
 
-        <!-- Sidebar Placeholder -->
-        <div class="app-sidebar" id="sidebarContainer">
-            <div style="padding: 20px;">Loading...</div>
-        </div>
+        <!-- Sidebar -->
+        <div class="app-sidebar" id="sidebarContainer"></div>
 
         <!-- Main Content -->
         <main class="app-main with-sidebar">
@@ -216,7 +225,7 @@
                 <div class="page-header">
                     <h1 data-i18n="dashboard.title">Dashboard</h1>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="window.refreshData && window.refreshData()">
+                        <button class="btn btn-primary" onclick="refreshData()">
                             <i class="fas fa-sync-alt"></i>
                             <span data-i18n="common.refresh">Refresh</span>
                         </button>
@@ -290,11 +299,47 @@
         import auth from '/assets/js/auth.js';
         import i18n from '/assets/js/i18n.js';
         import { showToast } from '/assets/js/utils.js';
-        import { loadHeaderAndSidebar } from '/assets/js/component-loader.js';
 
         // Check authentication
         if (!auth.isAuthenticated()) {
             window.location.href = '/login.html';
+        }
+
+        // Load components
+        async function loadComponents() {
+            try {
+                // Load header
+                const headerResponse = await fetch('/components/header.html');
+                const headerHtml = await headerResponse.text();
+                document.getElementById('headerContainer').innerHTML = headerHtml;
+
+                // Load sidebar
+                const sidebarResponse = await fetch('/components/sidebar.html');
+                const sidebarHtml = await sidebarResponse.text();
+                document.getElementById('sidebarContainer').innerHTML = sidebarHtml;
+
+                // Execute scripts in components
+                executeScripts(headerHtml);
+                executeScripts(sidebarHtml);
+            } catch (error) {
+                console.error('Failed to load components:', error);
+            }
+        }
+
+        // Execute inline scripts from loaded HTML
+        function executeScripts(html) {
+            const scriptRegex = /<script type="module">([\s\S]*?)<\/script>/gi;
+            let match;
+            while ((match = scriptRegex.exec(html)) !== null) {
+                try {
+                    const script = document.createElement('script');
+                    script.type = 'module';
+                    script.textContent = match[1];
+                    document.body.appendChild(script);
+                } catch (error) {
+                    console.error('Error executing script:', error);
+                }
+            }
         }
 
         // Initialize i18n
@@ -308,10 +353,7 @@
         function translatePage() {
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.getAttribute('data-i18n');
-                const translation = i18n.t(key);
-                if (translation) {
-                    element.textContent = translation;
-                }
+                element.textContent = i18n.t(key);
             });
         }
 
@@ -335,12 +377,7 @@
                 renderServers(servers);
             } catch (error) {
                 console.error('Failed to load servers:', error);
-                document.getElementById('serversContainer').innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
-                        <p>Failed to load servers. Please try again.</p>
-                    </div>
-                `;
+                showToast('Failed to load servers', 'danger');
             }
         }
 
@@ -400,18 +437,13 @@
         // Refresh data
         window.refreshData = async function() {
             await loadServers();
-            showToast('Refreshed successfully', 'success');
+            showToast(i18n.t('common.refresh') + ' ' + i18n.t('common.loading'), 'success');
         };
 
         // Initialize
         async function init() {
-            // Load components first
-            await loadHeaderAndSidebar();
-            
-            // Then init i18n
+            await loadComponents();
             await initI18n();
-            
-            // Finally load data
             await loadServers();
             
             // Auto refresh every 30 seconds

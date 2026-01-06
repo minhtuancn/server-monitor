@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -193,22 +194,26 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="app-container">
-        <!-- Header Placeholder -->
-        <div class="app-header" id="headerContainer">
-            <div>Loading...</div>
-        </div>
+        <!-- Header -->
+        <iframe src="components/header.html"
+            style="width: 100%; height: var(--header-height); border: none; display: block; position: fixed; top: 0; left: 0; right: 0; z-index: 100;"></iframe>
 
-        <!-- Sidebar Placeholder -->
-        <div class="app-sidebar" id="sidebarContainer">
-            <div style="padding: 20px;">Loading...</div>
-        </div>
+        <!-- Sidebar -->
+        <iframe src="components/sidebar.html"
+            style="width: var(--sidebar-width); height: calc(100vh - var(--header-height)); border: none; display: block; position: fixed; top: var(--header-height); left: 0; z-index: 90;"></iframe>
 
         <!-- Main Content -->
         <main class="app-main with-sidebar">
@@ -216,7 +221,7 @@
                 <div class="page-header">
                     <h1 data-i18n="dashboard.title">Dashboard</h1>
                     <div class="header-actions">
-                        <button class="btn btn-primary" onclick="window.refreshData && window.refreshData()">
+                        <button class="btn btn-primary" onclick="refreshData()">
                             <i class="fas fa-sync-alt"></i>
                             <span data-i18n="common.refresh">Refresh</span>
                         </button>
@@ -290,7 +295,6 @@
         import auth from '/assets/js/auth.js';
         import i18n from '/assets/js/i18n.js';
         import { showToast } from '/assets/js/utils.js';
-        import { loadHeaderAndSidebar } from '/assets/js/component-loader.js';
 
         // Check authentication
         if (!auth.isAuthenticated()) {
@@ -308,10 +312,7 @@
         function translatePage() {
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.getAttribute('data-i18n');
-                const translation = i18n.t(key);
-                if (translation) {
-                    element.textContent = translation;
-                }
+                element.textContent = i18n.t(key);
             });
         }
 
@@ -319,7 +320,7 @@
         async function loadServers() {
             try {
                 const servers = await api.getServers();
-                
+
                 // Update stats
                 const total = servers.length;
                 const online = servers.filter(s => s.status === 'online').length;
@@ -347,7 +348,7 @@
         // Render servers grid
         function renderServers(servers) {
             const container = document.getElementById('serversContainer');
-            
+
             if (servers.length === 0) {
                 container.innerHTML = `
                     <div class="loading">
@@ -393,27 +394,21 @@
                     `).join('')}
                 </div>
             `;
-            
+
             container.innerHTML = html;
         }
 
         // Refresh data
-        window.refreshData = async function() {
+        window.refreshData = async function () {
             await loadServers();
             showToast('Refreshed successfully', 'success');
         };
 
         // Initialize
         async function init() {
-            // Load components first
-            await loadHeaderAndSidebar();
-            
-            // Then init i18n
             await initI18n();
-            
-            // Finally load data
             await loadServers();
-            
+
             // Auto refresh every 30 seconds
             setInterval(loadServers, 30000);
         }
@@ -421,4 +416,5 @@
         init();
     </script>
 </body>
+
 </html>
