@@ -11,6 +11,14 @@ This working copy tracks live progress updates synced with the main roadmap.
 - Settings: Migrated to shared layout + ES modules (auth/api/i18n), admin-guarded
 - i18n rendering: Deferred to page-level `i18n.translatePage()` after component load
 
+### New (Scaffolding)
+- Notifications: Added backend endpoints
+  - `GET /api/notifications/channels` (admin): channel status from settings/email config
+  - `PUT /api/notifications/channels` (admin): toggle email/telegram/slack flags
+  - `POST /api/notifications/test` (admin): test send; email wired, telegram/slack stubbed
+- Frontend: New page `frontend/notifications.html` with shared layout, toggles and test buttons
+- Sidebar: Added Notifications link under Configuration
+
 ## 🎯 Next Focus (Phase 2)
 - Notification System (Email/Telegram/Slack): scaffolding + settings UI
 - Server Notes (Markdown): backend schema + frontend editor

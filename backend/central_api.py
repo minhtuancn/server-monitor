@@ -233,6 +233,44 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._set_headers()
             self.wfile.write(json.dumps(options).encode())
             return
+
+        # ==================== NOTIFICATION CHANNELS ====================
+        elif path == '/api/notifications/channels':
+            # Get notification channels status (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            try:
+                email_cfg = email.get_email_config() or {}
+            except Exception:
+                email_cfg = {}
+
+            settings = settings_mgr.get_all_settings()
+            resp = {
+                'email': {
+                    'enabled': bool(settings.get('smtp_enabled', False)),
+                    'configured': bool(email_cfg),
+                    'to': (email_cfg.get('to_emails') if email_cfg else None)
+                },
+                'telegram': {
+                    'enabled': bool(settings.get('telegram_enabled', False)),
+                    'configured': False
+                },
+                'slack': {
+                    'enabled': bool(settings.get('slack_enabled', False)),
+                    'configured': False
+                }
+            }
+            self._set_headers()
+            self.wfile.write(json.dumps(resp).encode())
+            return
         
         # ==================== SERVER MANAGEMENT ====================
         
@@ -1262,6 +1300,31 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._set_headers()
             self.wfile.write(json.dumps(result).encode())
         
+        # ==================== NOTIFICATION TEST ====================
+        elif path == '/api/notifications/test':
+            # Send a test notification via selected channel (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            channel = (data.get('channel') or 'email').lower()
+            result = {'success': False, 'error': 'Unsupported channel'}
+            try:
+                if channel == 'email':
+                    result = email.test_email_config()
+                elif channel == 'telegram':
+                    from telegram_bot import test_telegram_config
+                    result = test_telegram_config()
+                elif channel == 'slack':
+                    from slack_integration import test_slack_config
+                    result = test_slack_config()
+            except Exception as e:
+                result = {'success': False, 'error': str(e)}
+
+            self._set_headers(200 if result.get('success') else 400)
+            self.wfile.write(json.dumps(result).encode())
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -1355,6 +1418,34 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
+        
+        # ==================== NOTIFICATION CHANNEL TOGGLES ====================
+        elif path == '/api/notifications/channels':
+            # Update channel enable flags (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+
+            updates = {}
+            try:
+                if 'email' in data and isinstance(data['email'], dict) and 'enabled' in data['email']:
+                    updates['smtp_enabled'] = bool(data['email']['enabled'])
+                if 'telegram' in data and isinstance(data['telegram'], dict) and 'enabled' in data['telegram']:
+                    updates['telegram_enabled'] = bool(data['telegram']['enabled'])
+                if 'slack' in data and isinstance(data['slack'], dict) and 'enabled' in data['slack']:
+                    updates['slack_enabled'] = bool(data['slack']['enabled'])
+            except Exception:
+                pass
+
+            if not updates:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'success': False, 'error': 'No valid updates provided'}).encode())
+                return
+
+            success, message, failed = settings_mgr.update_multiple_settings(updates, user_id=auth_result.get('user_id'))
+            self._set_headers(200 if success else 400)
+            self.wfile.write(json.dumps({'success': success, 'message': message, 'failed': failed}).encode())
         
         else:
             self._set_headers(404)
