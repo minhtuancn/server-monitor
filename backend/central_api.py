@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import database as db
 import ssh_manager as ssh
 import email_alerts as email
+import alert_manager
 import security
 from user_management import get_user_manager
 from settings_manager import get_settings_manager
@@ -523,6 +524,33 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         'description': server['description']
                     }
                     
+                    # Check thresholds and send alerts if needed
+                    try:
+                        system_metrics = data.get('system', {})
+                        cpu_usage = system_metrics.get('cpu', {}).get('usage', 0)
+                        memory_percent = system_metrics.get('memory', {}).get('percent', 0)
+                        disk_percent = system_metrics.get('disk', {}).get('percent', 0)
+                        
+                        metrics = {
+                            'cpu': cpu_usage,
+                            'memory': memory_percent,
+                            'disk': disk_percent
+                        }
+                        
+                        # Check and send alerts if thresholds exceeded
+                        alerts = alert_manager.check_server_thresholds(
+                            server_id=server_id,
+                            server_name=server['name'],
+                            metrics=metrics
+                        )
+                        
+                        # Add alert info to response (optional)
+                        if alerts:
+                            data['alerts_triggered'] = len(alerts)
+                    except Exception as e:
+                        # Don't fail the request if alert checking fails
+                        print(f"Alert checking error: {e}")
+                    
                     self._set_headers()
                     self.wfile.write(json.dumps(data).encode())
                 else:
@@ -573,6 +601,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         'description': server['description'],
                         'status': 'online'
                     }
+                    
+                    # Check thresholds and send alerts if needed
+                    try:
+                        system_metrics = data.get('system', {})
+                        cpu_usage = system_metrics.get('cpu', {}).get('usage', 0)
+                        memory_percent = system_metrics.get('memory', {}).get('percent', 0)
+                        disk_percent = system_metrics.get('disk', {}).get('percent', 0)
+                        
+                        metrics = {
+                            'cpu': cpu_usage,
+                            'memory': memory_percent,
+                            'disk': disk_percent
+                        }
+                        
+                        # Check and send alerts if thresholds exceeded
+                        alert_manager.check_server_thresholds(
+                            server_id=server['id'],
+                            server_name=server['name'],
+                            metrics=metrics
+                        )
+                    except Exception as e:
+                        print(f"Alert checking error for server {server['id']}: {e}")
+                    
                     results.append(data)
                 else:
                     db.update_server_status(server['id'], 'offline')

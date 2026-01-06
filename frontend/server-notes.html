@@ -145,22 +145,27 @@
             margin-bottom: 20px;
             opacity: 0.5;
         }
+
         /* SimpleMDE customization */
         .CodeMirror,
         .CodeMirror-scroll {
             min-height: 300px;
         }
+
         .editor-toolbar {
             border-color: var(--border-color);
             background: var(--card-bg);
         }
+
         .editor-toolbar button {
             color: var(--text-primary) !important;
         }
+
         .editor-toolbar button:hover {
             background: var(--hover-bg);
             border-color: var(--primary-color);
         }
+
         .CodeMirror {
             border-color: var(--border-color);
             background: var(--input-bg);
@@ -268,7 +273,7 @@
                     'preview', 'side-by-side', 'fullscreen', '|',
                     'guide'
                 ],
-                previewRender: function(plainText) {
+                previewRender: function (plainText) {
                     return marked.parse(plainText);
                 },
                 renderingConfig: {
@@ -336,7 +341,7 @@
                 const htmlPreview = marked.parse(rawPreview);
                 // Strip HTML tags for plain text preview in card
                 const textPreview = htmlPreview.replace(/<[^>]*>/g, '').substring(0, 150);
-                
+
                 const created = new Date(note.created_at).toLocaleDateString();
                 const updated = new Date(note.updated_at).toLocaleDateString();
 
