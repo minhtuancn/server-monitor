@@ -129,7 +129,7 @@
 <div class="sidebar-menu">
   <!-- Main Section -->
   <div class="sidebar-section">
-    <div class="sidebar-section-title">Main</div>
+    <div class="sidebar-section-title" data-i18n="dashboard.overview">Main</div>
 
     <a href="/dashboard.html" class="sidebar-item" data-page="dashboard">
       <span class="sidebar-item-icon">
@@ -141,7 +141,7 @@
           <rect x="3" y="14" width="7" height="7"></rect>
         </svg>
       </span>
-      <span class="sidebar-item-text">Dashboard</span>
+      <span class="sidebar-item-text" data-i18n="dashboard.title">Dashboard</span>
     </a>
 
     <a href="/servers.html" class="sidebar-item" data-page="servers">
@@ -154,7 +154,7 @@
           <line x1="6" y1="18" x2="6.01" y2="18"></line>
         </svg>
       </span>
-      <span class="sidebar-item-text">Servers</span>
+      <span class="sidebar-item-text" data-i18n="servers.title">Servers</span>
       <span class="sidebar-item-badge" id="serverCount">0</span>
     </a>
 
@@ -186,7 +186,7 @@
           <line x1="12" y1="19" x2="20" y2="19"></line>
         </svg>
       </span>
-      <span class="sidebar-item-text">Terminal</span>
+      <span class="sidebar-item-text" data-i18n="terminal.title">Terminal</span>
     </a>
 
     <a href="/snippets.html" class="sidebar-item" data-page="snippets">
@@ -260,7 +260,7 @@
           <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
       </span>
-      <span class="sidebar-item-text">User Management</span>
+      <span class="sidebar-item-text" data-i18n="users.title">User Management</span>
     </a>
 
     <a href="/settings.html" class="sidebar-item" data-page="settings" data-role="admin">
@@ -273,7 +273,7 @@
           </path>
         </svg>
       </span>
-      <span class="sidebar-item-text">System Settings</span>
+      <span class="sidebar-item-text" data-i18n="settings.title">System Settings</span>
     </a>
 
     <a href="/audit-logs.html" class="sidebar-item" data-page="audit-logs" data-role="admin">
@@ -299,9 +299,26 @@
 <script type="module">
   import api from '/assets/js/api.js';
   import auth from '/assets/js/auth.js';
+  import i18n from '/assets/js/i18n.js';
+
+  // Initialize i18n
+  async function initI18n() {
+    const currentLang = i18n.getLanguage();
+    await i18n.loadLanguage(currentLang);
+    translateSidebar();
+  }
+
+  // Translate sidebar
+  function translateSidebar() {
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+      const key = element.getAttribute('data-i18n');
+      element.textContent = i18n.t(key);
+    });
+  }
 
   // Initialize sidebar
   async function initSidebar() {
+    await initI18n();
     // Set active navigation link
     const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
     document.querySelectorAll('.sidebar-item').forEach(link => {

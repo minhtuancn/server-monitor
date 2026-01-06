@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -20,36 +21,36 @@
             justify-content: center;
             padding: 20px;
         }
-        
+
         .login-container {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
             width: 100%;
             max-width: 400px;
         }
-        
+
         .logo {
             text-align: center;
             margin-bottom: 30px;
         }
-        
+
         .logo h1 {
             color: #667eea;
             font-size: 28px;
             margin-bottom: 5px;
         }
-        
+
         .logo p {
             color: #666;
             font-size: 14px;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         label {
             display: block;
             color: #333;
@@ -57,7 +58,7 @@
             font-weight: 500;
             margin-bottom: 8px;
         }
-        
+
         input {
             width: 100%;
             padding: 12px 15px;
@@ -66,12 +67,12 @@
             font-size: 14px;
             transition: border-color 0.3s;
         }
-        
+
         input:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         .btn {
             width: 100%;
             padding: 14px;
@@ -84,94 +85,95 @@
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
         }
-        
+
         .btn:active {
             transform: translateY(0);
         }
-        
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .alert {
             padding: 12px 15px;
             border-radius: 8px;
             margin-bottom: 20px;
             display: none;
         }
-        
+
         .alert.error {
             background: #fee;
             color: #c33;
             border: 1px solid #fcc;
             display: block;
         }
-        
+
         .alert.success {
             background: #efe;
             color: #3c3;
             border: 1px solid #cfc;
             display: block;
         }
-        
+
         .footer {
             text-align: center;
             margin-top: 20px;
             color: #999;
             font-size: 12px;
         }
-        
+
         @media (max-width: 480px) {
             .login-container {
                 padding: 30px 20px;
             }
-            
+
             .logo h1 {
                 font-size: 24px;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="logo">
             <h1>Server Monitor</h1>
             <p>Multi-Server Management System</p>
         </div>
-        
+
         <div id="alert" class="alert"></div>
-        
+
         <form id="loginForm">
             <div class="form-group">
                 <label for="username" data-i18n="auth.username">Username</label>
                 <input type="text" id="username" name="username" required autocomplete="username">
             </div>
-            
+
             <div class="form-group">
                 <label for="password" data-i18n="auth.password">Password</label>
                 <input type="password" id="password" name="password" required autocomplete="current-password">
             </div>
-            
+
             <button type="submit" class="btn" id="loginBtn" data-i18n="auth.login">
                 Login
             </button>
         </form>
-        
+
         <div class="footer">
             Multi-Server Monitor v4 &copy; 2025
         </div>
     </div>
-    
+
     <script type="module">
         import i18n from '/assets/js/i18n.js';
-        
+
         // Initialize i18n
         async function initI18n() {
             const currentLang = i18n.getLanguage();
@@ -179,50 +181,50 @@
             translatePage();
             document.documentElement.lang = currentLang;
         }
-        
+
         function translatePage() {
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.getAttribute('data-i18n');
                 element.textContent = i18n.t(key);
             });
         }
-        
+
         initI18n();
     </script>
-    
+
     <script>
         // Configuration - Dynamic API URL based on current host
         const API_URL = window.location.origin.replace(/:\d+$/, '') + ':9083';
-        
+
         // Get form elements
         const form = document.getElementById('loginForm');
         const alert = document.getElementById('alert');
         const loginBtn = document.getElementById('loginBtn');
-        
+
         // Show alert
         function showAlert(message, type = 'error') {
             alert.textContent = message;
             alert.className = `alert ${type}`;
             alert.style.display = 'block';
         }
-        
+
         // Hide alert
         function hideAlert() {
             alert.style.display = 'none';
         }
-        
+
         // Handle form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideAlert();
-            
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+
             // Disable button
             loginBtn.disabled = true;
             loginBtn.textContent = i18n ? i18n.t('common.loading') : 'Logging in...';
-            
+
             try {
                 const response = await fetch(`${API_URL}/api/auth/login`, {
                     method: 'POST',
@@ -231,17 +233,17 @@
                     },
                     body: JSON.stringify({ username, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     // Store token in localStorage
                     localStorage.setItem('auth_token', data.token);
                     localStorage.setItem('username', data.username);
                     localStorage.setItem('expires_at', data.expires_at);
-                    
+
                     showAlert(i18n ? i18n.t('auth.loginSuccess') : 'Login successful! Redirecting...', 'success');
-                    
+
                     // Redirect to dashboard
                     setTimeout(() => {
                         window.location.href = 'dashboard.html';
@@ -257,11 +259,11 @@
                 loginBtn.textContent = i18n ? i18n.t('auth.login') : 'Login';
             }
         });
-        
+
         // Check if already logged in
         window.addEventListener('load', async () => {
             const token = localStorage.getItem('auth_token');
-            
+
             if (token) {
                 try {
                     const response = await fetch(`${API_URL}/api/auth/verify`, {
@@ -269,9 +271,9 @@
                             'Authorization': `Bearer ${token}`
                         }
                     });
-                    
+
                     const data = await response.json();
-                    
+
                     if (data.valid) {
                         // Already logged in, redirect to dashboard
                         window.location.href = 'dashboard.html';
@@ -284,4 +286,5 @@
         });
     </script>
 </body>
+
 </html>

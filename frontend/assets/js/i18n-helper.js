@@ -14,26 +14,26 @@ export function translatePage() {
     document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         const translation = i18n.t(key);
-        
+
         if (element.tagName === 'INPUT' && element.placeholder !== undefined) {
             element.placeholder = translation;
         } else {
             element.textContent = translation;
         }
     });
-    
+
     // Translate placeholders
     document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
         const key = element.getAttribute('data-i18n-placeholder');
         element.placeholder = i18n.t(key);
     });
-    
+
     // Translate titles
     document.querySelectorAll('[data-i18n-title]').forEach(element => {
         const key = element.getAttribute('data-i18n-title');
         element.title = i18n.t(key);
     });
-    
+
     // Translate aria-labels
     document.querySelectorAll('[data-i18n-aria]').forEach(element => {
         const key = element.getAttribute('data-i18n-aria');
@@ -48,7 +48,7 @@ export async function initI18n() {
     const currentLang = i18n.getLanguage();
     await i18n.loadLanguage(currentLang);
     translatePage();
-    
+
     // Set document language
     document.documentElement.lang = currentLang;
 }
