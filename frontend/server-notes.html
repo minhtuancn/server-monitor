@@ -8,7 +8,11 @@
     <link rel="stylesheet" href="assets/css/themes.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/app.css">
-    <!-- TODO: Add Markdown editor library (SimpleMDE or Marked.js + CodeMirror) -->
+    <!-- SimpleMDE Markdown Editor -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
+    <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         .notes-container {
             padding: 20px;
@@ -141,6 +145,27 @@
             margin-bottom: 20px;
             opacity: 0.5;
         }
+        /* SimpleMDE customization */
+        .CodeMirror,
+        .CodeMirror-scroll {
+            min-height: 300px;
+        }
+        .editor-toolbar {
+            border-color: var(--border-color);
+            background: var(--card-bg);
+        }
+        .editor-toolbar button {
+            color: var(--text-primary) !important;
+        }
+        .editor-toolbar button:hover {
+            background: var(--hover-bg);
+            border-color: var(--primary-color);
+        }
+        .CodeMirror {
+            border-color: var(--border-color);
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
     </style>
 </head>
 
@@ -182,7 +207,6 @@
                 </div>
                 <div class="note-form-group">
                     <label for="noteContent" data-i18n="notes.content_label">Content (Markdown)</label>
-                    <!-- TODO: Replace textarea with SimpleMDE or CodeMirror + Marked.js for Markdown editing -->
                     <textarea id="noteContent" data-i18n-placeholder="notes.content_placeholder"></textarea>
                 </div>
                 <div class="note-editor-actions">
@@ -201,6 +225,7 @@
 
         let currentServerId = null;
         let currentNoteId = null;
+        let simplemde = null;
 
         // Get server ID from URL query string
         const urlParams = new URLSearchParams(window.location.search);
@@ -218,8 +243,39 @@
         async function init() {
             await loadComponents();
             await i18n.init();
+            initializeMarkdownEditor();
             await fetchNotes();
             setupEventListeners();
+        }
+
+        function initializeMarkdownEditor() {
+            // Configure Marked.js
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: false,
+                mangle: false
+            });
+
+            simplemde = new SimpleMDE({
+                element: document.getElementById('noteContent'),
+                spellChecker: false,
+                placeholder: i18n.t('notes.content_placeholder') || 'Enter note content in Markdown format...',
+                toolbar: [
+                    'bold', 'italic', 'heading', '|',
+                    'quote', 'unordered-list', 'ordered-list', '|',
+                    'link', 'image', 'code', 'table', '|',
+                    'preview', 'side-by-side', 'fullscreen', '|',
+                    'guide'
+                ],
+                previewRender: function(plainText) {
+                    return marked.parse(plainText);
+                },
+                renderingConfig: {
+                    singleLineBreaks: false,
+                    codeSyntaxHighlighting: true
+                }
+            });
         }
 
         function setupEventListeners() {
@@ -275,15 +331,19 @@
             }
 
             const notesHTML = notes.map(note => {
-                // Extract plain text preview from Markdown (simple version)
-                const preview = note.content.substring(0, 150).replace(/[#*`_\[\]]/g, '');
+                // Render Markdown preview using Marked.js (sanitized)
+                const rawPreview = note.content.substring(0, 200);
+                const htmlPreview = marked.parse(rawPreview);
+                // Strip HTML tags for plain text preview in card
+                const textPreview = htmlPreview.replace(/<[^>]*>/g, '').substring(0, 150);
+                
                 const created = new Date(note.created_at).toLocaleDateString();
                 const updated = new Date(note.updated_at).toLocaleDateString();
 
                 return `
                     <div class="note-card" data-note-id="${note.id}">
                         <div class="note-title">${escapeHtml(note.title)}</div>
-                        <div class="note-preview">${escapeHtml(preview)}...</div>
+                        <div class="note-preview">${escapeHtml(textPreview)}...</div>
                         <div class="note-meta">
                             <span>${i18n.t('notes.created') || 'Created'}: ${created}</span>
                             <span>${i18n.t('notes.updated') || 'Updated'}: ${updated}</span>
@@ -334,12 +394,13 @@
                 currentNoteId = note.id;
                 document.getElementById('noteId').value = note.id;
                 document.getElementById('noteTitle').value = note.title;
-                document.getElementById('noteContent').value = note.content;
+                simplemde.value(note.content || '');
                 modalTitle.textContent = i18n.t('notes.edit_note') || 'Edit Note';
             } else {
                 // Create mode
                 currentNoteId = null;
                 form.reset();
+                simplemde.value('');
                 modalTitle.textContent = i18n.t('notes.add_note') || 'Add Note';
             }
 
@@ -353,7 +414,7 @@
 
         async function saveNote() {
             const title = document.getElementById('noteTitle').value.trim();
-            const content = document.getElementById('noteContent').value.trim();
+            const content = simplemde.value().trim();
 
             if (!title) {
                 alert(i18n.t('notes.title_required') || 'Title is required');
