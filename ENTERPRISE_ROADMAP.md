@@ -12,13 +12,17 @@ This working copy tracks live progress updates synced with the main roadmap.
 - i18n rendering: Deferred to page-level `i18n.translatePage()` after component load
 
 ### New (Scaffolding)
-- ✅ **Notifications**: i18n + Telegram/Slack integrations complete (commit 96f0341)
-  - Added notifications i18n keys to en.json + vi.json (~20 keys)
-  - Updated notifications.html with full i18n attributes
-  - Implemented real Telegram Bot API integration using urllib
-  - Implemented real Slack Incoming Webhook integration using urllib
-  - Added GET/POST /api/telegram/config and /api/slack/config endpoints (admin-only)
-  - Added config forms for Telegram (bot_token, chat_id) and Slack (webhook_url)
+- ✅ **Notifications**: i18n + Telegram/Slack integrations + Alert Manager complete (commits 96f0341, 105c118)
+  - [x] Added notifications i18n keys to en.json + vi.json (~20 keys)
+  - [x] Updated notifications.html with full i18n attributes
+  - [x] Implemented real Telegram Bot API integration using urllib
+  - [x] Implemented real Slack Incoming Webhook integration using urllib
+  - [x] Added GET/POST /api/telegram/config and /api/slack/config endpoints (admin-only)
+  - [x] Added config forms for Telegram (bot_token, chat_id) and Slack (webhook_url)
+  - [x] Created alert_manager.py: centralized multi-channel alert dispatcher
+  - [x] Wired alerts to monitoring endpoints (/api/remote/stats/:id and /all)
+  - [x] Auto-send to all enabled channels when thresholds exceeded (CPU 90%, Memory 85%, Disk 90%)
+  - [x] Alert history saved to database automatically
 - ✅ **Server Notes**: Scaffolding complete + Markdown editor integrated (commits c12489c, 250b59e)
   - [x] Added server_notes table schema to database.py (id, server_id, title, content, created_by, timestamps)
   - [x] Implemented complete CRUD functions (add, get, update, delete)
@@ -32,9 +36,9 @@ This working copy tracks live progress updates synced with the main roadmap.
   - [ ] TODO: Add note categories/tags, version history, search functionality
 
 ## 🎯 Next Focus (Phase 2)
-- Domain & SSL: config scaffolding + optional HTTPS reverse-proxy guide
-- Notification System: Wire test alerts to actual monitoring triggers
+- Domain & SSL: config scaffolding + optional HTTPS reverse-proxy guide (IN PROGRESS)
 - Server Notes: Advanced features (categories, tags, search, version history)
+- Testing: E2E verification of Server Notes + Alert notifications
 
 ## 🔄 Housekeeping
 - Keep pages consistent with shared layout: `headerContainer`, `sidebarContainer`, `main.app-main.with-sidebar`

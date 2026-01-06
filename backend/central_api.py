@@ -234,6 +234,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._set_headers()
             self.wfile.write(json.dumps(options).encode())
             return
+        
+        # ==================== DOMAIN SETTINGS ====================
+        elif path == '/api/domain/settings':
+            # Get domain configuration settings (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            settings = db.get_domain_settings()
+            self._set_headers()
+            self.wfile.write(json.dumps(settings).encode())
+            return
 
         # ==================== NOTIFICATION CHANNELS ====================
         elif path == '/api/notifications/channels':
@@ -1514,6 +1532,30 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             self._set_headers(200 if result.get('success') else 400)
             self.wfile.write(json.dumps(result).encode())
+        
+        # ==================== DOMAIN SETTINGS ====================
+        elif path == '/api/domain/settings':
+            # Save domain configuration settings (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            try:
+                result = db.save_domain_settings(
+                    domain_name=data.get('domain_name', ''),
+                    ssl_enabled=data.get('ssl_enabled', 0),
+                    ssl_type=data.get('ssl_type', 'none'),
+                    cert_path=data.get('cert_path', ''),
+                    key_path=data.get('key_path', ''),
+                    auto_renew=data.get('auto_renew', 0)
+                )
+                self._set_headers(200 if result.get('success') else 400)
+                self.wfile.write(json.dumps(result).encode())
+            except Exception as e:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode())
+            return
         
         else:
             self._set_headers(404)

@@ -187,6 +187,20 @@ def init_database():
         )
     ''')
     
+    # Domain settings table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS domain_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain_name TEXT,
+            ssl_enabled INTEGER DEFAULT 0,
+            ssl_type TEXT DEFAULT 'none',
+            cert_path TEXT,
+            key_path TEXT,
+            auto_renew INTEGER DEFAULT 0,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -1185,6 +1199,67 @@ def delete_server_note(note_id):
         conn.commit()
         conn.close()
         return {'success': True, 'message': 'Note deleted successfully'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+# ==================== DOMAIN SETTINGS ====================
+
+def get_domain_settings():
+    """Get domain configuration settings"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM domain_settings LIMIT 1')
+    row = cursor.fetchone()
+    
+    if row:
+        columns = [desc[0] for desc in cursor.description]
+        settings = dict(zip(columns, row))
+        conn.close()
+        return settings
+    else:
+        # Return default settings if none exist
+        conn.close()
+        return {
+            'domain_name': '',
+            'ssl_enabled': 0,
+            'ssl_type': 'none',
+            'cert_path': '',
+            'key_path': '',
+            'auto_renew': 0
+        }
+
+def save_domain_settings(domain_name='', ssl_enabled=0, ssl_type='none', cert_path='', key_path='', auto_renew=0):
+    """Save domain configuration settings"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if settings exist
+        cursor.execute('SELECT id FROM domain_settings LIMIT 1')
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing settings
+            cursor.execute('''
+                UPDATE domain_settings 
+                SET domain_name = ?, ssl_enabled = ?, ssl_type = ?, 
+                    cert_path = ?, key_path = ?, auto_renew = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (domain_name, ssl_enabled, ssl_type, cert_path, key_path, auto_renew, existing[0]))
+        else:
+            # Insert new settings
+            cursor.execute('''
+                INSERT INTO domain_settings 
+                (domain_name, ssl_enabled, ssl_type, cert_path, key_path, auto_renew)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (domain_name, ssl_enabled, ssl_type, cert_path, key_path, auto_renew))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'message': 'Domain settings saved successfully'}
     except Exception as e:
         conn.close()
         return {'success': False, 'error': str(e)}
