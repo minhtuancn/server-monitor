@@ -12,17 +12,25 @@ This working copy tracks live progress updates synced with the main roadmap.
 - i18n rendering: Deferred to page-level `i18n.translatePage()` after component load
 
 ### New (Scaffolding)
-- Notifications: Added backend endpoints
-  - `GET /api/notifications/channels` (admin): channel status from settings/email config
-  - `PUT /api/notifications/channels` (admin): toggle email/telegram/slack flags
-  - `POST /api/notifications/test` (admin): test send; email wired, telegram/slack stubbed
-- Frontend: New page `frontend/notifications.html` with shared layout, toggles and test buttons
-- Sidebar: Added Notifications link under Configuration
+- ✅ **Notifications**: i18n + Telegram/Slack integrations complete (commit 96f0341)
+  - Added notifications i18n keys to en.json + vi.json (~20 keys)
+  - Updated notifications.html with full i18n attributes
+  - Implemented real Telegram Bot API integration using urllib
+  - Implemented real Slack Incoming Webhook integration using urllib
+  - Added GET/POST /api/telegram/config and /api/slack/config endpoints (admin-only)
+  - Added config forms for Telegram (bot_token, chat_id) and Slack (webhook_url)
+- ✅ **Server Notes**: Scaffolding complete (commit c12489c)
+  - Added server_notes table schema to database.py (id, server_id, title, content, created_by, timestamps)
+  - Implemented complete CRUD functions (add, get, update, delete)
+  - Added GET/POST/PUT/DELETE /api/servers/:id/notes endpoints
+  - Created server-notes.html stub with shared layout, note list, create/edit modal
+  - Added notes.* i18n keys to en.json + vi.json (20+ keys)
+  - TODO: Integrate Markdown editor library (SimpleMDE/Marked.js)
 
 ## 🎯 Next Focus (Phase 2)
-- Notification System (Email/Telegram/Slack): scaffolding + settings UI
-- Server Notes (Markdown): backend schema + frontend editor
 - Domain & SSL: config scaffolding + optional HTTPS reverse-proxy guide
+- Server Notes: Integrate Markdown editor (SimpleMDE or Marked.js)
+- Notification System: Wire test alerts to actual monitoring triggers
 
 ## 🔄 Housekeeping
 - Keep pages consistent with shared layout: `headerContainer`, `sidebarContainer`, `main.app-main.with-sidebar`
@@ -246,7 +254,13 @@ backend/
 ### 6. 📊 Enhanced Server Management
 
 #### Server Notes (Markdown)
-- [ ] Rich markdown editor (CodeMirror/Monaco)
+- [x] Rich markdown editor (CodeMirror/Monaco) - **SCAFFOLDED (commit c12489c)**
+  - [x] Database schema: server_notes table with FK to servers
+  - [x] CRUD functions: add, get, update, delete
+  - [x] API endpoints: GET/POST/PUT/DELETE /api/servers/:id/notes
+  - [x] Frontend stub: server-notes.html with note list, create/edit modal
+  - [x] i18n: notes.* keys in en.json + vi.json
+  - [ ] TODO: Integrate Markdown editor library (SimpleMDE/Marked.js + CodeMirror)
 - [ ] Note categories/tags
 - [ ] Note history/versioning
 - [ ] Note sharing (with permissions)
