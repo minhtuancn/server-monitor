@@ -367,6 +367,13 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             parts = [p for p in path.split('/') if p]
             if len(parts) >= 4 and parts[3] == 'notes':
                 # GET /api/servers/:id/notes
+                # Check authentication
+                auth_result = verify_auth_token(self)
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    return
+                
                 try:
                     server_id = int(parts[2])
                     notes = db.get_server_notes(server_id)
@@ -1048,6 +1055,13 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== SERVER NOTES ====================
         elif path.startswith('/api/servers/') and '/notes' in path:
             # POST /api/servers/:id/notes
+            # Check authentication
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
             parts = [p for p in path.split('/') if p]
             if len(parts) >= 4 and parts[3] == 'notes':
                 try:
@@ -1611,6 +1625,13 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             parts = [p for p in path.split('/') if p]
             if len(parts) >= 5 and parts[3] == 'notes':
                 # PUT /api/servers/:id/notes/:note_id
+                # Check authentication
+                auth_result = verify_auth_token(self)
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    return
+                
                 try:
                     note_id = int(parts[4])
                     result = db.update_server_note(
@@ -1739,7 +1760,28 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== SERVER MANAGEMENT ====================
         
         if path.startswith('/api/servers/'):
-            # Delete server
+            # Check for notes sub-path first (more specific)
+            parts = [p for p in path.split('/') if p]
+            if len(parts) >= 5 and parts[3] == 'notes':
+                # DELETE /api/servers/:id/notes/:note_id
+                # Check authentication
+                auth_result = verify_auth_token(self)
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    return
+                
+                try:
+                    note_id = int(parts[4])
+                    result = db.delete_server_note(note_id)
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid note ID'}).encode())
+                return
+            
+            # Otherwise delete server
             server_id = path.split('/')[-1]
             
             try:
@@ -1782,21 +1824,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
-        
-        elif path.startswith('/api/servers/'):
-            # Check for notes sub-path
-            parts = [p for p in path.split('/') if p]
-            if len(parts) >= 5 and parts[3] == 'notes':
-                # DELETE /api/servers/:id/notes/:note_id
-                try:
-                    note_id = int(parts[4])
-                    result = db.delete_server_note(note_id)
-                    self._set_headers()
-                    self.wfile.write(json.dumps(result).encode())
-                except ValueError:
-                    self._set_headers(400)
-                    self.wfile.write(json.dumps({'error': 'Invalid note ID'}).encode())
-                return
         
         else:
             self._set_headers(404)

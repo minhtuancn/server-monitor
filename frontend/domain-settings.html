@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -228,7 +229,8 @@
             margin-top: 25px;
         }
 
-        .btn-primary, .btn-secondary {
+        .btn-primary,
+        .btn-secondary {
             padding: 12px 24px;
             border: none;
             border-radius: 4px;
@@ -335,10 +337,13 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
     <div id="headerContainer"></div>
     <div id="sidebarContainer"></div>
@@ -358,7 +363,7 @@
             <div class="info-box">
                 <i class="fas fa-info-circle"></i>
                 <span data-i18n="domain.info">
-                    Configure HTTPS using Let's Encrypt (automatic renewal) or upload custom certificates. 
+                    Configure HTTPS using Let's Encrypt (automatic renewal) or upload custom certificates.
                     See <a href="HTTPS-SETUP.md" target="_blank">HTTPS Setup Guide</a> for reverse proxy instructions.
                 </span>
             </div>
@@ -378,13 +383,8 @@
                         <p class="setting-description" data-i18n="domain.domain_name_desc">
                             Your domain name (e.g., monitor.example.com)
                         </p>
-                        <input 
-                            type="text" 
-                            id="domainName" 
-                            class="setting-input"
-                            placeholder="monitor.example.com"
-                            data-i18n-placeholder="domain.domain_placeholder"
-                        >
+                        <input type="text" id="domainName" class="setting-input" placeholder="monitor.example.com"
+                            data-i18n-placeholder="domain.domain_placeholder">
                     </div>
                 </div>
 
@@ -412,7 +412,8 @@
                             <div class="ssl-option" data-ssl-type="letsencrypt">
                                 <label>
                                     <input type="radio" name="sslType" value="letsencrypt">
-                                    <span class="ssl-option-title" data-i18n="domain.ssl_letsencrypt">Let's Encrypt</span>
+                                    <span class="ssl-option-title" data-i18n="domain.ssl_letsencrypt">Let's
+                                        Encrypt</span>
                                     <span class="ssl-option-desc" data-i18n="domain.ssl_letsencrypt_desc">
                                         Free automatic SSL with auto-renewal
                                     </span>
@@ -423,7 +424,8 @@
                             <div class="ssl-option" data-ssl-type="custom">
                                 <label>
                                     <input type="radio" name="sslType" value="custom">
-                                    <span class="ssl-option-title" data-i18n="domain.ssl_custom">Custom Certificate</span>
+                                    <span class="ssl-option-title" data-i18n="domain.ssl_custom">Custom
+                                        Certificate</span>
                                     <span class="ssl-option-desc" data-i18n="domain.ssl_custom_desc">
                                         Upload your own certificate files
                                     </span>
@@ -436,16 +438,13 @@
                     <div id="letsencryptConfig" class="ssl-config">
                         <div class="setting-group">
                             <p class="setting-description" data-i18n="domain.letsencrypt_info">
-                                Use Let's Encrypt for automatic free SSL certificates with automatic renewal every 90 days.
+                                Use Let's Encrypt for automatic free SSL certificates with automatic renewal every 90
+                                days.
                             </p>
                             <div class="checkbox-group">
-                                <input 
-                                    type="checkbox" 
-                                    id="autoRenew" 
-                                    class="checkbox"
-                                    checked
-                                >
-                                <label for="autoRenew" data-i18n="domain.auto_renew">Enable automatic certificate renewal</label>
+                                <input type="checkbox" id="autoRenew" class="checkbox" checked>
+                                <label for="autoRenew" data-i18n="domain.auto_renew">Enable automatic certificate
+                                    renewal</label>
                             </div>
                         </div>
                     </div>
@@ -457,13 +456,9 @@
                             <p class="setting-description" data-i18n="domain.cert_file_desc">
                                 Path to your SSL certificate file
                             </p>
-                            <input 
-                                type="text" 
-                                id="certPath" 
-                                class="setting-input"
+                            <input type="text" id="certPath" class="setting-input"
                                 placeholder="/etc/ssl/certs/certificate.crt"
-                                data-i18n-placeholder="domain.cert_placeholder"
-                            >
+                                data-i18n-placeholder="domain.cert_placeholder">
                         </div>
 
                         <div class="setting-group">
@@ -471,13 +466,9 @@
                             <p class="setting-description" data-i18n="domain.key_file_desc">
                                 Path to your SSL private key file
                             </p>
-                            <input 
-                                type="text" 
-                                id="keyPath" 
-                                class="setting-input"
+                            <input type="text" id="keyPath" class="setting-input"
                                 placeholder="/etc/ssl/private/private.key"
-                                data-i18n-placeholder="domain.key_placeholder"
-                            >
+                                data-i18n-placeholder="domain.key_placeholder">
                         </div>
                     </div>
                 </div>
@@ -507,7 +498,8 @@
                         <li data-i18n="domain.step4">Update your DNS records to point to your server</li>
                     </ol>
                     <p style="margin-top: 15px;">
-                        <a href="HTTPS-SETUP.md" target="_blank" class="btn btn-secondary" style="display: inline-block; margin-top: 10px;">
+                        <a href="HTTPS-SETUP.md" target="_blank" class="btn btn-secondary"
+                            style="display: inline-block; margin-top: 10px;">
                             <i class="fas fa-book"></i>
                             <span data-i18n="domain.read_guide">Read Full Setup Guide</span>
                         </a>
@@ -694,4 +686,5 @@
         init();
     </script>
 </body>
+
 </html>
