@@ -68,6 +68,7 @@ start_service() {
     local pidfile=$3
     local logfile=$4
     local port=$5
+    local workdir=${6:-$BACKEND_DIR}  # Optional working directory, default to backend
     
     echo -e "${BLUE}Starting $name...${NC}"
     
@@ -79,7 +80,7 @@ start_service() {
     fi
     
     # Start service
-    cd "$BACKEND_DIR" 2>/dev/null || cd "$BASE_DIR"
+    cd "$workdir"
     nohup $command > "$logfile" 2>&1 &
     local pid=$!
     echo $pid > "$pidfile"
@@ -89,14 +90,17 @@ start_service() {
     if ps -p $pid > /dev/null 2>&1; then
         if check_port $port; then
             echo -e "${GREEN}  ✓ $name started successfully (PID: $pid, Port: $port)${NC}"
+            cd "$BASE_DIR"
             return 0
         else
             echo -e "${RED}  ✗ $name process running but port $port not listening${NC}"
+            cd "$BASE_DIR"
             return 1
         fi
     else
         echo -e "${RED}  ✗ Failed to start $name${NC}"
         tail -10 "$logfile"
+        cd "$BASE_DIR"
         return 1
     fi
 }
@@ -144,13 +148,13 @@ if [ -f "$BACKEND_DIR/terminal.py" ]; then
 fi
 
 # Start Frontend Server
-cd "$BASE_DIR/frontend"
 start_service \
     "Frontend Server" \
     "python3 -m http.server $FRONTEND_PORT" \
     "$BASE_DIR/web.pid" \
     "$LOGS_DIR/web.log" \
-    $FRONTEND_PORT
+    $FRONTEND_PORT \
+    "$BASE_DIR/frontend"
 
 # Summary
 echo ""
