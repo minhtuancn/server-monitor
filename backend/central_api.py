@@ -3,6 +3,7 @@
 """
 Central Multi-Server Monitoring API v3
 Manages multiple remote servers via SSH
+Enterprise Edition - With User Management & Settings
 """
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -19,8 +20,14 @@ import database as db
 import ssh_manager as ssh
 import email_alerts as email
 import security
+from user_management import get_user_manager
+from settings_manager import get_settings_manager
 
 PORT = 9083  # Different port for central server
+
+# Initialize managers
+user_mgr = get_user_manager()
+settings_mgr = get_settings_manager()
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -123,6 +130,97 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             else:
                 self._set_headers(401)
                 self.wfile.write(json.dumps({'valid': False, 'error': auth_result.get('error')}).encode())
+            return
+        
+        # ==================== USER MANAGEMENT ====================
+        
+        elif path == '/api/users':
+            # Get all users (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            users = user_mgr.get_all_users()
+            self._set_headers()
+            self.wfile.write(json.dumps(users).encode())
+            return
+        
+        elif path.startswith('/api/users/') and path != '/api/users':
+            # Get single user
+            try:
+                user_id = int(path.split('/')[-1])
+                auth_result = verify_auth_token(self)
+                
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    return
+                
+                # Users can see their own data, admins can see anyone
+                if auth_result.get('role') != 'admin' and auth_result.get('user_id') != user_id:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied'}).encode())
+                    return
+                
+                user = user_mgr.get_user(user_id)
+                if user:
+                    self._set_headers()
+                    self.wfile.write(json.dumps(user).encode())
+                else:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'User not found'}).encode())
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid user ID'}).encode())
+            return
+        
+        elif path == '/api/roles':
+            # Get available roles
+            self._set_headers()
+            roles = user_mgr.get_roles()
+            self.wfile.write(json.dumps(roles).encode())
+            return
+        
+        # ==================== SYSTEM SETTINGS ====================
+        
+        elif path == '/api/settings':
+            # Get all system settings
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            settings = settings_mgr.get_all_settings()
+            self._set_headers()
+            self.wfile.write(json.dumps(settings).encode())
+            return
+        
+        elif path.startswith('/api/settings/') and path != '/api/settings':
+            # Get single setting
+            key = path.split('/')[-1]
+            value = settings_mgr.get_setting(key)
+            
+            if value is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps({'key': key, 'value': value}).encode())
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'Setting not found'}).encode())
+            return
+        
+        elif path == '/api/settings/options':
+            # Get available options for settings
+            options = settings_mgr.get_options()
+            self._set_headers()
+            self.wfile.write(json.dumps(options).encode())
             return
         
         # ==================== SERVER MANAGEMENT ====================
@@ -521,7 +619,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== AUTHENTICATION ====================
         
         if path == '/api/auth/login':
-            # Admin login
+            # User login with new auth system
             username = data.get('username')
             password = data.get('password')
             
@@ -530,14 +628,31 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'Username and password required'}).encode())
                 return
             
-            result = db.authenticate_user(username, password)
+            # Try new user management system first
+            success, message, user_data = user_mgr.authenticate(username, password)
             
-            if result['success']:
+            if success:
+                # Generate JWT token
+                token = security.AuthMiddleware.generate_token(user_data)
                 self._set_headers()
-                self.wfile.write(json.dumps(result).encode())
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'token': token,
+                    'user': user_data,
+                    'message': message
+                }).encode())
             else:
-                self._set_headers(401)
-                self.wfile.write(json.dumps(result).encode())
+                # Fallback to old auth system for backward compatibility
+                result = db.authenticate_user(username, password)
+                if result['success']:
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                else:
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({
+                        'success': False,
+                        'error': message
+                    }).encode())
             return
         
         elif path == '/api/auth/logout':
@@ -565,6 +680,130 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         if not auth_result['valid'] or auth_result.get('role') == 'public':
             self._set_headers(401)
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+            return
+        
+        # ==================== USER MANAGEMENT ====================
+        
+        if path == '/api/users':
+            # Create new user (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            required = ['username', 'email', 'password', 'role']
+            if not all(k in data for k in required):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing required fields'}).encode())
+                return
+            
+            success, message, user_id = user_mgr.create_user(
+                username=data['username'],
+                email=data['email'],
+                password=data['password'],
+                role=data['role'],
+                avatar_url=data.get('avatar_url')
+            )
+            
+            if success:
+                self._set_headers(201)
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': message,
+                    'user_id': user_id
+                }).encode())
+            else:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({
+                    'success': False,
+                    'error': message
+                }).encode())
+            return
+        
+        elif path.startswith('/api/users/') and path.endswith('/change-password'):
+            # Change user password
+            user_id = int(path.split('/')[-2])
+            
+            # Users can change their own password, admins can change anyone's
+            if auth_result.get('role') != 'admin' and auth_result.get('user_id') != user_id:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied'}).encode())
+                return
+            
+            required = ['old_password', 'new_password']
+            if not all(k in data for k in required):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing required fields'}).encode())
+                return
+            
+            success, message = user_mgr.change_password(
+                user_id,
+                data['old_password'],
+                data['new_password']
+            )
+            
+            self._set_headers(200 if success else 400)
+            self.wfile.write(json.dumps({
+                'success': success,
+                'message': message
+            }).encode())
+            return
+        
+        # ==================== SYSTEM SETTINGS ====================
+        
+        elif path == '/api/settings':
+            # Update system settings (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            success, message, failed = settings_mgr.update_multiple_settings(
+                data,
+                user_id=auth_result.get('user_id')
+            )
+            
+            if success:
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': message
+                }).encode())
+            else:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({
+                    'success': False,
+                    'error': message,
+                    'failed': failed
+                }).encode())
+            return
+        
+        elif path.startswith('/api/settings/') and path != '/api/settings':
+            # Update single setting
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            key = path.split('/')[-1]
+            value = data.get('value')
+            
+            if value is None:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Value is required'}).encode())
+                return
+            
+            success, message = settings_mgr.update_setting(
+                key,
+                value,
+                user_id=auth_result.get('user_id')
+            )
+            
+            self._set_headers(200 if success else 400)
+            self.wfile.write(json.dumps({
+                'success': success,
+                'message': message
+            }).encode())
             return
         
         # ==================== SERVER MANAGEMENT ====================
@@ -1027,6 +1266,40 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
             return
         
+        # ==================== USER MANAGEMENT ====================
+        
+        if path.startswith('/api/users/') and not path.endswith('/change-password'):
+            # Update user (admin only for changing roles, users can update their own profile)
+            try:
+                user_id = int(path.split('/')[-1])
+                
+                # Check permissions
+                if 'role' in data and auth_result.get('role') != 'admin':
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Only admins can change roles'}).encode())
+                    return
+                
+                if auth_result.get('role') != 'admin' and auth_result.get('user_id') != user_id:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied'}).encode())
+                    return
+                
+                success, message = user_mgr.update_user(user_id, **data)
+                
+                self._set_headers(200 if success else 400)
+                self.wfile.write(json.dumps({
+                    'success': success,
+                    'message': message
+                }).encode())
+                return
+            
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid user ID'}).encode())
+                return
+        
+        # ==================== SERVER MANAGEMENT ====================
+        
         if path.startswith('/api/servers/'):
             # Update server
             server_id = path.split('/')[-1]
@@ -1085,6 +1358,33 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._set_headers(401)
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
             return
+        
+        # ==================== USER MANAGEMENT ====================
+        
+        if path.startswith('/api/users/'):
+            # Delete user (admin only)
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            try:
+                user_id = int(path.split('/')[-1])
+                success, message = user_mgr.delete_user(user_id)
+                
+                self._set_headers(200 if success else 400)
+                self.wfile.write(json.dumps({
+                    'success': success,
+                    'message': message
+                }).encode())
+                return
+            
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid user ID'}).encode())
+                return
+        
+        # ==================== SERVER MANAGEMENT ====================
         
         if path.startswith('/api/servers/'):
             # Delete server

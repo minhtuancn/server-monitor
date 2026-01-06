@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,7 +42,7 @@
             border-radius: 10px;
             padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .section h2 {
@@ -190,6 +191,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -276,20 +278,20 @@
             const btn = document.getElementById('testBtn');
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
-            
+
             testResults = [];
             document.getElementById('testResults').innerHTML = '';
             document.getElementById('detailsBox').style.display = 'none';
 
             // Test 1: API Health
             await testEndpoint('API Health', 'GET', '/api/health');
-            
+
             // Test 2: Authentication
             const loginResult = await testEndpoint('Login', 'POST', '/api/auth/login', {
                 username: 'admin',
                 password: 'admin123'
             });
-            
+
             const token = loginResult.success ? loginResult.data.token : null;
             const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
@@ -316,7 +318,7 @@
 
             // Update summary
             updateSummary();
-            
+
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-redo"></i> Run Again';
         }
@@ -330,14 +332,14 @@
                         ...headers
                     }
                 };
-                
+
                 if (body) {
                     options.body = JSON.stringify(body);
                 }
 
                 const response = await fetch(`${API_URL}${path}`, options);
                 const data = await response.json();
-                
+
                 const success = response.status >= 200 && response.status < 300;
                 addTestResult(name, success, `Status: ${response.status}`, data);
                 return { success, data };
@@ -389,7 +391,7 @@
 
         function addTestResult(name, success, message, data = null) {
             testResults.push({ name, success, message, data });
-            
+
             const container = document.getElementById('testResults');
             const item = document.createElement('div');
             item.className = `test-item ${success ? 'success' : 'error'}`;
@@ -413,7 +415,7 @@
             // Show details
             const detailsBox = document.getElementById('detailsBox');
             detailsBox.style.display = 'block';
-            detailsBox.textContent = `Test Summary:\n\nTotal: ${total}\nPassed: ${passed}\nFailed: ${failed}\n\nSuccess Rate: ${Math.round(passed/total*100)}%`;
+            detailsBox.textContent = `Test Summary:\n\nTotal: ${total}\nPassed: ${passed}\nFailed: ${failed}\n\nSuccess Rate: ${Math.round(passed / total * 100)}%`;
         }
 
         // Run tests on load
@@ -422,4 +424,5 @@
         });
     </script>
 </body>
+
 </html>

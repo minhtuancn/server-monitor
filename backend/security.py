@@ -2,12 +2,16 @@
 
 """
 Security middleware for Server Monitor API
-Adds rate limiting, CORS restrictions, and security headers
+Adds rate limiting, CORS restrictions, security headers, and RBAC
 """
 
 import time
+import jwt
+import json
 from collections import defaultdict
 from datetime import datetime, timedelta
+from functools import wraps
+from typing import Callable, Optional, Dict
 
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100  # requests per window
@@ -315,3 +319,171 @@ def get_security_stats():
             for ip, until in blocked_ips.items()
         ]
     }
+
+
+# JWT Configuration
+JWT_SECRET = 'your-secret-key-change-in-production'  # TODO: Move to environment variable
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION = 24 * 60 * 60  # 24 hours in seconds
+
+
+class AuthMiddleware:
+    """Authentication and authorization middleware"""
+    
+    @staticmethod
+    def generate_token(user_data: Dict) -> str:
+        """Generate JWT token for user"""
+        payload = {
+            'user_id': user_data['id'],
+            'username': user_data['username'],
+            'role': user_data['role'],
+            'permissions': user_data.get('permissions', []),
+            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION),
+            'iat': datetime.utcnow()
+        }
+        return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    
+    @staticmethod
+    def decode_token(token: str) -> Optional[Dict]:
+        """Decode and validate JWT token"""
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            return payload
+        except jwt.ExpiredSignatureError:
+            return None
+        except jwt.InvalidTokenError:
+            return None
+    
+    @staticmethod
+    def extract_token_from_header(auth_header: str) -> Optional[str]:
+        """Extract Bearer token from Authorization header"""
+        if not auth_header:
+            return None
+        
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return None
+        
+        return parts[1]
+    
+    @staticmethod
+    def require_auth(handler):
+        """Decorator to require authentication"""
+        @wraps(handler)
+        def wrapper(self, *args, **kwargs):
+            # Get Authorization header
+            auth_header = self.headers.get('Authorization')
+            if not auth_header:
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'No authorization token provided'
+                }).encode())
+                return
+            
+            # Extract and validate token
+            token = AuthMiddleware.extract_token_from_header(auth_header)
+            if not token:
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Invalid authorization header format'
+                }).encode())
+                return
+            
+            user_data = AuthMiddleware.decode_token(token)
+            if not user_data:
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    'error': 'Invalid or expired token'
+                }).encode())
+                return
+            
+            # Attach user data to request
+            self.current_user = user_data
+            
+            # Call the handler
+            return handler(self, *args, **kwargs)
+        
+        return wrapper
+    
+    @staticmethod
+    def require_role(*allowed_roles):
+        """Decorator to require specific role(s)"""
+        def decorator(handler):
+            @wraps(handler)
+            def wrapper(self, *args, **kwargs):
+                # Check if user is authenticated
+                if not hasattr(self, 'current_user'):
+                    self.send_response(401)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        'error': 'Authentication required'
+                    }).encode())
+                    return
+                
+                # Check role
+                user_role = self.current_user.get('role')
+                if user_role not in allowed_roles:
+                    self.send_response(403)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        'error': f'Access denied. Required role: {", ".join(allowed_roles)}'
+                    }).encode())
+                    return
+                
+                # Call the handler
+                return handler(self, *args, **kwargs)
+            
+            return wrapper
+        return decorator
+    
+    @staticmethod
+    def require_permission(permission: str):
+        """Decorator to require specific permission"""
+        def decorator(handler):
+            @wraps(handler)
+            def wrapper(self, *args, **kwargs):
+                # Check if user is authenticated
+                if not hasattr(self, 'current_user'):
+                    self.send_response(401)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        'error': 'Authentication required'
+                    }).encode())
+                    return
+                
+                # Check permission
+                permissions = self.current_user.get('permissions', [])
+                
+                # Admin has all permissions
+                if '*' in permissions:
+                    return handler(self, *args, **kwargs)
+                
+                # Check exact permission or wildcard
+                has_permission = permission in permissions or any(
+                    p.endswith('.*') and permission.startswith(p[:-2])
+                    for p in permissions
+                )
+                
+                if not has_permission:
+                    self.send_response(403)
+                    self.send_header('Content-Type', 'application/json')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        'error': f'Access denied. Required permission: {permission}'
+                    }).encode())
+                    return
+                
+                # Call the handler
+                return handler(self, *args, **kwargs)
+            
+            return wrapper
+        return decorator
