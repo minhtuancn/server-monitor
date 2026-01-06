@@ -245,22 +245,14 @@
         });
 
         // Initialize i18n
-        async function initI18n() {
-            const currentLang = i18n.getCurrentLanguage();
-            await i18n.loadLanguage(currentLang);
-            translatePage();
-            document.documentElement.lang = currentLang;
-        }
-
-        function translatePage() {
-            document.querySelectorAll('[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                element.textContent = i18n.t(key);
-            });
-        }
-
-        // Initialize on load
-        initI18n();
+        (async () => {
+            try {
+                await i18n.init();
+                console.log('i18n initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize i18n:', error);
+            }
+        })();
     </script>
 </body>
 
