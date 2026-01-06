@@ -5,7 +5,6 @@
 
 class I18n {
     constructor() {
-        this.currentLanguage = this.getStoredLanguage() || this.detectBrowserLanguage();
         this.translations = {};
         this.fallbackLanguage = 'en';
         this.supportedLanguages = {
@@ -18,6 +17,7 @@ class I18n {
             'fr': 'Français',
             'de': 'Deutsch'
         };
+        this.currentLanguage = this.getStoredLanguage() || this.detectBrowserLanguage();
     }
 
     /**

@@ -53,7 +53,8 @@ class AuthManager {
    * Check if user is authenticated
    */
   isAuthenticated() {
-    return !!this.token && !!this.user;
+    if (!this.token || !this.user) return false;
+    return !this.isTokenExpired();
   }
 
   /**
@@ -250,81 +251,83 @@ class AuthManager {
     }
     return false;
   }
-  * Update user settings
-  */
+
+  /**
+   * Update user settings
+   */
   async updateUserSettings(settings) {
-  try {
-    const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
+    try {
+      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
 
-    const response = await fetch(`${API_BASE}/api/v1/user/settings`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.token}`
-      },
-      body: JSON.stringify(settings)
-    });
+      const response = await fetch(`${API_BASE}/api/v1/user/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: JSON.stringify(settings)
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Failed to update settings');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update settings');
+      }
+
+      const data = await response.json();
+
+      // Update local user info
+      this.setUser({ ...this.user, ...settings });
+
+      // Apply theme if changed
+      if (settings.theme) {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+      }
+
+      return { success: true, data };
+    } catch (error) {
+      console.error('Update settings error:', error);
+      return { success: false, error: error.message };
     }
-
-    const data = await response.json();
-
-    // Update local user info
-    this.setUser({ ...this.user, ...settings });
-
-    // Apply theme if changed
-    if (settings.theme) {
-      document.documentElement.setAttribute('data-theme', settings.theme);
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Update settings error:', error);
-    return { success: false, error: error.message };
   }
-}
 
   /**
    * Validate token by making a test API call
    */
   async validateToken() {
-  if (!this.token) {
-    return false;
-  }
-
-  try {
-    const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
-
-    const response = await fetch(`${API_BASE}/api/v1/user/validate`, {
-      headers: {
-        'Authorization': `Bearer ${this.token}`
-      }
-    });
-
-    if (!response.ok) {
-      // Token is invalid, clear it
-      this.logout(false);
+    if (!this.token) {
       return false;
     }
 
-    return true;
-  } catch (error) {
-    console.error('Token validation error:', error);
-    return false;
-  }
-}
+    try {
+      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
 
-/**
- * Get authorization header
- */
-getAuthHeader() {
-  return {
-    'Authorization': `Bearer ${this.token}`
-  };
-}
+      const response = await fetch(`${API_BASE}/api/v1/user/validate`, {
+        headers: {
+          'Authorization': `Bearer ${this.token}`
+        }
+      });
+
+      if (!response.ok) {
+        // Token is invalid, clear it
+        this.logout(false);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get authorization header
+   */
+  getAuthHeader() {
+    return {
+      'Authorization': `Bearer ${this.token}`
+    };
+  }
 }
 
 // Export singleton instance
