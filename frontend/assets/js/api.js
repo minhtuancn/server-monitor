@@ -22,11 +22,11 @@ class APIClient {
 
     const hostname = window.location.hostname;
     const port = window.location.port;
-    
+
     // Development: port 9083
     // Production: port 8083
     const apiPort = port === '9081' ? 9083 : 8083;
-    
+
     return `http://${hostname}:${apiPort}`;
   }
 
@@ -36,7 +36,7 @@ class APIClient {
   async request(method, endpoint, data = null, options = {}) {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      
+
       const headers = {
         'Content-Type': 'application/json',
         ...options.headers
@@ -125,7 +125,7 @@ class APIClient {
   async upload(endpoint, formData, options = {}) {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      
+
       const headers = {
         ...options.headers
       };
@@ -167,7 +167,7 @@ class APIClient {
   async download(endpoint, filename) {
     try {
       const url = `${this.baseURL}${endpoint}`;
-      
+
       const headers = {};
       if (auth.token) {
         headers['Authorization'] = `Bearer ${auth.token}`;
@@ -349,6 +349,65 @@ class APIClient {
 
   async pingServer(serverId) {
     return this.post(`/api/v1/servers/${serverId}/ping`);
+  }
+
+  // ========================================
+  // User Management APIs (Phase 1)
+  // ========================================
+
+  async getUsers() {
+    return this.get('/api/users');
+  }
+
+  async getUser(id) {
+    return this.get(`/api/users/${id}`);
+  }
+
+  async createUser(data) {
+    return this.post('/api/users', data);
+  }
+
+  async updateUser(id, data) {
+    return this.put(`/api/users/${id}`, data);
+  }
+
+  async deleteUser(id) {
+    return this.delete(`/api/users/${id}`);
+  }
+
+  async changePassword(id, oldPassword, newPassword) {
+    return this.post(`/api/users/${id}/change-password`, {
+      old_password: oldPassword,
+      new_password: newPassword
+    });
+  }
+
+  async getRoles() {
+    return this.get('/api/roles');
+  }
+
+  // ========================================
+  // System Settings APIs (Phase 1)
+  // ========================================
+
+  async getSettings() {
+    return this.get('/api/settings');
+  }
+
+  async getSetting(key) {
+    return this.get(`/api/settings/${key}`);
+  }
+
+  async updateSetting(key, value) {
+    return this.post(`/api/settings/${key}`, { value });
+  }
+
+  async updateSettings(settings) {
+    return this.post('/api/settings', settings);
+  }
+
+  async getSettingsOptions() {
+    return this.get('/api/settings/options');
   }
 }
 
