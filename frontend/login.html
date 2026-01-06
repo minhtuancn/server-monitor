@@ -174,6 +174,7 @@
     <script type="module">
         import i18n from '/assets/js/i18n.js';
         import auth from '/assets/js/auth.js';
+        import config from '/assets/js/config.js';
 
         // Configuration - Dynamic API URL based on current host
         const API_URL = window.location.origin.replace(/:\d+$/, '') + ':9083';
@@ -193,6 +194,13 @@
         // Hide alert
         function hideAlert() {
             alert.style.display = 'none';
+        }
+
+        // Safety: warn/block if HTTP and config disallows insecure login
+        const isSecure = (window.isSecureContext === true) || (location.protocol === 'https:');
+        if (!isSecure && config && config.allowInsecureLogin === false) {
+            showAlert('Insecure HTTP login is disabled by configuration.', 'error');
+            loginBtn.disabled = true;
         }
 
         // Handle form submission
