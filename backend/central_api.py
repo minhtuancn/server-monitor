@@ -56,7 +56,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header('Content-type', 'application/json')
         
-        # Apply security headers
+        # Always apply security headers (CORS + Security Headers)
         origin = self.headers.get('Origin', '')
         cors_headers = security.CORS.get_cors_headers(origin)
         sec_headers = security.SecurityHeaders.get_security_headers()
@@ -64,10 +64,12 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         for key, value in {**cors_headers, **sec_headers}.items():
             self.send_header(key, value)
         
-        # Add any extra headers
+        # Add any extra headers (will override if keys conflict)
         if extra_headers:
             for key, value in extra_headers.items():
-                self.send_header(key, value)
+                # Skip if already set by security headers to avoid duplicates
+                if key not in cors_headers and key not in sec_headers:
+                    self.send_header(key, value)
         
         self.end_headers()
     
@@ -175,7 +177,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/csv')
                 self.send_header('Content-Disposition', f'attachment; filename="servers_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"')
-                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(csv_data.encode('utf-8'))
             except Exception as e:
@@ -195,7 +196,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.send_header('Content-Disposition', f'attachment; filename="servers_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"')
-                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json_data.encode('utf-8'))
             except Exception as e:
@@ -226,7 +226,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-type', 'text/csv')
                     self.send_header('Content-Disposition', f'attachment; filename="history_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"')
-                    self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     self.wfile.write(csv_data.encode('utf-8'))
                 elif export_format == 'json':
@@ -234,7 +233,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.send_header('Content-Disposition', f'attachment; filename="history_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json"')
-                    self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     self.wfile.write(json_data.encode('utf-8'))
                 else:
@@ -262,7 +260,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-type', 'text/csv')
                 self.send_header('Content-Disposition', f'attachment; filename="alerts_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"')
-                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(csv_data.encode('utf-8'))
             except Exception as e:
