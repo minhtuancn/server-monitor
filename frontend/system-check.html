@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Check - Server Monitor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7fafc;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #1a202c;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #1a202c;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .test-item {
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .test-item.success {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .test-item.error {
+            border-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .test-item.warning {
+            border-color: #ed8936;
+            background: #fffaf0;
+        }
+
+        .test-name {
+            font-weight: 500;
+        }
+
+        .test-status {
+            font-size: 20px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+        }
+
+        .btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+
+        .result-box {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .link-card {
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #1a202c;
+            transition: all 0.3s;
+        }
+
+        .link-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .link-card i {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .link-card h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .link-card p {
+            font-size: 13px;
+            color: #718096;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-check-circle"></i> System Health Check</h1>
+            <p>Server Monitor Dashboard v1.0.0 - Comprehensive System Test</p>
+        </div>
+
+        <div class="section">
+            <h2><i class="fas fa-server"></i> System Overview</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-label">API Status</div>
+                    <div class="stat-value" id="apiStatus">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Frontend Status</div>
+                    <div class="stat-value" id="frontendStatus">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">WebSocket Status</div>
+                    <div class="stat-value" id="wsStatus">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Checks</div>
+                    <div class="stat-value" id="totalChecks">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2><i class="fas fa-vial"></i> Automated Tests</h2>
+            <button class="btn" onclick="runAllTests()" id="testBtn">
+                <i class="fas fa-play"></i> Run All Tests
+            </button>
+            <div class="test-grid" id="testResults" style="margin-top: 20px;"></div>
+            <div class="result-box" id="detailsBox" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2><i class="fas fa-link"></i> Quick Access Links</h2>
+            <div class="link-grid">
+                <a href="login.html" class="link-card">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <h3>Login Page</h3>
+                    <p>User authentication</p>
+                </a>
+                <a href="dashboard.html" class="link-card">
+                    <i class="fas fa-th-large"></i>
+                    <h3>Dashboard</h3>
+                    <p>Main monitoring view</p>
+                </a>
+                <a href="server-detail.html" class="link-card">
+                    <i class="fas fa-server"></i>
+                    <h3>Server Detail</h3>
+                    <p>Individual server info</p>
+                </a>
+                <a href="terminal.html" class="link-card">
+                    <i class="fas fa-terminal"></i>
+                    <h3>Web Terminal</h3>
+                    <p>SSH terminal access</p>
+                </a>
+                <a href="email-settings.html" class="link-card">
+                    <i class="fas fa-envelope"></i>
+                    <h3>Email Settings</h3>
+                    <p>Alert configuration</p>
+                </a>
+                <a href="ssh-keys.html" class="link-card">
+                    <i class="fas fa-key"></i>
+                    <h3>SSH Keys</h3>
+                    <p>Key management</p>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_PORT = window.location.port === '9081' ? '9083' : '9083';
+        const API_URL = `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
+        const WS_URL = `ws://${window.location.hostname}:9085`;
+
+        let testResults = [];
+
+        async function runAllTests() {
+            const btn = document.getElementById('testBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            
+            testResults = [];
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('detailsBox').style.display = 'none';
+
+            // Test 1: API Health
+            await testEndpoint('API Health', 'GET', '/api/health');
+            
+            // Test 2: Authentication
+            const loginResult = await testEndpoint('Login', 'POST', '/api/auth/login', {
+                username: 'admin',
+                password: 'admin123'
+            });
+            
+            const token = loginResult.success ? loginResult.data.token : null;
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+            // Test 3-8: Core endpoints
+            if (token) {
+                await testEndpoint('List Servers', 'GET', '/api/servers', null, headers);
+                await testEndpoint('Overview Stats', 'GET', '/api/stats/overview', null, headers);
+                await testEndpoint('SSH Keys', 'GET', '/api/ssh-keys', null, headers);
+                await testEndpoint('Email Config', 'GET', '/api/email/config', null, headers);
+                await testEndpoint('Alerts', 'GET', '/api/alerts', null, headers);
+                await testEndpoint('Token Verify', 'GET', '/api/auth/verify', null, headers);
+            }
+
+            // Test Frontend pages
+            await testFrontendPage('Login Page', 'login.html');
+            await testFrontendPage('Dashboard', 'dashboard.html');
+            await testFrontendPage('Terminal', 'terminal.html');
+            await testFrontendPage('Email Settings', 'email-settings.html');
+            await testFrontendPage('SSH Keys', 'ssh-keys.html');
+            await testFrontendPage('Server Detail', 'server-detail.html');
+
+            // Test WebSocket
+            await testWebSocket();
+
+            // Update summary
+            updateSummary();
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-redo"></i> Run Again';
+        }
+
+        async function testEndpoint(name, method, path, body = null, headers = {}) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...headers
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+
+                const response = await fetch(`${API_URL}${path}`, options);
+                const data = await response.json();
+                
+                const success = response.status >= 200 && response.status < 300;
+                addTestResult(name, success, `Status: ${response.status}`, data);
+                return { success, data };
+            } catch (error) {
+                addTestResult(name, false, error.message);
+                return { success: false, error };
+            }
+        }
+
+        async function testFrontendPage(name, path) {
+            try {
+                const response = await fetch(path);
+                const text = await response.text();
+                const success = response.status === 200 && text.includes('<html');
+                addTestResult(name, success, `Status: ${response.status}`);
+            } catch (error) {
+                addTestResult(name, false, error.message);
+            }
+        }
+
+        async function testWebSocket() {
+            return new Promise((resolve) => {
+                try {
+                    const ws = new WebSocket(WS_URL);
+                    const timeout = setTimeout(() => {
+                        ws.close();
+                        addTestResult('WebSocket', false, 'Connection timeout');
+                        resolve();
+                    }, 5000);
+
+                    ws.onopen = () => {
+                        clearTimeout(timeout);
+                        ws.close();
+                        addTestResult('WebSocket', true, 'Connected successfully');
+                        resolve();
+                    };
+
+                    ws.onerror = () => {
+                        clearTimeout(timeout);
+                        addTestResult('WebSocket', false, 'Connection failed');
+                        resolve();
+                    };
+                } catch (error) {
+                    addTestResult('WebSocket', false, error.message);
+                    resolve();
+                }
+            });
+        }
+
+        function addTestResult(name, success, message, data = null) {
+            testResults.push({ name, success, message, data });
+            
+            const container = document.getElementById('testResults');
+            const item = document.createElement('div');
+            item.className = `test-item ${success ? 'success' : 'error'}`;
+            item.innerHTML = `
+                <span class="test-name">${name}</span>
+                <span class="test-status">${success ? '✅' : '❌'}</span>
+            `;
+            container.appendChild(item);
+        }
+
+        function updateSummary() {
+            const total = testResults.length;
+            const passed = testResults.filter(r => r.success).length;
+            const failed = total - passed;
+
+            document.getElementById('totalChecks').textContent = total;
+            document.getElementById('apiStatus').textContent = testResults.find(r => r.name === 'API Health')?.success ? 'OK' : 'DOWN';
+            document.getElementById('frontendStatus').textContent = testResults.filter(r => r.name.includes('Page')).every(r => r.success) ? 'OK' : 'ISSUES';
+            document.getElementById('wsStatus').textContent = testResults.find(r => r.name === 'WebSocket')?.success ? 'OK' : 'DOWN';
+
+            // Show details
+            const detailsBox = document.getElementById('detailsBox');
+            detailsBox.style.display = 'block';
+            detailsBox.textContent = `Test Summary:\n\nTotal: ${total}\nPassed: ${passed}\nFailed: ${failed}\n\nSuccess Rate: ${Math.round(passed/total*100)}%`;
+        }
+
+        // Run tests on load
+        window.addEventListener('load', () => {
+            setTimeout(() => runAllTests(), 1000);
+        });
+    </script>
+</body>
+</html>
