@@ -19,18 +19,22 @@ This working copy tracks live progress updates synced with the main roadmap.
   - Implemented real Slack Incoming Webhook integration using urllib
   - Added GET/POST /api/telegram/config and /api/slack/config endpoints (admin-only)
   - Added config forms for Telegram (bot_token, chat_id) and Slack (webhook_url)
-- ✅ **Server Notes**: Scaffolding complete (commit c12489c)
-  - Added server_notes table schema to database.py (id, server_id, title, content, created_by, timestamps)
-  - Implemented complete CRUD functions (add, get, update, delete)
-  - Added GET/POST/PUT/DELETE /api/servers/:id/notes endpoints
-  - Created server-notes.html stub with shared layout, note list, create/edit modal
-  - Added notes.* i18n keys to en.json + vi.json (20+ keys)
-  - TODO: Integrate Markdown editor library (SimpleMDE/Marked.js)
+- ✅ **Server Notes**: Scaffolding complete + Markdown editor integrated (commits c12489c, 250b59e)
+  - [x] Added server_notes table schema to database.py (id, server_id, title, content, created_by, timestamps)
+  - [x] Implemented complete CRUD functions (add, get, update, delete)
+  - [x] Added GET/POST/PUT/DELETE /api/servers/:id/notes endpoints
+  - [x] Created server-notes.html with shared layout, note list, create/edit modal
+  - [x] Added notes.* i18n keys to en.json + vi.json (20+ keys)
+  - [x] Integrated SimpleMDE Markdown editor with rich toolbar (bold, italic, heading, lists, links, images, code, table)
+  - [x] Integrated Marked.js for Markdown-to-HTML rendering in preview and note cards
+  - [x] Added Server Notes link to sidebar Tools section (context-aware with server_id)
+  - [x] Custom CSS for SimpleMDE theme integration
+  - [ ] TODO: Add note categories/tags, version history, search functionality
 
 ## 🎯 Next Focus (Phase 2)
 - Domain & SSL: config scaffolding + optional HTTPS reverse-proxy guide
-- Server Notes: Integrate Markdown editor (SimpleMDE or Marked.js)
 - Notification System: Wire test alerts to actual monitoring triggers
+- Server Notes: Advanced features (categories, tags, search, version history)
 
 ## 🔄 Housekeeping
 - Keep pages consistent with shared layout: `headerContainer`, `sidebarContainer`, `main.app-main.with-sidebar`
@@ -254,13 +258,15 @@ backend/
 ### 6. 📊 Enhanced Server Management
 
 #### Server Notes (Markdown)
-- [x] Rich markdown editor (CodeMirror/Monaco) - **SCAFFOLDED (commit c12489c)**
+- [x] Rich markdown editor (SimpleMDE) - **COMPLETE (commits c12489c, 250b59e)**
   - [x] Database schema: server_notes table with FK to servers
   - [x] CRUD functions: add, get, update, delete
   - [x] API endpoints: GET/POST/PUT/DELETE /api/servers/:id/notes
-  - [x] Frontend stub: server-notes.html with note list, create/edit modal
+  - [x] Frontend: server-notes.html with note list, create/edit modal
   - [x] i18n: notes.* keys in en.json + vi.json
-  - [ ] TODO: Integrate Markdown editor library (SimpleMDE/Marked.js + CodeMirror)
+  - [x] SimpleMDE editor integration with preview, side-by-side, fullscreen modes
+  - [x] Marked.js for Markdown rendering in note cards
+  - [x] Sidebar navigation link (context-aware)
 - [ ] Note categories/tags
 - [ ] Note history/versioning
 - [ ] Note sharing (with permissions)
