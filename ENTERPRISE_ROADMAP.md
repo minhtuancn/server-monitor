@@ -1,4 +1,29 @@
-# 🚀 Server Monitor Dashboard - Enterprise Features Roadmap
+# 🚀 Server Monitor Dashboard - Enterprise Roadmap (Working Copy)
+
+This working copy tracks live progress updates synced with the main roadmap.
+
+## ✅ Progress Update — 2026-01-06
+- i18n system: Completed (8 languages), header language switcher integrated
+- Dashboard: Migrated to shared header/sidebar via component-loader
+- Auth: Fixed redirect loop, unified token/user storage; login now uses auth module
+- Config: Added `allowInsecureLogin` runtime toggle (defaults true) with localStorage override
+- Users: Migrated to shared layout + ES modules (auth/api/i18n), admin-guarded
+- Settings: Migrated to shared layout + ES modules (auth/api/i18n), admin-guarded
+- i18n rendering: Deferred to page-level `i18n.translatePage()` after component load
+
+## 🎯 Next Focus (Phase 2)
+- Notification System (Email/Telegram/Slack): scaffolding + settings UI
+- Server Notes (Markdown): backend schema + frontend editor
+- Domain & SSL: config scaffolding + optional HTTPS reverse-proxy guide
+
+## 🔄 Housekeeping
+- Keep pages consistent with shared layout: `headerContainer`, `sidebarContainer`, `main.app-main.with-sidebar`
+- Ensure i18n load order: `loadHeaderAndSidebar()` → `loadLanguage()` → `translatePage()`
+- Use `auth.getCurrentUser()` and `auth.getToken()` everywhere
+
+---
+
+Refer to the canonical roadmap for full scope: see GitHub main branch.# 🚀 Server Monitor Dashboard - Enterprise Features Roadmap
 
 **Version**: 2.0.0 (Enterprise Edition)  
 **Developer**: Minh Tuấn  

@@ -277,24 +277,13 @@
 </head>
 
 <body>
-    <!-- Header -->
-    <div class="header">
-        <h1><i class="fas fa-cog"></i> System Settings</h1>
-        <div class="header-actions">
-            <div class="user-info">
-                <div class="user-avatar" id="userAvatar">A</div>
-                <div>
-                    <div class="user-name" id="userName">Admin</div>
-                    <div class="user-role" id="userRole">Administrator</div>
-                </div>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="location.href='dashboard.html'">
-                <i class="fas fa-arrow-left"></i> Back to Dashboard
-            </button>
-        </div>
-    </div>
+    <div class="app-container">
+        <!-- Shared Header & Sidebar -->
+        <div id="headerContainer"></div>
+        <div id="sidebarContainer"></div>
 
-    <!-- Main Content -->
+        <!-- Main Content -->
+        <main class="app-main with-sidebar">
     <div class="settings-container">
         <!-- Alert Container -->
         <div id="alertContainer"></div>
@@ -577,16 +566,29 @@
             </div>
         </div>
     </div>
+        </main>
+    </div>
 
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/auth.js"></script>
-    <script>
+    <script type="module">
+        import api from '/assets/js/api.js';
+        import auth from '/assets/js/auth.js';
+        import i18n from '/assets/js/i18n.js';
+        import { loadHeaderAndSidebar } from '/assets/js/component-loader.js';
+
+        const API_BASE_URL = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
         let currentSettings = {};
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             checkAuth();
-            loadSettings();
+            (async () => {
+                await loadHeaderAndSidebar();
+                const currentLang = i18n.getCurrentLanguage();
+                await i18n.loadLanguage(currentLang);
+                document.documentElement.lang = currentLang;
+                i18n.translatePage();
+                await loadSettings();
+            })();
 
             // Theme selection
             document.querySelectorAll('.theme-option').forEach(option => {
@@ -599,22 +601,16 @@
         });
 
         function checkAuth() {
-            const user = getCurrentUser();
+            const user = auth.getCurrentUser();
             if (!user) {
-                window.location.href = 'login.html';
+                window.location.href = '/login.html';
                 return;
             }
-
-            // Only admins can access settings
             if (user.role !== 'admin') {
                 showAlert('Access denied. Admin access required.', 'error');
-                setTimeout(() => window.location.href = 'dashboard.html', 2000);
+                setTimeout(() => window.location.href = '/dashboard.html', 2000);
                 return;
             }
-
-            document.getElementById('userName').textContent = user.username;
-            document.getElementById('userRole').textContent = user.role;
-            document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
         }
 
         async function loadSettings() {
@@ -625,7 +621,7 @@
                 // Load settings
                 const response = await fetch(`${API_BASE_URL}/api/settings`, {
                     headers: {
-                        'Authorization': `Bearer ${getToken()}`
+                        'Authorization': `Bearer ${auth.getToken()}`
                     }
                 });
 
@@ -794,14 +790,9 @@
             }, 5000);
         }
 
-        function getCurrentUser() {
-            const userStr = localStorage.getItem('user');
-            return userStr ? JSON.parse(userStr) : null;
-        }
-
-        function getToken() {
-            return localStorage.getItem('token');
-        }
+        // Backward-compat helpers (if any legacy calls remain)
+        function getCurrentUser() { return auth.getCurrentUser(); }
+        function getToken() { return auth.getToken(); }
     </script>
 </body>
 

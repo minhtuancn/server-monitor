@@ -87,11 +87,7 @@ function initSidebar(api, auth, i18n) {
         }
     }).catch(console.error);
 
-    // Translate sidebar
-    document.querySelectorAll('.sidebar-item-text[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        el.textContent = i18n.t(key);
-    });
+    // Defer translations to page-level i18n.translatePage()
 }
 
 function initHeader(auth, i18n) {
