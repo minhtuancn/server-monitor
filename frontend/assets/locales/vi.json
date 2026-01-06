@@ -185,5 +185,31 @@
         "email_test_sent": "Đã gửi kiểm tra Email",
         "telegram_test_sent": "Đã gửi kiểm tra Telegram",
         "slack_test_sent": "Đã gửi kiểm tra Slack"
+    },
+    "notes": {
+        "title": "Ghi Chú Máy Chủ",
+        "subtitle": "Quản lý tài liệu Markdown cho máy chủ này",
+        "add_note": "Thêm Ghi Chú",
+        "edit_note": "Sửa Ghi Chú",
+        "delete_note": "Xóa Ghi Chú",
+        "save": "Lưu Ghi Chú",
+        "cancel": "Hủy",
+        "title_label": "Tiêu đề",
+        "title_placeholder": "Nhập tiêu đề ghi chú...",
+        "content_label": "Nội dung (Markdown)",
+        "content_placeholder": "Nhập nội dung ghi chú theo định dạng Markdown...",
+        "delete_confirm": "Bạn có chắc muốn xóa ghi chú này?",
+        "empty": "Chưa có ghi chú. Nhấn \"Thêm Ghi Chú\" để tạo mới.",
+        "created": "Tạo lúc",
+        "updated": "Cập nhật",
+        "by": "Bởi",
+        "edit": "Sửa",
+        "delete": "Xóa",
+        "load_failed": "Tải ghi chú thất bại",
+        "save_success": "Lưu ghi chú thành công",
+        "save_failed": "Lưu ghi chú thất bại",
+        "delete_success": "Xóa ghi chú thành công",
+        "delete_failed": "Xóa ghi chú thất bại",
+        "title_required": "Tiêu đề là bắt buộc"
     }
 }

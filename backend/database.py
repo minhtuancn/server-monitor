@@ -172,6 +172,21 @@ def init_database():
         )
     ''')
     
+    # Server notes table (Markdown)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -1074,6 +1089,105 @@ def export_alerts_csv(server_id=None, is_read=None):
         ])
     
     return output.getvalue()
+
+# ==================== SERVER NOTES ====================
+
+def add_server_note(server_id, title, content='', created_by=None):
+    """Add a note to a server"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO server_notes (server_id, title, content, created_by)
+            VALUES (?, ?, ?, ?)
+        ''', (server_id, title, content, created_by))
+        
+        conn.commit()
+        note_id = cursor.lastrowid
+        conn.close()
+        return {'success': True, 'note_id': note_id, 'message': 'Note added successfully'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_server_notes(server_id):
+    """Get all notes for a server"""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM server_notes 
+        WHERE server_id = ?
+        ORDER BY updated_at DESC
+    ''', (server_id,))
+    
+    notes = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return notes
+
+def get_server_note(note_id):
+    """Get a single note by ID"""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM server_notes WHERE id = ?', (note_id,))
+    note = cursor.fetchone()
+    conn.close()
+    return dict(note) if note else None
+
+def update_server_note(note_id, title=None, content=None):
+    """Update a server note"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    updates = []
+    values = []
+    
+    if title is not None:
+        updates.append('title = ?')
+        values.append(title)
+    
+    if content is not None:
+        updates.append('content = ?')
+        values.append(content)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No fields to update'}
+    
+    updates.append('updated_at = CURRENT_TIMESTAMP')
+    values.append(note_id)
+    
+    try:
+        cursor.execute(f'''
+            UPDATE server_notes 
+            SET {', '.join(updates)}
+            WHERE id = ?
+        ''', values)
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'message': 'Note updated successfully'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_server_note(note_id):
+    """Delete a server note"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM server_notes WHERE id = ?', (note_id,))
+        conn.commit()
+        conn.close()
+        return {'success': True, 'message': 'Note deleted successfully'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
 
 if __name__ == '__main__':
     # Initialize database

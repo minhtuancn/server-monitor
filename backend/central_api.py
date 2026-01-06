@@ -344,6 +344,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(servers).encode())
         
         elif path.startswith('/api/servers/'):
+            # Check for sub-paths (notes, etc.)
+            parts = [p for p in path.split('/') if p]
+            if len(parts) >= 4 and parts[3] == 'notes':
+                # GET /api/servers/:id/notes
+                try:
+                    server_id = int(parts[2])
+                    notes = db.get_server_notes(server_id)
+                    self._set_headers()
+                    self.wfile.write(json.dumps(notes).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+                return
+            
             # Get single server
             server_id = path.split('/')[-1]
             try:
@@ -962,6 +976,32 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._set_headers()
             self.wfile.write(json.dumps(result).encode())
         
+        # ==================== SERVER NOTES ====================
+        elif path.startswith('/api/servers/') and '/notes' in path:
+            # POST /api/servers/:id/notes
+            parts = [p for p in path.split('/') if p]
+            if len(parts) >= 4 and parts[3] == 'notes':
+                try:
+                    server_id = int(parts[2])
+                    required = ['title']
+                    if not all(k in data for k in required):
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Missing title'}).encode())
+                        return
+                    
+                    result = db.add_server_note(
+                        server_id=server_id,
+                        title=data['title'],
+                        content=data.get('content', ''),
+                        created_by=auth_result.get('user_id')
+                    )
+                    self._set_headers(201 if result['success'] else 400)
+                    self.wfile.write(json.dumps(result).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+                return
+        
         # ==================== REMOTE AGENT MANAGEMENT ====================
         
         elif path.startswith('/api/remote/agent/deploy/'):
@@ -1474,6 +1514,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== SERVER MANAGEMENT ====================
         
         if path.startswith('/api/servers/'):
+            # Check for notes sub-path
+            parts = [p for p in path.split('/') if p]
+            if len(parts) >= 5 and parts[3] == 'notes':
+                # PUT /api/servers/:id/notes/:note_id
+                try:
+                    note_id = int(parts[4])
+                    result = db.update_server_note(
+                        note_id=note_id,
+                        title=data.get('title'),
+                        content=data.get('content')
+                    )
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid note ID'}).encode())
+                return
+            
             # Update server
             server_id = path.split('/')[-1]
             
@@ -1631,6 +1689,21 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
+        
+        elif path.startswith('/api/servers/'):
+            # Check for notes sub-path
+            parts = [p for p in path.split('/') if p]
+            if len(parts) >= 5 and parts[3] == 'notes':
+                # DELETE /api/servers/:id/notes/:note_id
+                try:
+                    note_id = int(parts[4])
+                    result = db.delete_server_note(note_id)
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid note ID'}).encode())
+                return
         
         else:
             self._set_headers(404)
