@@ -34,6 +34,7 @@ from observability import (
     HealthCheck, 
     get_metrics_collector
 )
+import startup_validation
 
 PORT = 9083  # Different port for central server
 
@@ -2768,6 +2769,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == '__main__':
+    # Validate configuration and secrets
+    startup_validation.validate_configuration()
+    
     # Initialize database
     db.init_database()
     
