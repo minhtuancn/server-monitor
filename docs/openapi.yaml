@@ -1,0 +1,2146 @@
+openapi: 3.0.3
+info:
+  title: Server Monitor Dashboard API
+  description: |
+    Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, and advanced security.
+    
+    ## Architecture
+    
+    The system consists of 4 main services:
+    - **Frontend (Next.js)**: Port 9081 - Web UI with BFF pattern
+    - **Central API**: Port 9083 - Main REST API server
+    - **Terminal WebSocket**: Port 9084 - SSH terminal via WebSocket
+    - **Monitoring WebSocket**: Port 9085 - Real-time stats updates
+    
+    ## Authentication
+    
+    - Frontend endpoints (`/api/auth/*`, `/api/proxy/*`): Use HttpOnly cookies set by Next.js BFF
+    - Direct backend endpoints: Use Bearer token in Authorization header
+    - WebSocket connections: Pass authentication parameters in connection URL
+    
+    ## Ports & Proxy Paths
+    
+    - Frontend: `http://localhost:9081`
+    - Central API (direct): `http://localhost:9083/api/*`
+    - Central API (via BFF proxy): `http://localhost:9081/api/proxy/*`
+    - Terminal WebSocket: `ws://localhost:9084`
+    - Monitoring WebSocket: `ws://localhost:9085`
+    
+  version: 2.1.0
+  contact:
+    name: Server Monitor Project
+    url: https://github.com/minhtuancn/server-monitor
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:9083
+    description: Central API Server (Direct)
+  - url: http://localhost:9081/api/proxy
+    description: Central API Server (via Next.js BFF)
+  - url: ws://localhost:9084
+    description: Terminal WebSocket Server
+  - url: ws://localhost:9085
+    description: Monitoring WebSocket Server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Users
+    description: User management and RBAC
+  - name: Servers
+    description: Server management and CRUD operations
+  - name: Monitoring
+    description: Real-time monitoring and statistics
+  - name: SSH Keys
+    description: SSH Key Vault - Encrypted SSH private key storage
+  - name: Terminal
+    description: Web-based SSH terminal sessions
+  - name: Inventory
+    description: Agentless system inventory collection
+  - name: Tasks
+    description: Remote command execution
+  - name: Notes & Tags
+    description: Server documentation and categorization
+  - name: Audit Logs
+    description: Audit trail and activity tracking
+  - name: Settings
+    description: Application settings and configuration
+  - name: Notifications
+    description: Email, Telegram, and Slack notifications
+  - name: Export
+    description: Data export (CSV, JSON)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from `/api/auth/login` endpoint
+    
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+      description: HttpOnly cookie set by Next.js BFF after login
+  
+  responses:
+    Unauthorized:
+      description: Unauthorized - Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: No authentication token provided
+    
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Admin access required
+    
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Resource not found
+    
+    BadRequest:
+      description: Bad request - Invalid input
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Invalid input data
+    
+    UnprocessableEntity:
+      description: Unprocessable Entity - Validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Validation failed
+    
+    TooManyRequests:
+      description: Too many requests - Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Rate limit exceeded
+    
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: Internal server error
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: admin
+        role:
+          type: string
+          enum: [admin, operator, viewer]
+          example: admin
+        permissions:
+          type: array
+          items:
+            type: string
+          example: []
+        created_at:
+          type: string
+          format: date-time
+        last_login:
+          type: string
+          format: date-time
+    
+    Server:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: web-server-01
+        host:
+          type: string
+          example: 192.168.1.10
+        port:
+          type: integer
+          example: 22
+        username:
+          type: string
+          example: ubuntu
+        password:
+          type: string
+          description: Encrypted password (not returned in GET requests)
+        status:
+          type: string
+          enum: [up, down, unknown]
+          example: up
+        last_check:
+          type: string
+          format: date-time
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+    
+    ServerStats:
+      type: object
+      properties:
+        cpu_usage:
+          type: number
+          format: float
+          example: 45.2
+        memory_usage:
+          type: number
+          format: float
+          example: 62.8
+        disk_usage:
+          type: number
+          format: float
+          example: 75.0
+        uptime:
+          type: string
+          example: "15 days, 3:24:15"
+        load_average:
+          type: array
+          items:
+            type: number
+          example: [1.5, 1.2, 1.0]
+    
+    SSHKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: production-key
+        description:
+          type: string
+          example: SSH key for production servers
+        fingerprint:
+          type: string
+          example: SHA256:abc123...
+        key_type:
+          type: string
+          example: ssh-rsa
+        public_key:
+          type: string
+          description: Public key portion
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: integer
+        is_active:
+          type: boolean
+          example: true
+    
+    TerminalSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        server_id:
+          type: integer
+          example: 5
+        user_id:
+          type: integer
+          example: 2
+        ssh_key_id:
+          type: integer
+          nullable: true
+          example: 3
+        status:
+          type: string
+          enum: [active, closed, timeout, error]
+          example: active
+        started_at:
+          type: string
+          format: date-time
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_activity:
+          type: string
+          format: date-time
+    
+    Inventory:
+      type: object
+      properties:
+        server_id:
+          type: integer
+          example: 1
+        os_name:
+          type: string
+          example: Ubuntu
+        os_version:
+          type: string
+          example: "22.04"
+        kernel_version:
+          type: string
+          example: 5.15.0-89-generic
+        cpu_model:
+          type: string
+          example: Intel(R) Xeon(R) CPU E5-2680 v4
+        cpu_cores:
+          type: integer
+          example: 8
+        total_memory_mb:
+          type: integer
+          example: 16384
+        disk_info:
+          type: object
+          additionalProperties: true
+        network_interfaces:
+          type: object
+          additionalProperties: true
+        collected_at:
+          type: string
+          format: date-time
+    
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        server_id:
+          type: integer
+          example: 1
+        command:
+          type: string
+          example: df -h
+        status:
+          type: string
+          enum: [queued, running, completed, failed, cancelled, timeout]
+          example: completed
+        exit_code:
+          type: integer
+          nullable: true
+          example: 0
+        stdout:
+          type: string
+          nullable: true
+        stderr:
+          type: string
+          nullable: true
+        created_by:
+          type: integer
+          example: 2
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        timeout_seconds:
+          type: integer
+          example: 300
+    
+    Note:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        server_id:
+          type: integer
+          example: 5
+        title:
+          type: string
+          example: Maintenance Window
+        content:
+          type: string
+          example: Scheduled maintenance on Sundays 2-4 AM
+        created_by:
+          type: integer
+          example: 2
+        updated_by:
+          type: integer
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: production
+        color:
+          type: string
+          example: "#ff0000"
+        description:
+          type: string
+          example: Production servers
+        created_by:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+    
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        user_id:
+          type: integer
+          example: 2
+        action:
+          type: string
+          example: server.create
+        target_type:
+          type: string
+          example: server
+        target_id:
+          type: string
+          example: "5"
+        ip_address:
+          type: string
+          example: 192.168.1.100
+        user_agent:
+          type: string
+        meta:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  # ==================== Authentication ====================
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  example: admin
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current session token
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logged out successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/auth/verify:
+    get:
+      tags:
+        - Authentication
+      summary: Verify authentication token
+      description: Check if current token is valid and get user info
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/auth/session:
+    get:
+      tags:
+        - Authentication
+      summary: Get current session (Next.js BFF)
+      description: Get current user session from HttpOnly cookie
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Session retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== Users ====================
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Get list of all users (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    
+    post:
+      tags:
+        - Users
+      summary: Create user
+      description: Create a new user (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+                - role
+              properties:
+                username:
+                  type: string
+                  example: newuser
+                password:
+                  type: string
+                  format: password
+                  example: SecurePass123!
+                role:
+                  type: string
+                  enum: [admin, operator, viewer]
+                  example: operator
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user_id:
+                    type: integer
+                    example: 5
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get user details
+      description: Get details of a specific user
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 1
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update user details (admin can update any user, users can update their own profile)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                role:
+                  type: string
+                  enum: [admin, operator, viewer]
+                  description: Only admin can change roles
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Delete a user (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/users/{userId}/change-password:
+    post:
+      tags:
+        - Users
+      summary: Change user password
+      description: Change password for a user
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  format: password
+                new_password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password changed successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== Servers ====================
+  /api/servers:
+    get:
+      tags:
+        - Servers
+      summary: List servers
+      description: Get list of all servers (public read access)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of servers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  servers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Server'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Servers
+      summary: Create server
+      description: Add a new server to monitor
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - host
+                - port
+                - username
+              properties:
+                name:
+                  type: string
+                  example: web-server-01
+                host:
+                  type: string
+                  example: 192.168.1.10
+                port:
+                  type: integer
+                  example: 22
+                username:
+                  type: string
+                  example: ubuntu
+                password:
+                  type: string
+                  format: password
+                  description: Optional, can use SSH key instead
+                ssh_key_id:
+                  type: integer
+                  description: SSH key from vault
+      responses:
+        '201':
+          description: Server created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  server_id:
+                    type: integer
+                    example: 5
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/servers/{serverId}:
+    get:
+      tags:
+        - Servers
+      summary: Get server details
+      description: Get details of a specific server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Server details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    put:
+      tags:
+        - Servers
+      summary: Update server
+      description: Update server configuration
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                host:
+                  type: string
+                port:
+                  type: integer
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                ssh_key_id:
+                  type: integer
+      responses:
+        '200':
+          description: Server updated successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Servers
+      summary: Delete server
+      description: Remove a server from monitoring
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Server deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/servers/test:
+    post:
+      tags:
+        - Servers
+      summary: Test server connection
+      description: Test SSH connection to a server before adding it
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - host
+                - port
+                - username
+              properties:
+                host:
+                  type: string
+                port:
+                  type: integer
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                ssh_key_id:
+                  type: integer
+      responses:
+        '200':
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== Monitoring ====================
+  /api/stats/overview:
+    get:
+      tags:
+        - Monitoring
+      summary: Get monitoring overview
+      description: Get overall statistics of all servers (public read access)
+      responses:
+        '200':
+          description: Overview statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_servers:
+                    type: integer
+                    example: 10
+                  servers_up:
+                    type: integer
+                    example: 8
+                  servers_down:
+                    type: integer
+                    example: 2
+                  avg_cpu:
+                    type: number
+                    example: 45.2
+                  avg_memory:
+                    type: number
+                    example: 62.5
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  
+  /api/remote/stats/{serverId}:
+    get:
+      tags:
+        - Monitoring
+      summary: Get server statistics
+      description: Get real-time statistics for a specific server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Server statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/remote/stats/all:
+    get:
+      tags:
+        - Monitoring
+      summary: Get all servers statistics
+      description: Get real-time statistics for all servers
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Statistics for all servers
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/ServerStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== SSH Keys ====================
+  /api/ssh-keys:
+    get:
+      tags:
+        - SSH Keys
+      summary: List SSH keys
+      description: Get list of SSH keys from vault (admin/operator only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of SSH keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SSHKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    
+    post:
+      tags:
+        - SSH Keys
+      summary: Add SSH key to vault
+      description: Store a new SSH private key in the encrypted vault (admin/operator only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - private_key
+              properties:
+                name:
+                  type: string
+                  example: production-key
+                description:
+                  type: string
+                  example: SSH key for production servers
+                private_key:
+                  type: string
+                  description: PEM-encoded private key
+                  example: "-----BEGIN OPENSSH PRIVATE KEY-----\n..."
+      responses:
+        '201':
+          description: SSH key added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  key_id:
+                    type: integer
+                    example: 3
+                  fingerprint:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/ssh-keys/{keyId}:
+    get:
+      tags:
+        - SSH Keys
+      summary: Get SSH key details
+      description: Get details of a specific SSH key (without private key)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: SSH key details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SSHKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - SSH Keys
+      summary: Delete SSH key
+      description: Soft delete an SSH key from vault (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: SSH key deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/ssh-keys/{keyId}/test:
+    post:
+      tags:
+        - SSH Keys
+      summary: Test SSH key
+      description: Test SSH key connection to a server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - host
+                - port
+                - username
+              properties:
+                host:
+                  type: string
+                port:
+                  type: integer
+                username:
+                  type: string
+      responses:
+        '200':
+          description: Connection test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== Terminal ====================
+  /api/terminal/sessions:
+    get:
+      tags:
+        - Terminal
+      summary: List terminal sessions
+      description: Get list of terminal sessions (admin/operator see all, others see own)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: server_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by server ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, closed, timeout, error]
+          description: Filter by status
+      responses:
+        '200':
+          description: List of terminal sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TerminalSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/terminal/sessions/{sessionId}/stop:
+    post:
+      tags:
+        - Terminal
+      summary: Stop terminal session
+      description: Force stop a terminal session
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Session stopped successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  # ==================== Inventory ====================
+  /api/servers/{serverId}/inventory/refresh:
+    post:
+      tags:
+        - Inventory
+      summary: Refresh server inventory
+      description: Trigger agentless inventory collection for a server (admin/operator only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ssh_key_id:
+                  type: integer
+                  description: Optional SSH key from vault
+      responses:
+        '200':
+          description: Inventory refresh triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  inventory:
+                    $ref: '#/components/schemas/Inventory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/servers/{serverId}/inventory/latest:
+    get:
+      tags:
+        - Inventory
+      summary: Get latest server inventory
+      description: Get the most recent inventory data for a server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Latest inventory data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Inventory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  # ==================== Tasks ====================
+  /api/tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List tasks
+      description: Get list of tasks (admin/operator see all, others see own)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: server_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by server ID
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, running, completed, failed, cancelled, timeout]
+          description: Filter by status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+          description: Limit number of results
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/servers/{serverId}/tasks:
+    post:
+      tags:
+        - Tasks
+      summary: Execute remote command
+      description: Create and execute a remote command task on a server (admin/operator only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  example: df -h
+                  maxLength: 10000
+                timeout:
+                  type: integer
+                  example: 300
+                  default: 300
+                  description: Timeout in seconds
+                store_output:
+                  type: boolean
+                  default: false
+                  description: Whether to store output (disabled by default for security)
+                ssh_key_id:
+                  type: integer
+                  description: Optional SSH key from vault
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  task_id:
+                    type: string
+                    format: uuid
+                  task:
+                    $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task details
+      description: Get details and output of a specific task
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/tasks/{taskId}/cancel:
+    post:
+      tags:
+        - Tasks
+      summary: Cancel task
+      description: Cancel a queued or running task
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task cancelled successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  # ==================== Notes & Tags ====================
+  /api/servers/{serverId}/notes:
+    get:
+      tags:
+        - Notes & Tags
+      summary: Get server notes
+      description: Get all notes for a server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      tags:
+        - Notes & Tags
+      summary: Create server note
+      description: Add a note to a server
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - content
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Note created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/servers/{serverId}/notes/{noteId}:
+    put:
+      tags:
+        - Notes & Tags
+      summary: Update server note
+      description: Update an existing note
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Note updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Notes & Tags
+      summary: Delete server note
+      description: Delete a note (soft delete)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: serverId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Note deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/tags:
+    get:
+      tags:
+        - Notes & Tags
+      summary: List tags
+      description: Get list of all tags
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    
+    post:
+      tags:
+        - Notes & Tags
+      summary: Create tag
+      description: Create a new tag for server categorization
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                color:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/tags/{tagId}:
+    put:
+      tags:
+        - Notes & Tags
+      summary: Update tag
+      description: Update tag details
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                color:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Tag updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Notes & Tags
+      summary: Delete tag
+      description: Delete a tag and its server associations
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: tagId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Tag deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  # ==================== Audit Logs ====================
+  /api/audit-logs:
+    get:
+      tags:
+        - Audit Logs
+      summary: Get audit logs
+      description: Get audit trail of user actions (admin/operator only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by user ID
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: Filter by action type
+        - name: target_type
+          in: query
+          schema:
+            type: string
+          description: Filter by target type
+        - name: target_id
+          in: query
+          schema:
+            type: string
+          description: Filter by target ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: Limit number of results
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+          description: Offset for pagination
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AuditLog'
+                  total:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/activity/recent:
+    get:
+      tags:
+        - Audit Logs
+      summary: Get recent activity
+      description: Get recent user activity for dashboard widget
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Limit number of results
+      responses:
+        '200':
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        username:
+                          type: string
+                        action:
+                          type: string
+                        description:
+                          type: string
+                        timestamp:
+                          type: string
+                          format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  # ==================== Settings ====================
+  /api/settings:
+    get:
+      tags:
+        - Settings
+      summary: Get application settings
+      description: Get all application settings (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Application settings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    
+    post:
+      tags:
+        - Settings
+      summary: Update settings
+      description: Update application settings (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Settings updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  # ==================== Notifications ====================
+  /api/email/config:
+    get:
+      tags:
+        - Notifications
+      summary: Get email configuration
+      description: Get email notification settings (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Email configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  smtp_server:
+                    type: string
+                  smtp_port:
+                    type: integer
+                  from_email:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    
+    post:
+      tags:
+        - Notifications
+      summary: Update email configuration
+      description: Update email notification settings (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                smtp_server:
+                  type: string
+                smtp_port:
+                  type: integer
+                smtp_username:
+                  type: string
+                smtp_password:
+                  type: string
+                from_email:
+                  type: string
+      responses:
+        '200':
+          description: Email configuration updated
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/email/test:
+    post:
+      tags:
+        - Notifications
+      summary: Test email configuration
+      description: Send a test email (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - to_email
+              properties:
+                to_email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Test email sent
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  # ==================== Export ====================
+  /api/export/servers/csv:
+    get:
+      tags:
+        - Export
+      summary: Export servers to CSV
+      description: Export server list as CSV file
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/export/servers/json:
+    get:
+      tags:
+        - Export
+      summary: Export servers to JSON
+      description: Export server list as JSON file
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: JSON file
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  
+  /api/roles:
+    get:
+      tags:
+        - Users
+      summary: Get available roles
+      description: Get list of available user roles and their permissions
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        permissions:
+                          type: array
+                          items:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
