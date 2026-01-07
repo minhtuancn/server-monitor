@@ -3,6 +3,7 @@
 paramiko>=2.12.0      # SSH connection management
 PyJWT>=2.8.0          # JWT token authentication
 python-dotenv>=1.0.0  # Environment variable management
+cryptography>=41.0.0  # AES-256-GCM encryption for SSH key vault
 
 # Note: The application also uses Python standard library modules:
 # - http.server, json, sqlite3, hashlib, secrets, base64, datetime
