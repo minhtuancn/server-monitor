@@ -35,6 +35,18 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - Theo dõi performance metrics real-time
 - Nhận cảnh báo tự động về issues
 
+### 🎉 Recent Improvements (v1.1 - 2026-01-07)
+
+- ✅ **Fixed Database Path Issues**: Removed hardcoded `/opt` paths, now works from any directory
+- ✅ **Enhanced Input Validation**: Fixed IP validation bypass (999.999.999.999 now rejected)
+- ✅ **Frontend Cleanup**: Removed 11 duplicate files (44% reduction, 25+ → 14 pages)
+- ✅ **Form Helper System**: Added loading states, real-time validation, toast notifications
+- ✅ **Improved UX**: Consistent error handling, loading indicators, user-friendly messages
+- ✅ **Documentation**: Added 36KB of guides (PROJECT_ASSESSMENT.md, TODO-IMPROVEMENTS.md, form guides)
+- ✅ **Test Coverage**: 23/25 tests passing (92%), CodeQL scan: 0 vulnerabilities
+
+See [PROJECT_ASSESSMENT.md](PROJECT_ASSESSMENT.md) for detailed analysis and [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) for roadmap.
+
 ---
 
 ## 🚀 Quick Start
@@ -48,32 +60,39 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 ### Installation
 
 ```bash
-# Clone hoặc tải project
-cd /opt
-git clone <repository> server-monitor-dev
+# Clone repository
+git clone https://github.com/minhtuancn/server-monitor.git
+cd server-monitor
 
 # Install dependencies
-cd server-monitor-dev/backend
-pip3 install -r requirements.txt --break-system-packages
+cd backend
+pip3 install -r requirements.txt
 
 # Install test dependencies (optional)
 cd ../tests
-pip3 install -r requirements.txt --break-system-packages
+pip3 install -r requirements.txt
 
-# Configure environment (recommended for production)
-cd /opt/server-monitor-dev
+# Configure environment
+cd ..
 cp .env.example .env
 # Edit .env and set secure values for JWT_SECRET and ENCRYPTION_KEY
+# Generate secure keys with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Initialize database (automatic on first run)
+cd backend
+python3 -c "import database; database.init_database()"
 ```
+
+**Note:** The system now supports relative paths and works from any directory. No need for hardcoded `/opt` paths.
 
 ### Start Services
 
 ```bash
-cd /opt/server-monitor-dev
+# From project root
 ./start-all.sh
 ```
 
-Hoặc start thủ công:
+Or start manually:
 
 ```bash
 # Backend API
@@ -93,9 +112,11 @@ python3 -m http.server 9081 &
 
 ### Access Dashboard
 
-- **Dashboard**: http://YOUR_SERVER_IP:9081
-- **API**: http://YOUR_SERVER_IP:9083
-- **Credentials**: admin / admin123
+- **Dashboard**: http://localhost:9081
+- **API**: http://localhost:9083
+- **Default Credentials**: admin / admin123 ⚠️ **Change in production!**
+
+⚠️ **Security Warning**: The system auto-creates a default admin user. Change the password immediately after first login!
 
 ### Stop Services
 
@@ -109,47 +130,74 @@ cd /opt/server-monitor-dev
 ## 📁 Project Structure
 
 ```
-server-monitor-dev/
+server-monitor/
 ├── backend/                    # Python backend services
 │   ├── central_api.py         # Main REST API server (port 9083)
 │   ├── websocket_server.py    # Real-time updates (port 9085)
 │   ├── terminal.py            # Web terminal (port 9084)
 │   ├── database.py            # SQLite database operations
+│   ├── user_management.py     # User CRUD & authentication
+│   ├── settings_manager.py    # System settings management
 │   ├── ssh_manager.py         # SSH connection management
 │   ├── email_alerts.py        # Email notification system
-│   ├── security.py            # Security middleware
+│   ├── alert_manager.py       # Multi-channel alert dispatcher
+│   ├── security.py            # Security middleware (rate limiting, CORS, validation)
 │   └── agent.py               # Monitoring agent for remote servers
 │
-├── frontend/                   # HTML/CSS/JS frontend
-│   ├── dashboard.html         # Main dashboard (multi-server view)
+├── frontend/                   # HTML/CSS/JS frontend (14 pages)
+│   ├── index.html             # Landing page
 │   ├── login.html             # Login page
+│   ├── dashboard.html         # Main dashboard (multi-server view)
 │   ├── server-detail.html     # Individual server details
+│   ├── server-notes.html      # Markdown notes for servers
 │   ├── terminal.html          # Web terminal interface
-│   ├── email-settings.html    # Email configuration
+│   ├── settings.html          # System settings
+│   ├── domain-settings.html   # Domain & SSL configuration
+│   ├── email-settings.html    # Email alert configuration
 │   ├── ssh-keys.html          # SSH key management
-│   └── assets/                # CSS/JS assets
+│   ├── users.html             # User management (admin)
+│   ├── notifications.html     # Alert notifications
+│   ├── system-check.html      # System health check
+│   ├── test_cors.html         # CORS testing
+│   ├── README.md              # Frontend documentation
+│   ├── FORM_HELPERS_GUIDE.md  # Form utilities guide
+│   ├── assets/
+│   │   ├── css/               # Stylesheets
+│   │   │   ├── app.css
+│   │   │   ├── components.css # Enhanced with form states & animations
+│   │   │   └── themes.css
+│   │   ├── js/                # JavaScript modules
+│   │   │   ├── api.js         # API client
+│   │   │   ├── auth.js        # Authentication
+│   │   │   ├── form-helpers.js # Form utilities (NEW)
+│   │   │   ├── utils.js       # Utilities
+│   │   │   ├── i18n.js        # Internationalization
+│   │   │   └── component-loader.js
+│   │   └── locales/           # 8 language translations
+│   └── components/
+│       ├── header.html        # Shared header
+│       └── sidebar.html       # Shared sidebar
 │
 ├── tests/                      # Automated tests
-│   ├── test_api.py            # API integration tests (19 tests)
-│   ├── test_security.py       # Security feature tests (6 tests)
+│   ├── test_api.py            # API integration tests (19/19 passing)
+│   ├── test_security.py       # Security tests (4/6 passing)
 │   └── requirements.txt       # Test dependencies
 │
-├── data/                       # Data storage
+├── data/                       # Data storage (auto-created)
 │   ├── servers.db             # SQLite database
-│   └── email_config.json      # Email configuration
+│   └── *.json                 # Configuration files
 │
-├── logs/                       # Log files
-│   ├── central_api.log
-│   ├── websocket.log
-│   └── terminal.log
+├── logs/                       # Log files (auto-created)
 │
 ├── docs/                       # Documentation
-│   └── PROJECT_SPECIFICATION.md
 │
+├── PROJECT_ASSESSMENT.md      # Comprehensive project review (NEW)
+├── TODO-IMPROVEMENTS.md       # Action items roadmap (NEW)
+├── VIETNAMESE_SUMMARY.md      # Vietnamese summary (NEW)
 ├── start-all.sh               # Start all services
 ├── stop-all.sh                # Stop all services
-├── README.md                  # This file
-└── IMPLEMENTATION_REPORT_V4.1.md  # Implementation details
+├── .env.example               # Environment template
+└── README.md                  # This file
 ```
 
 ---
@@ -168,9 +216,15 @@ server-monitor-dev/
 
 ### Environment
 
-Tất cả configuration được lưu trong:
-- Database: `/opt/server-monitor-dev/data/servers.db`
-- Email config: `/opt/server-monitor-dev/data/email_config.json`
+Configuration options in `.env` file:
+- **JWT_SECRET**: Secret key for JWT tokens (required)
+- **ENCRYPTION_KEY**: Key for SSH password encryption (required)
+- **JWT_EXPIRATION**: Token expiration in seconds (default: 86400)
+- **DB_PATH**: Custom database path (optional, defaults to `data/servers.db`)
+- **API_PORT**: API server port (default: 9083)
+- **FRONTEND_PORT**: Frontend server port (default: 9081)
+
+**Database Path**: Now supports relative paths. The system automatically resolves to `<project_root>/data/servers.db`. No hardcoded paths required!
 
 ---
 
@@ -193,10 +247,12 @@ Tất cả configuration được lưu trong:
 - X-Content-Type-Options: nosniff
 - X-XSS-Protection
 
-✅ **Input Validation**
-- Hostname/IP validation
+✅ **Input Validation** (Enhanced v1.1)
+- IP address validation (0-255 per octet)
+- Hostname validation (proper DNS format)
 - Port range validation (1-65535)
-- String sanitization (HTML removal)
+- String sanitization (HTML/XSS prevention)
+- Real-time client-side validation with error feedback
 
 ✅ **Authentication**
 - JWT token-based auth

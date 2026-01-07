@@ -500,6 +500,41 @@ textarea.form-control {
 
 .table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+/* Show scroll indicator on mobile */
+@media (max-width: 768px) {
+  .table-responsive {
+    box-shadow: inset -10px 0 10px -10px rgba(0,0,0,0.1);
+  }
+  
+  .table-responsive::after {
+    content: '→';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    opacity: 0.7;
+    pointer-events: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+  }
+  
+  /* Make tables more compact on mobile */
+  .table {
+    font-size: var(--text-sm);
+  }
+  
+  .table th,
+  .table td {
+    padding: var(--space-xs) var(--space-sm);
+    white-space: nowrap;
+  }
 }
 
 /* Loading Spinner */
@@ -646,4 +681,114 @@ textarea.form-control {
   .grid-cols-4 {
     grid-template-columns: 1fr;
   }
+}
+
+/* ============================================
+   Form Error States & Enhanced UI Components
+   Added: 2026-01-07
+   ============================================ */
+
+/* Form Error States */
+input.error,
+select.error,
+textarea.error {
+  border-color: var(--danger) !important;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+input.error:focus,
+select.error:focus,
+textarea.error:focus {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: none;
+}
+
+input.error + .field-error,
+select.error + .field-error,
+textarea.error + .field-error {
+  display: block;
+}
+
+/* Confirm Dialog */
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.confirm-dialog {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-xl);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Page Loading Overlay */
+.page-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.page-loading-overlay .spinner-lg {
+  margin-bottom: 1rem;
+}
+
+/* Success State */
+input.success,
+select.success,
+textarea.success {
+  border-color: var(--success);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+/* Disabled State Enhancement */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button:disabled:hover {
+  transform: none;
 }

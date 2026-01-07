@@ -1,29 +1,51 @@
 /**
- * Component Loader - Load header and sidebar components
+ * Component Loader - Load reusable components (header, sidebar, breadcrumb)
+ * Updated: 2026-01-07 - Added breadcrumb support
  */
 
-export async function loadHeaderAndSidebar() {
+/**
+ * Load multiple components
+ * @param {Array<string>} components - Array of component names to load
+ * @returns {Promise<boolean>} Success status
+ */
+export async function loadComponents(components = ['header', 'sidebar']) {
     try {
-        // Load header
-        const headerRes = await fetch('/components/header.html');
-        if (headerRes.ok) {
-            const headerHTML = await headerRes.text();
-            // Extract only the HTML content (not styles/scripts)
-            const headerContent = extractContent(headerHTML);
-            const headerContainer = document.getElementById('headerContainer');
-            if (headerContainer) {
-                headerContainer.outerHTML = headerContent;
-            }
-        }
+        const componentPaths = {
+            header: '/components/header.html',
+            sidebar: '/components/sidebar.html',
+            breadcrumb: '/components/breadcrumb.html'
+        };
 
-        // Load sidebar  
-        const sidebarRes = await fetch('/components/sidebar.html');
-        if (sidebarRes.ok) {
-            const sidebarHTML = await sidebarRes.text();
-            const sidebarContent = extractContent(sidebarHTML);
-            const sidebarContainer = document.getElementById('sidebarContainer');
-            if (sidebarContainer) {
-                sidebarContainer.outerHTML = sidebarContent;
+        const containerIds = {
+            header: 'headerContainer',
+            sidebar: 'sidebarContainer',
+            breadcrumb: 'breadcrumbContainer'
+        };
+
+        // Load all requested components
+        for (const component of components) {
+            const path = componentPaths[component];
+            const containerId = containerIds[component];
+
+            if (!path || !containerId) {
+                console.warn(`Unknown component: ${component}`);
+                continue;
+            }
+
+            const res = await fetch(path);
+            if (res.ok) {
+                const html = await res.text();
+                const container = document.getElementById(containerId);
+                if (container) {
+                    // For breadcrumb, insert the full HTML (includes styles and scripts)
+                    if (component === 'breadcrumb') {
+                        container.outerHTML = html;
+                    } else {
+                        // For header/sidebar, extract content without inline scripts
+                        const content = extractContent(html);
+                        container.outerHTML = content;
+                    }
+                }
             }
         }
 
@@ -37,6 +59,13 @@ export async function loadHeaderAndSidebar() {
         console.error('Failed to load components:', error);
         return false;
     }
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+export async function loadHeaderAndSidebar() {
+    return await loadComponents(['header', 'sidebar']);
 }
 
 function extractContent(html) {
@@ -165,5 +194,6 @@ function initHeader(auth, i18n) {
 }
 
 export default {
-    loadHeaderAndSidebar
+    loadHeaderAndSidebar,
+    loadComponents  // Export new function
 };

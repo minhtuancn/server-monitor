@@ -834,6 +834,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({
                     'success': True,
                     'token': token,
+                    'username': user_data.get('username'),  # For backward compatibility
+                    'role': user_data.get('role'),  # For backward compatibility
                     'user': user_data,
                     'message': message
                 }).encode())
@@ -1013,15 +1015,36 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'Missing required fields'}).encode())
                 return
             
+            # Validate host (IP or hostname)
+            host = data['host']
+            if not (security.InputSanitizer.validate_ip(host) or security.InputSanitizer.validate_hostname(host)):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid IP address or hostname format'}).encode())
+                return
+            
+            # Validate port if provided
+            port = data.get('port', 22)
+            if not security.InputSanitizer.validate_port(port):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid port number. Must be between 1 and 65535'}).encode())
+                return
+            
+            # Validate agent_port if provided
+            agent_port = data.get('agent_port', 8083)
+            if not security.InputSanitizer.validate_port(agent_port):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid agent port number. Must be between 1 and 65535'}).encode())
+                return
+            
             result = db.add_server(
                 name=data['name'],
-                host=data['host'],
-                port=data.get('port', 22),
+                host=host,
+                port=port,
                 username=data['username'],
                 description=data.get('description', ''),
                 ssh_key_path=data.get('ssh_key_path', '~/.ssh/id_rsa'),
                 ssh_password=data.get('ssh_password', ''),
-                agent_port=data.get('agent_port', 8083),
+                agent_port=agent_port,
                 tags=data.get('tags', '')
             )
             
@@ -1651,6 +1674,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             
             try:
                 server_id = int(server_id)
+                
+                # Validate host if provided
+                if 'host' in data:
+                    host = data['host']
+                    if not (security.InputSanitizer.validate_ip(host) or security.InputSanitizer.validate_hostname(host)):
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Invalid IP address or hostname format'}).encode())
+                        return
+                
+                # Validate port if provided
+                if 'port' in data:
+                    if not security.InputSanitizer.validate_port(data['port']):
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Invalid port number. Must be between 1 and 65535'}).encode())
+                        return
+                
+                # Validate agent_port if provided
+                if 'agent_port' in data:
+                    if not security.InputSanitizer.validate_port(data['agent_port']):
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Invalid agent port number. Must be between 1 and 65535'}).encode())
+                        return
+                
                 result = db.update_server(server_id, **data)
                 
                 self._set_headers()

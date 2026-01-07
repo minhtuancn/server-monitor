@@ -226,9 +226,13 @@ class InputSanitizer:
     
     @staticmethod
     def validate_hostname(hostname):
-        """Validate hostname format"""
+        """Validate hostname format (not IP)"""
         import re
-        # Allow alphanumeric, dots, hyphens
+        # Reject if it looks like an IP address (delegate to validate_ip for proper validation)
+        if re.match(r'^(\d{1,3}\.){3}\d{1,3}$', hostname):
+            # It looks like an IP, so validate it as IP
+            return InputSanitizer.validate_ip(hostname)
+        # Allow alphanumeric, dots, hyphens for hostnames
         pattern = r'^[a-zA-Z0-9.-]+$'
         return bool(re.match(pattern, hostname)) and len(hostname) <= 255
     
