@@ -105,14 +105,15 @@ python3 websocket_server.py &
 # Terminal server (optional)
 python3 terminal.py &
 
-# Frontend
-cd ../frontend
-python3 -m http.server 9081 &
+# Frontend (Next.js)
+cd ../frontend-next
+npm install
+npm run dev  # defaults to port 9081 to stay compatible with existing proxy
 ```
 
 ### Access Dashboard
 
-- **Dashboard**: http://localhost:9081
+- **Dashboard**: http://localhost:9081 (Next.js frontend)
 - **API**: http://localhost:9083
 - **Default Credentials**: admin / admin123 ⚠️ **Change in production!**
 

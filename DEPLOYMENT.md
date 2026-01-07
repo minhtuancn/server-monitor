@@ -102,7 +102,13 @@ python3 -c "import database; database.init_database()"
 
 # 5. Start services
 cd ..
-./start-all.sh
+./start-all.sh  # backend + websocket + terminal
+
+# 6. Start Next.js frontend (port 9081)
+cd frontend-next
+npm install
+npm run build
+npm run start
 ```
 
 ### Option 2: Systemd Services
@@ -243,7 +249,19 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # API
+    # Next.js BFF/API (auth + proxy)
+    location ^~ /api/auth/ {
+        proxy_pass http://127.0.0.1:9081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location ^~ /api/proxy/ {
+        proxy_pass http://127.0.0.1:9081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Backend API (legacy fallback)
     location /api/ {
         proxy_pass http://127.0.0.1:9083/api/;
         proxy_set_header Host $host;
