@@ -1,0 +1,30 @@
+[Unit]
+Description=Server Monitor Next.js Frontend
+After=network.target server-dashboard-api-v2.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/server-monitor/frontend-next
+Environment="NODE_ENV=production"
+Environment="PORT=9081"
+Environment="API_PROXY_TARGET=http://localhost:9083"
+Environment="NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085"
+Environment="NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084"
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/server-monitor/frontend.log
+StandardError=append:/var/log/server-monitor/frontend.error.log
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/server-monitor/frontend-next/.next
+ReadWritePaths=/var/log/server-monitor
+
+[Install]
+WantedBy=multi-user.target

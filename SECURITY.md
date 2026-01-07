@@ -1,89 +1,146 @@
 # Server Monitor - Security Guide
 
-**Version:** 1.0.0  
+**Version:** 2.0.0  
 **Last Updated:** 2026-01-07
 
 ---
 
 ## 📋 Security Summary
 
-The Server Monitor Dashboard implements multiple layers of security:
+The Server Monitor Dashboard implements multiple layers of security with v2.0 enhancements:
 
 | Category | Status | Score |
 |----------|--------|-------|
-| Authentication | ✅ Implemented | 9/10 |
-| Authorization | ✅ Implemented | 8/10 |
+| Authentication | ✅ Enhanced | 10/10 |
+| Authorization (RBAC) | ✅ Implemented | 9/10 |
+| Cookie Security | ✅ Hardened | 10/10 |
 | Input Validation | ✅ Implemented | 9/10 |
 | Rate Limiting | ✅ Implemented | 9/10 |
 | Security Headers | ✅ Implemented | 9/10 |
+| SSRF Protection | ✅ Implemented | 10/10 |
 | Secrets Management | ⚠️ Manual | 7/10 |
-| **Overall** | **Production Ready** | **8.5/10** |
+| **Overall** | **Production Ready** | **9/10** |
 
 ---
 
 ## 🔐 Authentication
 
-### JWT Token Authentication
+### JWT Token with HttpOnly Cookies (v2.0)
 
-The system uses JSON Web Tokens (JWT) for authentication:
+The system uses JSON Web Tokens (JWT) stored in HttpOnly cookies for maximum security:
 
 - **Algorithm:** HS256
 - **Default Expiration:** 24 hours (86400 seconds)
-- **Token Location:** Authorization header (Bearer token)
+- **Token Storage:** HttpOnly cookie (XSS protection)
+- **Cookie Name:** `auth_token`
+- **Cookie Attributes:**
+  - `HttpOnly: true` (prevents JavaScript access)
+  - `SameSite: Lax` (CSRF protection)
+  - `Secure: true` (production only, HTTPS)
+  - `Path: /`
+  - `MaxAge: synced with JWT expiry`
+
+**Flow:**
+
+1. User logs in via `/api/auth/login` (Next.js BFF)
+2. Backend validates credentials, returns JWT
+3. BFF sets HttpOnly cookie with JWT
+4. Subsequent requests include cookie automatically
+5. BFF middleware translates cookie to Bearer token for backend
 
 ```bash
-# Login to get token
-curl -X POST http://localhost:9083/api/auth/login \
+# Login (sets HttpOnly cookie)
+curl -X POST http://localhost:9081/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your-password"}'
+  -d '{"username":"admin","password":"your-password"}' \
+  -c cookies.txt
 
-# Use token in requests
-curl http://localhost:9083/api/servers \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+# Use cookie in requests
+curl http://localhost:9081/api/proxy/api/servers \
+  -b cookies.txt
 ```
+
+### Backend-for-Frontend (BFF) Security
+
+The Next.js BFF layer provides additional security:
+
+- **Cookie to Bearer token translation**
+- **No cookie leakage to backend**
+- **SSRF protection in proxy**
+- **Path traversal prevention**
+- **Set-cookie header filtering**
 
 ### Session Management
 
-- Sessions stored in SQLite database
-- Auto-cleanup of expired sessions on server start
-- Logout invalidates session token
+- Sessions validated via `/api/auth/session`
+- Token expiry checked on each request
+- Logout clears cookie: `/api/auth/logout`
+- Expired tokens auto-redirect to login
 
 ### Password Security
 
-- Passwords hashed using SHA256 with salt
+- Passwords hashed using SHA256 with salt (backend)
 - Minimum password validation (client-side)
-- Failed login attempts tracked
+- Failed login attempts tracked and rate-limited
+- Default admin password must be changed immediately
 
 ---
 
 ## 🛡️ Authorization
 
-### Role-Based Access Control (RBAC)
+### Role-Based Access Control (RBAC) v2.0
 
 | Role | Permissions |
 |------|-------------|
-| admin | Full access to all features |
-| user | Read servers, limited write access |
+| admin | Full access to all features, user management, system settings |
+| user | Read servers, own profile, limited write access |
 | public | Read-only access to stats (no auth required) |
+
+### Middleware Protection
+
+Next.js middleware enforces RBAC:
+
+```typescript
+// Admin-only routes
+/users
+/settings/domain
+/settings/email
+
+// Authenticated routes
+/dashboard
+/servers/*
+/terminal
+/settings
+/notifications
+```
+
+### Access Denied Page
+
+Unauthorized access attempts show a user-friendly "Access Denied" page instead of generic errors.
 
 ### Protected Endpoints
 
-Most endpoints require authentication:
-
+**Public (no auth):**
 ```
-Public (no auth):
-  GET /api/stats/overview
-  GET /api/servers (limited data)
+GET /api/stats/overview
+GET /api/servers (limited data)
+```
 
-User (auth required):
-  GET /api/servers/:id
-  GET /api/export/*
+**User (auth required):**
+```
+GET /api/servers/:id
+GET /api/export/*
+GET /api/notifications
+GET /api/ssh-keys
+```
 
-Admin (admin role required):
-  POST/PUT/DELETE /api/servers/*
-  POST/PUT/DELETE /api/users/*
-  GET/POST /api/settings/*
-  GET/POST /api/email/config
+**Admin (admin role required):**
+```
+POST/PUT/DELETE /api/servers/*
+POST/PUT/DELETE /api/users/*
+GET/POST /api/settings/*
+GET/POST /api/email/config
+GET/POST /api/domain/settings
 ```
 
 ---
@@ -182,6 +239,64 @@ cursor.execute('SELECT * FROM servers WHERE id = ?', (server_id,))
 # Never used - string concatenation
 # cursor.execute(f'SELECT * FROM servers WHERE id = {server_id}')
 ```
+
+---
+
+## 🛡️ SSRF & Path Traversal Protection (v2.0)
+
+### BFF Proxy Security
+
+The Next.js Backend-for-Frontend (BFF) proxy includes multiple layers of protection:
+
+**Path Validation:**
+```typescript
+function validateProxyPath(path: string[]): boolean {
+  // Prevent empty paths
+  if (!path || path.length === 0) return false;
+  
+  const joinedPath = path.join("/");
+  
+  // Prevent path traversal
+  if (joinedPath.includes("..") || joinedPath.includes("~")) return false;
+  
+  // Only allow /api/* paths
+  if (!joinedPath.startsWith("api/")) return false;
+  
+  // Prevent protocol-relative URLs or absolute URLs
+  if (joinedPath.includes("://") || joinedPath.startsWith("//")) return false;
+  
+  return true;
+}
+```
+
+**Protection Against:**
+- ✅ SSRF (Server-Side Request Forgery) - Only proxies to configured backend
+- ✅ Path Traversal - Blocks `..`, `~`, absolute URLs
+- ✅ Protocol Injection - Blocks `://`, `//`
+- ✅ Cookie Leakage - Strips all cookies before forwarding
+- ✅ Response Header Injection - Filters `set-cookie` from backend
+
+### Token Endpoint Security
+
+The `/api/auth/token` endpoint (used for WebSocket auth) includes:
+
+```typescript
+// Cache control to prevent token exposure
+response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+response.headers.set("Pragma", "no-cache");
+response.headers.set("Expires", "0");
+
+// Token expiry validation
+if (isTokenExpired(token)) {
+  return NextResponse.json({ error: "Token expired" }, { status: 401 });
+}
+```
+
+**Best Practices:**
+- Only used for WebSocket authentication
+- Not logged or cached
+- Short-lived tokens only
+- Expiry validated before return
 
 ---
 

@@ -53,13 +53,22 @@ export async function POST(request: NextRequest) {
       role: data.role || "user",
     };
 
+  // Calculate maxAge from JWT expiration or default to 8 hours
+  let maxAge = 60 * 60 * 8; // 8 hours default
+  if (payload?.exp) {
+    const expiresIn = payload.exp - Math.floor(Date.now() / 1000);
+    if (expiresIn > 0) {
+      maxAge = expiresIn;
+    }
+  }
+
   const response = NextResponse.json({ success: true, user });
   response.cookies.set("auth_token", token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8,
+    maxAge,
   });
 
   return response;

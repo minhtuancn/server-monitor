@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useMemo, useState } from "react";
+import { SnackbarProvider } from "../SnackbarProvider";
 
 type Props = {
   locale: string;
@@ -32,7 +33,7 @@ function MuiThemeBridge({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <SnackbarProvider>{children}</SnackbarProvider>
     </ThemeProvider>
   );
 }

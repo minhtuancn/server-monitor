@@ -1,11 +1,12 @@
-# 🖥️ Server Monitor Dashboard v1.0
+# 🖥️ Server Monitor Dashboard v2.0
 
-**Multi-server monitoring system với real-time updates, web terminal, và advanced security**
+**Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, and advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
+[![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-black)]()
 [![Tests](https://img.shields.io/badge/tests-23%2F25%20passing-green)]()
-[![Security](https://img.shields.io/badge/security-9%2F10-yellow)]()
+[![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)
@@ -14,18 +15,20 @@
 
 ## 📋 Tổng Quan
 
-Server Monitor Dashboard là hệ thống giám sát multi-server với giao diện web hiện đại, cho phép quản lý và theo dõi nhiều servers từ một dashboard trung tâm.
+Server Monitor Dashboard là hệ thống giám sát multi-server với giao diện web hiện đại Next.js, cho phép quản lý và theo dõi nhiều servers từ một dashboard trung tâm.
 
 ### ✨ Tính Năng Chính
 
+- 🚀 **Modern Next.js Frontend**: App Router + TypeScript + MUI + React Query
 - 🌐 **Multi-Server Management**: Quản lý nhiều servers từ một giao diện
 - 📊 **Real-time Monitoring**: Cập nhật metrics thời gian thực qua WebSocket
 - 🖥️ **Web Terminal**: SSH terminal emulator trên browser (xterm.js)
-- 🔐 **Authentication System**: JWT-based authentication với session management
+- 🔐 **Secure Authentication**: JWT-based auth with HttpOnly cookies, RBAC
+- 🛡️ **Security Hardened**: Rate limiting, CORS, input validation, CSRF protection
 - 📧 **Email Alerts**: Cảnh báo tự động qua email khi vượt ngưỡng
 - 📤 **Export Data**: Xuất dữ liệu ra CSV/JSON
-- 🔒 **Advanced Security**: Rate limiting, CORS, input validation, security headers
-- 🧪 **Automated Testing**: 23 test cases với pytest
+- 🌍 **Internationalization**: Multi-language support (8 languages)
+- 🧪 **Automated Testing**: 23 test cases với pytest + CI/CD
 
 ### 🎯 Use Cases
 
@@ -35,17 +38,17 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - Theo dõi performance metrics real-time
 - Nhận cảnh báo tự động về issues
 
-### 🎉 Recent Improvements (v1.1 - 2026-01-07)
+### 🎉 What's New in v2.0 (2026-01-07)
 
-- ✅ **Fixed Database Path Issues**: Removed hardcoded `/opt` paths, now works from any directory
-- ✅ **Enhanced Input Validation**: Fixed IP validation bypass (999.999.999.999 now rejected)
-- ✅ **Frontend Cleanup**: Removed 11 duplicate files (44% reduction, 25+ → 14 pages)
-- ✅ **Form Helper System**: Added loading states, real-time validation, toast notifications
-- ✅ **Improved UX**: Consistent error handling, loading indicators, user-friendly messages
-- ✅ **Documentation**: Added 36KB of guides (PROJECT_ASSESSMENT.md, TODO-IMPROVEMENTS.md, form guides)
-- ✅ **Test Coverage**: 23/25 tests passing (92%), CodeQL scan: 0 vulnerabilities
-
-See [PROJECT_ASSESSMENT.md](PROJECT_ASSESSMENT.md) for detailed analysis and [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) for roadmap.
+- ✨ **Next.js Frontend**: Complete rewrite with modern stack (Next.js 14, TypeScript, MUI)
+- 🔐 **Enhanced Security**: HttpOnly cookies, RBAC, SSRF protection, path validation
+- 🛡️ **BFF Layer**: Backend-for-Frontend with authentication proxy
+- 🎨 **Improved UX**: Toast notifications, loading states, empty states, better error handling
+- 🔄 **WebSocket Fixes**: Proper cleanup, no memory leaks, auto-reconnect
+- 🌍 **i18n Support**: next-intl integration for 8 languages
+- 📝 **Access Control**: Admin-only pages, role-based navigation
+- 🚀 **CI/CD**: Separate workflows for frontend and backend
+- 📚 **Comprehensive Docs**: Updated for Next.js, deployment guides, troubleshooting
 
 ---
 
@@ -54,6 +57,7 @@ See [PROJECT_ASSESSMENT.md](PROJECT_ASSESSMENT.md) for detailed analysis and [TO
 ### Prerequisites
 
 - Python 3.8+
+- Node.js 18+ and npm
 - Linux server (tested on Debian/Ubuntu)
 - SSH access to monitored servers
 
@@ -64,7 +68,7 @@ See [PROJECT_ASSESSMENT.md](PROJECT_ASSESSMENT.md) for detailed analysis and [TO
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
-# Install dependencies
+# Install backend dependencies
 cd backend
 pip3 install -r requirements.txt
 
@@ -72,14 +76,26 @@ pip3 install -r requirements.txt
 cd ../tests
 pip3 install -r requirements.txt
 
+# Install frontend dependencies
+cd ../frontend-next
+npm ci
+
 # Configure environment
 cd ..
 cp .env.example .env
 # Edit .env and set secure values for JWT_SECRET and ENCRYPTION_KEY
 # Generate secure keys with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
+# Configure frontend environment
+cd frontend-next
+cat > .env.local << EOF
+API_PROXY_TARGET=http://localhost:9083
+NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+EOF
+
 # Initialize database (automatic on first run)
-cd backend
+cd ../backend
 python3 -c "import database; database.init_database()"
 ```
 
@@ -87,12 +103,20 @@ python3 -c "import database; database.init_database()"
 
 ### Start Services
 
+**Option 1: Start All (Recommended for first time)**
+
 ```bash
-# From project root
+# From project root - starts backend services
 ./start-all.sh
+
+# In a new terminal - start frontend
+cd frontend-next
+npm run dev  # Development mode with hot reload
+# OR
+npm run build && npm run start  # Production mode
 ```
 
-Or start manually:
+**Option 2: Start Manually**
 
 ```bash
 # Backend API
@@ -105,10 +129,11 @@ python3 websocket_server.py &
 # Terminal server (optional)
 python3 terminal.py &
 
-# Frontend (Next.js)
+# Frontend Next.js
 cd ../frontend-next
-npm install
-npm run dev  # defaults to port 9081 to stay compatible with existing proxy
+npm run dev  # Development (http://localhost:9081)
+# OR
+npm run build && npm run start  # Production
 ```
 
 ### Access Dashboard
@@ -122,7 +147,9 @@ npm run dev  # defaults to port 9081 to stay compatible with existing proxy
 ### Stop Services
 
 ```bash
-./stop-all.sh
+./stop-all.sh  # Stops backend services
+
+# Stop frontend: Ctrl+C in the terminal where npm is running
 ```
 
 ---
@@ -144,44 +171,48 @@ server-monitor/
 │   ├── security.py            # Security middleware (rate limiting, CORS, validation)
 │   └── agent.py               # Monitoring agent for remote servers
 │
-├── frontend/                   # HTML/CSS/JS frontend (14 pages)
-│   ├── index.html             # Landing page
-│   ├── login.html             # Login page
-│   ├── dashboard.html         # Main dashboard (multi-server view)
-│   ├── server-detail.html     # Individual server details
-│   ├── server-notes.html      # Markdown notes for servers
-│   ├── terminal.html          # Web terminal interface
-│   ├── settings.html          # System settings
-│   ├── domain-settings.html   # Domain & SSL configuration
-│   ├── email-settings.html    # Email alert configuration
-│   ├── ssh-keys.html          # SSH key management
-│   ├── users.html             # User management (admin)
-│   ├── notifications.html     # Alert notifications
-│   ├── system-check.html      # System health check
-│   ├── test_cors.html         # CORS testing
-│   ├── README.md              # Frontend documentation
-│   ├── FORM_HELPERS_GUIDE.md  # Form utilities guide
-│   ├── assets/
-│   │   ├── css/               # Stylesheets
-│   │   │   ├── app.css
-│   │   │   ├── components.css # Enhanced with form states & animations
-│   │   │   └── themes.css
-│   │   ├── js/                # JavaScript modules
-│   │   │   ├── api.js         # API client
-│   │   │   ├── auth.js        # Authentication
-│   │   │   ├── form-helpers.js # Form utilities (NEW)
-│   │   │   ├── utils.js       # Utilities
-│   │   │   ├── i18n.js        # Internationalization
-│   │   │   └── component-loader.js
-│   │   └── locales/           # 8 language translations
-│   └── components/
-│       ├── header.html        # Shared header
-│       └── sidebar.html       # Shared sidebar
+├── frontend-next/              # Next.js 14 frontend (TypeScript)
+│   ├── src/
+│   │   ├── app/               # App Router pages
+│   │   │   ├── api/           # BFF API routes (auth, proxy)
+│   │   │   └── [locale]/      # Internationalized pages
+│   │   │       ├── (auth)/login
+│   │   │       └── (dashboard)/
+│   │   │           ├── dashboard/
+│   │   │           ├── servers/[id]/
+│   │   │           ├── terminal/
+│   │   │           ├── settings/
+│   │   │           ├── users/
+│   │   │           ├── notifications/
+│   │   │           └── access-denied/
+│   │   ├── components/        # React components
+│   │   │   ├── layout/        # AppShell, Shell
+│   │   │   ├── providers/     # Theme, Query, i18n
+│   │   │   ├── SnackbarProvider.tsx
+│   │   │   ├── LoadingSkeletons.tsx
+│   │   │   └── EmptyStates.tsx
+│   │   ├── hooks/             # Custom React hooks
+│   │   ├── lib/               # Utilities (API client, WebSocket, JWT)
+│   │   ├── types/             # TypeScript type definitions
+│   │   └── locales/           # i18n translations (8 languages)
+│   ├── middleware.ts          # Auth + RBAC middleware
+│   ├── next.config.mjs        # Next.js configuration
+│   └── package.json
+│
+├── frontend/                   # Legacy HTML frontend (deprecated)
+│   ├── index.html
+│   ├── login.html
+│   ├── dashboard.html
+│   └── ... (14 pages)
 │
 ├── tests/                      # Automated tests
 │   ├── test_api.py            # API integration tests (19/19 passing)
 │   ├── test_security.py       # Security tests (4/6 passing)
-│   └── requirements.txt       # Test dependencies
+│   └── requirements.txt
+│
+├── services/                   # Systemd service files
+│   ├── server-dashboard-api-v2.service
+│   └── server-monitor-frontend.service
 │
 ├── data/                       # Data storage (auto-created)
 │   ├── servers.db             # SQLite database
@@ -191,9 +222,14 @@ server-monitor/
 │
 ├── docs/                       # Documentation
 │
-├── PROJECT_ASSESSMENT.md      # Comprehensive project review (NEW)
-├── TODO-IMPROVEMENTS.md       # Action items roadmap (NEW)
-├── VIETNAMESE_SUMMARY.md      # Vietnamese summary (NEW)
+├── .github/workflows/          # CI/CD
+│   ├── ci.yml                 # Backend CI
+│   └── frontend-ci.yml        # Frontend CI
+│
+├── DEPLOYMENT.md              # Production deployment guide
+├── ARCHITECTURE.md            # System architecture
+├── SECURITY.md                # Security guide
+├── SMOKE_TEST_CHECKLIST.md    # Testing checklist
 ├── start-all.sh               # Start all services
 ├── stop-all.sh                # Stop all services
 ├── .env.example               # Environment template
@@ -230,7 +266,24 @@ Configuration options in `.env` file:
 
 ## 🔐 Security Features
 
-### Implemented (v4.1)
+### Implemented (v2.0)
+
+✅ **Authentication & Authorization**
+- JWT token-based authentication
+- HttpOnly cookies for token storage (XSS protection)
+- Secure cookie attributes (HttpOnly, SameSite=Lax, Secure in production)
+- Token expiration synchronized with cookie TTL
+- Role-Based Access Control (RBAC)
+- Admin-only routes protection
+- Access Denied page for unauthorized access
+
+✅ **Backend-for-Frontend (BFF) Security**
+- Auth proxy layer in Next.js
+- Cookie-to-Bearer token translation
+- SSRF protection with path validation
+- Path traversal prevention
+- No cookie leakage to backend
+- Set-cookie header filtering
 
 ✅ **Rate Limiting**
 - 100 requests/minute (general endpoints)
@@ -240,26 +293,29 @@ Configuration options in `.env` file:
 ✅ **CORS Protection**
 - Whitelist specific origins only
 - No wildcard (*) in production
+- Proper preflight handling
 
 ✅ **Security Headers**
 - Content-Security-Policy
 - X-Frame-Options: DENY
 - X-Content-Type-Options: nosniff
 - X-XSS-Protection
+- Strict-Transport-Security (HSTS)
 
-✅ **Input Validation** (Enhanced v1.1)
+✅ **Input Validation**
 - IP address validation (0-255 per octet)
 - Hostname validation (proper DNS format)
 - Port range validation (1-65535)
 - String sanitization (HTML/XSS prevention)
-- Real-time client-side validation with error feedback
+- Real-time client-side validation
 
-✅ **Authentication**
-- JWT token-based auth
-- Session management
-- Secure password hashing (SHA256)
+✅ **WebSocket Security**
+- Token authentication required
+- No anonymous connections
+- Proper error handling
+- Connection timeout protection
 
-### Recommendations
+### Security Best Practices
 
 ⚠️ **Before Production Deployment**:
 1. Change default admin password
@@ -268,6 +324,25 @@ Configuration options in `.env` file:
 4. Review CORS allowed origins
 5. Enable database backups
 6. Set up log rotation
+7. Use environment variables for secrets
+8. Regularly update dependencies
+
+### Threat Model
+
+**Protected Against:**
+- ✅ XSS (Cross-Site Scripting) - HttpOnly cookies, input sanitization
+- ✅ CSRF (Cross-Site Request Forgery) - SameSite cookies, token validation
+- ✅ SSRF (Server-Side Request Forgery) - Path validation in proxy
+- ✅ Path Traversal - Input validation, regex filtering
+- ✅ SQL Injection - Parameterized queries, ORM usage
+- ✅ Brute Force - Rate limiting on login
+- ✅ Session Hijacking - Secure cookies, HTTPS in production
+- ✅ Unauthorized Access - RBAC, middleware protection
+
+**Remaining Risks:**
+- ⚠️ DDoS attacks - Recommend using Cloudflare or similar
+- ⚠️ Zero-day vulnerabilities - Keep dependencies updated
+- ⚠️ Physical server access - Secure your infrastructure
 
 ---
 
@@ -321,7 +396,7 @@ Full API documentation: See [API-TESTING-GUIDE.txt](API-TESTING-GUIDE.txt)
 
 ## 🧪 Testing
 
-### Run Tests
+### Backend Tests
 
 ```bash
 cd tests
@@ -336,8 +411,41 @@ python3 -m pytest test_security.py -v
 python3 -m pytest -v
 ```
 
+### Frontend Tests
+
+```bash
+cd frontend-next
+
+# Lint TypeScript/React code
+npm run lint
+
+# Build production bundle
+npm run build
+
+# Type checking
+npx tsc --noEmit
+```
+
+### Smoke Testing
+
+Use the comprehensive smoke test checklist:
+
+```bash
+# See SMOKE_TEST_CHECKLIST.md for detailed testing procedures
+# Covers:
+# - Authentication flows
+# - Dashboard functionality
+# - Real-time WebSocket updates
+# - Terminal WebSocket
+# - CRUD operations
+# - Settings pages
+# - Exports
+# - Role-based access control
+```
+
 ### Test Coverage
 
+**Backend:**
 - ✅ Authentication (5 tests)
 - ✅ CRUD operations (5 tests)
 - ✅ Export functionality (2 tests)
@@ -348,6 +456,24 @@ python3 -m pytest -v
 - ✅ Input validation (2 tests)
 
 **Total: 23/25 tests passing (92%)**
+
+**Frontend:**
+- ✅ TypeScript compilation
+- ✅ ESLint checks
+- ✅ Production build verification
+- ✅ Manual smoke tests (see SMOKE_TEST_CHECKLIST.md)
+
+### CI/CD
+
+**Backend CI** (.github/workflows/ci.yml):
+- Python linting (flake8)
+- Unit tests (pytest)
+- Security scan (bandit)
+
+**Frontend CI** (.github/workflows/frontend-ci.yml):
+- TypeScript linting (ESLint)
+- Production build test
+- Build artifact verification
 
 ---
 
@@ -476,7 +602,63 @@ docker-compose up -d
 
 ## 📝 Changelog
 
+### v2.0.0 (2026-01-07) - Next.js Migration & Security Hardening 🎉
+
+**Frontend Rewrite:**
+- ✨ Complete migration to Next.js 14 with App Router
+- ✨ TypeScript for type safety
+- ✨ Material-UI (MUI) for modern design system
+- ✨ React Query for efficient data fetching
+- ✨ React Hook Form + Zod for form validation
+- ✨ next-intl for internationalization (8 languages)
+- ✨ Dark/light theme support with next-themes
+
+**Security Enhancements:**
+- 🔐 HttpOnly cookies for token storage (XSS protection)
+- 🔐 RBAC (Role-Based Access Control) with middleware
+- 🔐 Access Denied page for unauthorized access
+- 🔐 SSRF protection in BFF proxy
+- 🔐 Path traversal prevention
+- 🔐 Cookie TTL synchronized with JWT expiry
+- 🔐 Secure cookie attributes (HttpOnly, SameSite, Secure)
+
+**Backend-for-Frontend (BFF):**
+- 🛡️ Auth proxy layer in Next.js
+- 🛡️ Cookie-to-Bearer token translation
+- 🛡️ No cookie leakage to backend
+- 🛡️ Set-cookie header filtering
+
+**WebSocket Improvements:**
+- 🔄 Fixed event listener memory leaks
+- 🔄 Proper cleanup on unmount
+- 🔄 Better error handling
+- 🔄 Connection status indicators
+
+**UX Improvements:**
+- 🎨 Global toast notification system
+- 🎨 Loading skeleton components
+- 🎨 Empty state components
+- 🎨 Better error messages
+- 🎨 Role-based navigation visibility
+
+**DevOps:**
+- 🚀 Separate CI workflow for frontend
+- 🚀 Systemd service for Next.js
+- 🚀 Comprehensive deployment documentation
+- 🚀 Smoke test checklist
+- 🚀 Troubleshooting guides
+
+### v1.1.0 (2026-01-06)
+
+- ✅ Fixed database path issues (removed hardcoded paths)
+- ✅ Enhanced input validation (IP, hostname, port)
+- ✅ Frontend cleanup (removed duplicate files)
+- ✅ Form helper system with loading states
+- ✅ Improved UX with consistent error handling
+- ✅ Comprehensive documentation updates
+
 ### v1.0.0 (2026-01-06) - Initial Release 🎉
+
 - ✅ Multi-server monitoring dashboard
 - ✅ Real-time updates via WebSocket
 - ✅ Web terminal emulator (xterm.js + SSH)

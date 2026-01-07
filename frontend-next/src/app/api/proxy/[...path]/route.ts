@@ -1,7 +1,45 @@
 import { API_BASE_URL } from "@/lib/config";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Validate proxy path to prevent SSRF and path traversal attacks
+ */
+function validateProxyPath(path: string[]): boolean {
+  // Prevent empty paths
+  if (!path || path.length === 0) {
+    return false;
+  }
+  
+  // Join path and check for suspicious patterns
+  const joinedPath = path.join("/");
+  
+  // Prevent path traversal
+  if (joinedPath.includes("..") || joinedPath.includes("~")) {
+    return false;
+  }
+  
+  // Only allow /api/* paths (backend API endpoints)
+  if (!joinedPath.startsWith("api/")) {
+    return false;
+  }
+  
+  // Prevent protocol-relative URLs or absolute URLs
+  if (joinedPath.includes("://") || joinedPath.startsWith("//")) {
+    return false;
+  }
+  
+  return true;
+}
+
 async function proxyRequest(request: NextRequest, path: string[]) {
+  // Validate path before processing
+  if (!validateProxyPath(path)) {
+    return NextResponse.json(
+      { error: "Invalid proxy path" },
+      { status: 400 }
+    );
+  }
+  
   const token = request.cookies.get("auth_token")?.value;
   const targetPath = path.join("/");
   const targetUrl = new URL(`${API_BASE_URL}/${targetPath}`);
@@ -12,6 +50,7 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  // Don't forward cookies to backend
   headers.delete("cookie");
 
   const isGetLike = request.method === "GET" || request.method === "HEAD";
@@ -40,8 +79,8 @@ async function proxyRequest(request: NextRequest, path: string[]) {
 
   const responseHeaders = new Headers();
   backendResponse.headers.forEach((value, key) => {
-    // Skip hop-by-hop headers
-    if (!["transfer-encoding", "connection"].includes(key.toLowerCase())) {
+    // Skip hop-by-hop headers and set-cookie (prevent cookie leakage)
+    if (!["transfer-encoding", "connection", "set-cookie"].includes(key.toLowerCase())) {
       responseHeaders.set(key, value);
     }
   });
