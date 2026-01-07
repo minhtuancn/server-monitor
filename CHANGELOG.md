@@ -9,6 +9,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Phase 4
 
+### 🚀 Phase 4 Module 4 & 5: Tasks/Remote Command + Notes/Tags Enhancement
+
+**Remote Command Execution + Enhanced Notes + Tags System**
+
+### Added
+
+**Module 4: Tasks / Remote Command Execution**
+- ✨ Task execution engine with asynchronous worker threads
+  - In-process task queue with concurrency limits
+  - Configurable worker thread pool (default: 4 workers)
+  - Per-server concurrency limits (default: 1 task)
+  - Exponential backoff for task re-queueing
+- ✨ `tasks` table with UUID primary keys and comprehensive indexes
+- ✨ Task management functions in `database.py`
+  - `create_task()` - Create new task
+  - `get_task()` - Get task by ID
+  - `get_tasks()` - List tasks with filtering
+  - `update_task_status()` - Update task status and results
+  - `delete_old_tasks()` - Cleanup old tasks
+- ✨ REST API endpoints for tasks
+  - `POST /api/servers/:id/tasks` - Execute remote command (admin/operator)
+  - `GET /api/tasks` - List tasks with filtering (role-based access)
+  - `GET /api/tasks/:id` - Get task details with output
+  - `POST /api/tasks/:id/cancel` - Cancel running/queued tasks
+- ✨ Security features
+  - Output storage disabled by default
+  - Configurable output truncation (max: 64KB default)
+  - SSH authentication priority: vault → key file → password
+  - Command length validation (max: 10KB default)
+  - Comprehensive audit logging (create/start/finish/fail/timeout/cancel)
+- ✨ UI components in Server Workspace
+  - Tasks tab with real-time status updates (3s polling)
+  - Task execution form with security warnings
+  - Task list with status badges and duration
+  - Task detail dialog with stdout/stderr viewer
+- ✨ Task configuration via environment variables
+  - `TASKS_STORE_OUTPUT_DEFAULT` - Output storage policy
+  - `TASKS_OUTPUT_MAX_BYTES` - Max output size
+  - `TASKS_CONCURRENT_PER_SERVER` - Concurrency limit
+  - `TASKS_DEFAULT_TIMEOUT` - Default timeout
+  - `TASKS_NUM_WORKERS` - Worker thread count
+  - `TASK_COMMAND_MAX_LENGTH` - Max command length
+
+**Module 5: Notes / Tags Enhancement**
+- ✨ Enhanced `server_notes` table
+  - Added `updated_by` field for edit tracking
+  - Added `deleted_at` field for soft delete
+  - Audit trail for note operations
+- ✨ `tags` table for server categorization
+  - Name, color, description fields
+  - Created_by tracking
+- ✨ `server_tag_map` table for server-tag associations
+  - Many-to-many relationship
+  - Unique constraint per server-tag pair
+  - Cascade delete on server/tag removal
+- ✨ Tag management functions in `database.py`
+  - `create_tag()`, `get_tags()`, `get_tag()`, `update_tag()`, `delete_tag()`
+  - `add_server_tag()`, `remove_server_tag()`, `get_server_tags()`
+  - `get_servers_by_tag()` for reverse lookups
+- ✨ Enhanced note functions
+  - `add_server_note()` with proper field tracking
+  - `get_server_notes()` with soft delete support
+  - `update_server_note()` with updated_by tracking
+  - `delete_server_note()` with soft delete option
+
+**Database & Migrations**
+- ✨ Migration 007: Module 4 Tasks table and indexes
+- ✨ Migration 008: Module 5 Notes/Tags enhancement
+- ✨ Safe schema upgrades with version tracking
+- ✨ Backward compatible migrations
+
+**Documentation**
+- ✨ Comprehensive `docs/modules/TASKS.md`
+  - Architecture and security model
+  - API reference
+  - Configuration guide
+  - Troubleshooting section
+- ✨ Updated `.env.example` with task configuration
+
+### Changed
+- ⚡ Improved error handling in task queue
+  - Queue overflow detection and handling
+  - Proper task failure marking
+  - 5-second timeout on queue operations
+- ⚡ Enhanced timeout detection
+  - Use specific exception types (socket.timeout, paramiko.SSHException)
+  - More reliable than string matching
+- ⚡ Better task re-queueing with exponential backoff
+  - Prevents busy-waiting when server limits reached
+  - Adaptive delay based on queue size
+- ⚡ Replaced magic numbers with configurable constants
+  - `TASK_COMMAND_MAX_LENGTH` - Configurable command length limit
+  - `TASK_COMMAND_PREVIEW_LENGTH` - Consistent preview truncation
+
+### Fixed
+- 🐛 Notes creation no longer sets `updated_by` on initial create
+  - Prevents timestamp inconsistency
+  - `updated_by` now only set on actual updates
+- 🐛 Task timeout detection now uses proper exception handling
+  - Handles both `socket.timeout` and `paramiko.SSHException`
+  - No longer relies on error message strings
+- 🐛 Task queue overflow properly handled
+  - Failed tasks marked immediately
+  - User feedback provided
+  - No silent failures
+
+### Security
+- 🔒 Task output storage disabled by default
+- 🔒 Output truncation to prevent data leaks (64KB limit)
+- 🔒 Command length validation (10KB limit)
+- 🔒 RBAC enforcement (admin/operator create, viewer read-only)
+- 🔒 Comprehensive audit trail for all task operations
+- 🔒 SSH key vault integration for secure authentication
+
+---
+
 ### 🚀 Phase 4 Module 3: Server Inventory & System Info
 
 **Agentless Inventory Collection + Server Workspace UX + Recent Activity Dashboard**
