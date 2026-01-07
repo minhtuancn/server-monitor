@@ -6,328 +6,408 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Server Monitor</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' },
+                        dark: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="assets/css/app.css">
-    <link rel="stylesheet" href="assets/css/components.css">
     <style>
-        .dashboard-container {
-            padding: 30px;
-            max-width: 1600px;
-            margin: 0 auto;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+        .sidebar-link.active {
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, transparent 100%);
+            border-left: 3px solid #6366f1;
         }
 
         .stat-card {
-            background: var(--bg-secondary);
-            border-radius: var(--radius-lg);
-            padding: 25px;
-            box-shadow: var(--shadow-md);
-            transition: transform var(--transition-base);
+            transition: all 0.2s ease;
         }
 
         .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-xl);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .stat-icon.success {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
-
-        .stat-icon.danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
-
-        .stat-icon.warning {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--warning);
-        }
-
-        .stat-icon.info {
-            background: rgba(59, 130, 246, 0.2);
-            color: var(--info);
-        }
-
-        .stat-title {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-            font-weight: var(--font-medium);
-        }
-
-        .stat-value {
-            font-size: 36px;
-            font-weight: var(--font-bold);
-            color: var(--text-primary);
-            line-height: 1.2;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .page-header h1 {
-            font-size: 32px;
-            font-weight: var(--font-bold);
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 15px;
-        }
-
-        .servers-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
         }
 
         .server-card {
-            background: var(--bg-secondary);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition-base);
-            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .server-card:hover {
             transform: translateY(-2px);
-            box-shadow: var(--shadow-xl);
         }
 
-        .server-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
+        @keyframes pulse-dot {
 
-        .server-name {
-            font-size: 18px;
-            font-weight: var(--font-semibold);
-            color: var(--text-primary);
-        }
-
-        .server-status {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .server-status.online {
-            background: var(--success);
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
-        }
-
-        .server-status.offline {
-            background: var(--danger);
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
-        }
-
-        .server-info {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-            margin-bottom: 15px;
-        }
-
-        .server-metrics {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-
-        .metric {
-            text-align: center;
-        }
-
-        .metric-label {
-            font-size: var(--text-xs);
-            color: var(--text-muted);
-            margin-bottom: 5px;
-        }
-
-        .metric-value {
-            font-size: 18px;
-            font-weight: var(--font-semibold);
-            color: var(--text-primary);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 50px;
-            color: var(--text-secondary);
-        }
-
-        .loading i {
-            font-size: 48px;
-            margin-bottom: 20px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
+            0%,
             100% {
-                transform: rotate(360deg);
+                opacity: 1;
             }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .status-online {
+            animation: pulse-dot 2s ease-in-out infinite;
         }
     </style>
 </head>
 
-<body>
-    <div class="app-container">
-        <!-- Header Placeholder -->
-        <div id="headerContainer"></div>
-
-        <!-- Sidebar Placeholder -->
-        <div id="sidebarContainer"></div>
-
-        <!-- Main Content -->
-        <main class="app-main with-sidebar">
-            <div class="dashboard-container">
-                <div class="page-header">
-                    <h1 data-i18n="dashboard.title">Dashboard</h1>
-                    <div class="header-actions">
-                        <button class="btn btn-primary" onclick="window.refreshData && window.refreshData()">
-                            <i class="fas fa-sync-alt"></i>
-                            <span data-i18n="common.refresh">Refresh</span>
-                        </button>
+<body class="dark bg-dark-950 text-gray-100 min-h-screen">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark-900 border-r border-dark-700 fixed h-full z-30">
+            <!-- Logo -->
+            <div class="h-16 flex items-center px-6 border-b border-dark-700">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-server text-white text-sm"></i>
                     </div>
-                </div>
-
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div>
-                                <div class="stat-title" data-i18n="dashboard.totalServers">Total Servers</div>
-                                <div class="stat-value" id="totalServers">0</div>
-                            </div>
-                            <div class="stat-icon info">
-                                <i class="fas fa-server"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div>
-                                <div class="stat-title" data-i18n="dashboard.onlineServers">Online</div>
-                                <div class="stat-value" id="onlineServers" style="color: var(--success)">0</div>
-                            </div>
-                            <div class="stat-icon success">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div>
-                                <div class="stat-title" data-i18n="dashboard.offlineServers">Offline</div>
-                                <div class="stat-value" id="offlineServers" style="color: var(--danger)">0</div>
-                            </div>
-                            <div class="stat-icon danger">
-                                <i class="fas fa-times-circle"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <div>
-                                <div class="stat-title" data-i18n="dashboard.warningServers">Warning</div>
-                                <div class="stat-value" id="warningServers" style="color: var(--warning)">0</div>
-                            </div>
-                            <div class="stat-icon warning">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Servers Grid -->
-                <div id="serversContainer">
-                    <div class="loading">
-                        <i class="fas fa-spinner"></i>
-                        <p data-i18n="common.loading">Loading...</p>
-                    </div>
+                    <span class="font-bold text-lg text-white">Server Monitor</span>
                 </div>
             </div>
-        </main>
+
+            <!-- Navigation -->
+            <nav class="p-4 space-y-1">
+                <div class="text-xs font-semibold text-dark-400 uppercase tracking-wider px-3 py-2">Overview</div>
+                <a href="/dashboard-new.html"
+                    class="sidebar-link active flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-100 hover:bg-dark-800">
+                    <i class="fas fa-th-large w-5 text-center text-primary-400"></i>
+                    <span>Dashboard</span>
+                </a>
+
+                <div class="text-xs font-semibold text-dark-400 uppercase tracking-wider px-3 py-2 mt-6">Operations
+                </div>
+                <a href="/terminal.html"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white">
+                    <i class="fas fa-terminal w-5 text-center"></i>
+                    <span>Terminal</span>
+                </a>
+                <a href="/server-notes.html"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white">
+                    <i class="fas fa-sticky-note w-5 text-center"></i>
+                    <span>Server Notes</span>
+                </a>
+
+                <div class="text-xs font-semibold text-dark-400 uppercase tracking-wider px-3 py-2 mt-6">Configuration
+                </div>
+                <a href="/ssh-keys.html"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white">
+                    <i class="fas fa-key w-5 text-center"></i>
+                    <span>SSH Keys</span>
+                </a>
+                <a href="/email-settings.html"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white">
+                    <i class="fas fa-envelope w-5 text-center"></i>
+                    <span>Email Alerts</span>
+                </a>
+
+                <div class="text-xs font-semibold text-dark-400 uppercase tracking-wider px-3 py-2 mt-6"
+                    id="adminSection" style="display:none;">Administration</div>
+                <a href="/users.html" id="usersLink"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white"
+                    style="display:none;">
+                    <i class="fas fa-users w-5 text-center"></i>
+                    <span>User Management</span>
+                </a>
+                <a href="/settings.html" id="settingsLink"
+                    class="sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-300 hover:bg-dark-800 hover:text-white"
+                    style="display:none;">
+                    <i class="fas fa-cog w-5 text-center"></i>
+                    <span>System Settings</span>
+                </a>
+            </nav>
+
+            <!-- Footer -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-dark-700">
+                <div class="text-xs text-dark-400 text-center">Server Monitor v4.1</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 ml-64">
+            <!-- Header -->
+            <header class="h-16 bg-dark-900/80 backdrop-blur-md border-b border-dark-700 sticky top-0 z-20">
+                <div class="h-full px-6 flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-xl font-semibold text-white" data-i18n="dashboard.title">Dashboard</h1>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <!-- Language Selector -->
+                        <div class="relative" id="langDropdown">
+                            <button onclick="toggleLangDropdown()"
+                                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800 hover:bg-dark-700 text-gray-300 text-sm">
+                                <i class="fas fa-globe"></i>
+                                <span id="currentLangName">English</span>
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </button>
+                            <div id="langMenu"
+                                class="hidden absolute right-0 mt-2 w-48 bg-dark-800 rounded-lg shadow-xl border border-dark-600 py-1 z-50">
+                                <button onclick="changeLanguage('en')"
+                                    class="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 flex items-center gap-2">🇺🇸
+                                    English</button>
+                                <button onclick="changeLanguage('vi')"
+                                    class="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 flex items-center gap-2">🇻🇳
+                                    Tiếng Việt</button>
+                                <button onclick="changeLanguage('zh-CN')"
+                                    class="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 flex items-center gap-2">🇨🇳
+                                    简体中文</button>
+                                <button onclick="changeLanguage('ja')"
+                                    class="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 flex items-center gap-2">🇯🇵
+                                    日本語</button>
+                                <button onclick="changeLanguage('ko')"
+                                    class="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-dark-700 flex items-center gap-2">🇰🇷
+                                    한국어</button>
+                            </div>
+                        </div>
+
+                        <!-- User Menu -->
+                        <div class="relative" id="userDropdown">
+                            <button onclick="toggleUserDropdown()"
+                                class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-dark-800">
+                                <div class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                                    id="userAvatar">A</div>
+                                <span class="text-sm text-gray-300" id="userName">admin</span>
+                                <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div id="userMenu"
+                                class="hidden absolute right-0 mt-2 w-56 bg-dark-800 rounded-lg shadow-xl border border-dark-600 py-1 z-50">
+                                <div class="px-4 py-3 border-b border-dark-600">
+                                    <div class="font-medium text-white" id="userFullName">Administrator</div>
+                                    <div class="text-xs text-gray-400" id="userRole">Admin</div>
+                                </div>
+                                <a href="/settings.html"
+                                    class="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-dark-700">
+                                    <i class="fas fa-cog w-4"></i> Settings
+                                </a>
+                                <button onclick="logout()"
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-dark-700">
+                                    <i class="fas fa-sign-out-alt w-4"></i> Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="p-6">
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="stat-card bg-dark-800 rounded-xl p-6 border border-dark-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1" data-i18n="dashboard.totalServers">Total Servers
+                                </p>
+                                <p class="text-3xl font-bold text-white" id="totalServers">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-server text-xl text-primary-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-dark-800 rounded-xl p-6 border border-dark-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1" data-i18n="dashboard.onlineServers">Online</p>
+                                <p class="text-3xl font-bold text-emerald-400" id="onlineServers">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-check-circle text-xl text-emerald-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-dark-800 rounded-xl p-6 border border-dark-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1" data-i18n="dashboard.offlineServers">Offline</p>
+                                <p class="text-3xl font-bold text-red-400" id="offlineServers">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-times-circle text-xl text-red-400"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card bg-dark-800 rounded-xl p-6 border border-dark-700">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-400 mb-1" data-i18n="dashboard.warningServers">Warning</p>
+                                <p class="text-3xl font-bold text-amber-400" id="warningServers">0</p>
+                            </div>
+                            <div class="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-xl text-amber-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Servers Section -->
+                <div class="bg-dark-800 rounded-xl border border-dark-700">
+                    <div class="px-6 py-4 border-b border-dark-700 flex items-center justify-between">
+                        <h2 class="text-lg font-semibold text-white" data-i18n="servers.title">Servers</h2>
+                        <div class="flex items-center gap-3">
+                            <button onclick="refreshData()"
+                                class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                                <i class="fas fa-sync-alt"></i>
+                                <span data-i18n="common.refresh">Refresh</span>
+                            </button>
+                            <button onclick="showAddServerModal()"
+                                class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm flex items-center gap-2 transition-colors">
+                                <i class="fas fa-plus"></i>
+                                <span>Add Server</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="serversContainer" class="p-6">
+                        <div class="flex items-center justify-center py-12">
+                            <div class="text-center">
+                                <i class="fas fa-spinner fa-spin text-4xl text-gray-500 mb-4"></i>
+                                <p class="text-gray-400" data-i18n="common.loading">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
+    <!-- Add Server Modal -->
+    <div id="addServerModal"
+        class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-dark-800 rounded-2xl border border-dark-600 w-full max-w-lg mx-4 shadow-2xl">
+            <div class="px-6 py-4 border-b border-dark-600 flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white">Add New Server</h3>
+                <button onclick="closeAddServerModal()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addServerForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Server Name</label>
+                    <input type="text" name="name" required
+                        class="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+                        placeholder="My Server">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Host / IP</label>
+                        <input type="text" name="host" required
+                            class="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+                            placeholder="192.168.1.1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Port</label>
+                        <input type="number" name="port" value="22"
+                            class="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                    <input type="text" name="username" required
+                        class="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500"
+                        placeholder="root">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                    <textarea name="description" rows="2"
+                        class="w-full px-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary-500 resize-none"
+                        placeholder="Optional description..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeAddServerModal()"
+                        class="flex-1 px-4 py-2.5 bg-dark-700 hover:bg-dark-600 text-gray-300 rounded-lg transition-colors">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors">Add
+                        Server</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
     <script type="module">
-        import api from '/assets/js/api.js';
-        import auth from '/assets/js/auth.js';
-        import i18n from '/assets/js/i18n.js';
-        import { showToast } from '/assets/js/utils.js';
-        import { loadHeaderAndSidebar } from '/assets/js/component-loader.js';
+        // API Configuration
+        const currentPort = window.location.port || '80';
+        const apiPort = currentPort === '9081' ? 9083 : 8083;
+        const API_BASE = `${window.location.protocol}//${window.location.hostname}:${apiPort}`;
+
+        // Auth token
+        const authToken = localStorage.getItem('auth_token');
+        const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
 
         // Check authentication
-        if (!auth.isAuthenticated()) {
+        if (!authToken) {
             window.location.href = '/login.html';
         }
 
-        // Initialize i18n
-        async function initI18n() {
-            const currentLang = i18n.getCurrentLanguage();
-            await i18n.loadLanguage(currentLang);
-            translatePage();
-            document.documentElement.lang = currentLang;
+        // Update user info in header
+        if (authUser) {
+            document.getElementById('userName').textContent = authUser.username || 'User';
+            document.getElementById('userFullName').textContent = authUser.username || 'User';
+            document.getElementById('userRole').textContent = authUser.role || 'User';
+            document.getElementById('userAvatar').textContent = (authUser.username || 'U')[0].toUpperCase();
+
+            // Show admin menu if admin
+            if (authUser.role === 'admin') {
+                document.getElementById('adminSection').style.display = 'block';
+                document.getElementById('usersLink').style.display = 'flex';
+                document.getElementById('settingsLink').style.display = 'flex';
+            }
         }
 
-        function translatePage() {
-            document.querySelectorAll('[data-i18n]').forEach(element => {
-                const key = element.getAttribute('data-i18n');
-                const translation = i18n.t(key);
-                if (translation) {
-                    element.textContent = translation;
+        // API Request helper
+        async function apiRequest(method, endpoint, data = null) {
+            const config = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
                 }
-            });
+            };
+            if (data) config.body = JSON.stringify(data);
+
+            const response = await fetch(`${API_BASE}${endpoint}`, config);
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('auth_user');
+                window.location.href = '/login.html';
+                return;
+            }
+            return response.json();
         }
 
-        // Load servers data
+        // Load servers
         async function loadServers() {
             try {
-                const servers = await api.getServers();
+                const servers = await apiRequest('GET', '/api/servers');
 
                 // Update stats
                 const total = servers.length;
                 const online = servers.filter(s => s.status === 'online').length;
-                const offline = servers.filter(s => s.status === 'offline').length;
+                const offline = servers.filter(s => s.status === 'offline' || s.status === 'unknown').length;
                 const warning = servers.filter(s => s.cpu > 80 || s.memory > 80 || s.disk > 80).length;
 
                 document.getElementById('totalServers').textContent = total;
@@ -335,16 +415,10 @@
                 document.getElementById('offlineServers').textContent = offline;
                 document.getElementById('warningServers').textContent = warning;
 
-                // Render servers
                 renderServers(servers);
             } catch (error) {
                 console.error('Failed to load servers:', error);
-                document.getElementById('serversContainer').innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
-                        <p>Failed to load servers. Please try again.</p>
-                    </div>
-                `;
+                showToast('Failed to load servers', 'error');
             }
         }
 
@@ -354,51 +428,49 @@
 
             if (servers.length === 0) {
                 container.innerHTML = `
-                    <div class="loading">
-                        <i class="fas fa-server"></i>
-                        <p data-i18n="common.noData">No servers found</p>
+                    <div class="flex flex-col items-center justify-center py-12">
+                        <i class="fas fa-server text-5xl text-gray-600 mb-4"></i>
+                        <p class="text-gray-400 mb-4">No servers found</p>
+                        <button onclick="showAddServerModal()" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Your First Server
+                        </button>
                     </div>
                 `;
                 return;
             }
 
-            const html = `
-                <div class="servers-grid">
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     ${servers.map(server => `
-                        <div class="server-card" onclick="window.location.href='/server-detail.html?id=${server.id}'">
-                            <div class="server-header">
-                                <div class="server-name">${server.name || server.ip}</div>
-                                <span class="server-status ${server.status}"></span>
-                            </div>
-                            <div class="server-info">
-                                <i class="fas fa-network-wired"></i> ${server.ip}:${server.port}
-                            </div>
-                            <div class="server-metrics">
-                                <div class="metric">
-                                    <div class="metric-label">CPU</div>
-                                    <div class="metric-value" style="color: ${server.cpu > 80 ? 'var(--danger)' : 'var(--success)'}">
-                                        ${server.cpu || 0}%
-                                    </div>
+                        <div onclick="window.location.href='/server-detail.html?id=${server.id}'" class="server-card bg-dark-700/50 hover:bg-dark-700 rounded-xl p-5 cursor-pointer border border-dark-600 hover:border-dark-500">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 class="font-semibold text-white mb-1">${server.name || server.host}</h3>
+                                    <p class="text-sm text-gray-400 flex items-center gap-1">
+                                        <i class="fas fa-network-wired text-xs"></i>
+                                        ${server.host}:${server.port}
+                                    </p>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">RAM</div>
-                                    <div class="metric-value" style="color: ${server.memory > 80 ? 'var(--danger)' : 'var(--success)'}">
-                                        ${server.memory || 0}%
-                                    </div>
+                                <span class="w-3 h-3 rounded-full ${server.status === 'online' ? 'bg-emerald-500 status-online' : 'bg-gray-500'}"></span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="text-center">
+                                    <p class="text-xs text-gray-500 mb-1">CPU</p>
+                                    <p class="text-lg font-semibold ${(server.cpu || 0) > 80 ? 'text-red-400' : 'text-emerald-400'}">${server.cpu || 0}%</p>
                                 </div>
-                                <div class="metric">
-                                    <div class="metric-label">Disk</div>
-                                    <div class="metric-value" style="color: ${server.disk > 80 ? 'var(--danger)' : 'var(--success)'}">
-                                        ${server.disk || 0}%
-                                    </div>
+                                <div class="text-center">
+                                    <p class="text-xs text-gray-500 mb-1">RAM</p>
+                                    <p class="text-lg font-semibold ${(server.memory || 0) > 80 ? 'text-red-400' : 'text-emerald-400'}">${server.memory || 0}%</p>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-xs text-gray-500 mb-1">Disk</p>
+                                    <p class="text-lg font-semibold ${(server.disk || 0) > 80 ? 'text-red-400' : 'text-emerald-400'}">${server.disk || 0}%</p>
                                 </div>
                             </div>
                         </div>
                     `).join('')}
                 </div>
             `;
-
-            container.innerHTML = html;
         }
 
         // Refresh data
@@ -407,22 +479,109 @@
             showToast('Refreshed successfully', 'success');
         };
 
+        // Add server modal
+        window.showAddServerModal = function () {
+            document.getElementById('addServerModal').classList.remove('hidden');
+        };
+
+        window.closeAddServerModal = function () {
+            document.getElementById('addServerModal').classList.add('hidden');
+            document.getElementById('addServerForm').reset();
+        };
+
+        // Handle add server form
+        document.getElementById('addServerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                name: formData.get('name'),
+                host: formData.get('host'),
+                port: parseInt(formData.get('port')) || 22,
+                username: formData.get('username'),
+                description: formData.get('description') || ''
+            };
+
+            try {
+                await apiRequest('POST', '/api/servers', data);
+                showToast('Server added successfully', 'success');
+                closeAddServerModal();
+                loadServers();
+            } catch (error) {
+                showToast('Failed to add server: ' + error.message, 'error');
+            }
+        });
+
+        // Language handling
+        const langNames = { 'en': 'English', 'vi': 'Tiếng Việt', 'zh-CN': '简体中文', 'ja': '日本語', 'ko': '한국어' };
+        const currentLang = localStorage.getItem('language') || 'en';
+        document.getElementById('currentLangName').textContent = langNames[currentLang] || 'English';
+
+        window.changeLanguage = function (lang) {
+            localStorage.setItem('language', lang);
+            document.getElementById('currentLangName').textContent = langNames[lang] || 'English';
+            document.getElementById('langMenu').classList.add('hidden');
+            // Reload to apply translations
+            window.location.reload();
+        };
+
+        window.toggleLangDropdown = function () {
+            document.getElementById('langMenu').classList.toggle('hidden');
+            document.getElementById('userMenu').classList.add('hidden');
+        };
+
+        window.toggleUserDropdown = function () {
+            document.getElementById('userMenu').classList.toggle('hidden');
+            document.getElementById('langMenu').classList.add('hidden');
+        };
+
+        // Logout
+        window.logout = function () {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('auth_user');
+            window.location.href = '/login.html';
+        };
+
+        // Toast notification
+        window.showToast = function (message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const colors = {
+                success: 'bg-emerald-600',
+                error: 'bg-red-600',
+                warning: 'bg-amber-600',
+                info: 'bg-primary-600'
+            };
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-times-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-fade-in`;
+            toast.innerHTML = `<i class="fas ${icons[type]}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 4000);
+        };
+
+        // Close dropdowns on click outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#langDropdown')) {
+                document.getElementById('langMenu').classList.add('hidden');
+            }
+            if (!e.target.closest('#userDropdown')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
         // Initialize
-        async function init() {
-            // Load components first
-            await loadHeaderAndSidebar();
+        loadServers();
 
-            // Then init i18n
-            await initI18n();
-
-            // Finally load data
-            await loadServers();
-
-            // Auto refresh every 30 seconds
-            setInterval(loadServers, 30000);
-        }
-
-        init();
+        // Auto refresh every 30 seconds
+        setInterval(loadServers, 30000);
     </script>
 </body>
 

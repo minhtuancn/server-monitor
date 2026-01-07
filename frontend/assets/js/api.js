@@ -204,31 +204,31 @@ class APIClient {
   // ========================================
 
   async getServers() {
-    return this.get('/api/v1/servers');
+    return this.get('/api/servers');
   }
 
   async getServer(id) {
-    return this.get(`/api/v1/servers/${id}`);
+    return this.get(`/api/servers/${id}`);
   }
 
   async addServer(data) {
-    return this.post('/api/v1/servers', data);
+    return this.post('/api/servers', data);
   }
 
   async updateServer(id, data) {
-    return this.put(`/api/v1/servers/${id}`, data);
+    return this.put(`/api/servers/${id}`, data);
   }
 
   async deleteServer(id) {
-    return this.delete(`/api/v1/servers/${id}`);
+    return this.delete(`/api/servers/${id}`);
   }
 
   async installAgent(id) {
-    return this.post(`/api/v1/servers/${id}/install-agent`);
+    return this.post(`/api/servers/${id}/install-agent`);
   }
 
-  async testConnection(id) {
-    return this.post(`/api/v1/servers/${id}/test`);
+  async testConnection(serverData) {
+    return this.post('/api/servers/test', serverData);
   }
 
   // ========================================
@@ -236,31 +236,31 @@ class APIClient {
   // ========================================
 
   async getSSHKeys() {
-    return this.get('/api/v1/ssh-keys');
+    return this.get('/api/ssh-keys');
   }
 
   async getSSHKey(id) {
-    return this.get(`/api/v1/ssh-keys/${id}`);
+    return this.get(`/api/ssh-keys/${id}`);
   }
 
   async addSSHKey(data) {
-    return this.post('/api/v1/ssh-keys', data);
+    return this.post('/api/ssh-keys', data);
   }
 
   async updateSSHKey(id, data) {
-    return this.put(`/api/v1/ssh-keys/${id}`, data);
+    return this.put(`/api/ssh-keys/${id}`, data);
   }
 
   async deleteSSHKey(id) {
-    return this.delete(`/api/v1/ssh-keys/${id}`);
+    return this.delete(`/api/ssh-keys/${id}`);
   }
 
   async generateSSHKey(data) {
-    return this.post('/api/v1/ssh-keys/generate', data);
+    return this.post('/api/ssh-keys/generate', data);
   }
 
   async deploySSHKey(keyId, serverIds) {
-    return this.post(`/api/v1/ssh-keys/${keyId}/deploy`, { server_ids: serverIds });
+    return this.post(`/api/ssh-keys/${keyId}/deploy`, { server_ids: serverIds });
   }
 
   // ========================================
@@ -268,15 +268,15 @@ class APIClient {
   // ========================================
 
   async getEmailSettings() {
-    return this.get('/api/v1/email-settings');
+    return this.get('/api/email/config');
   }
 
   async updateEmailSettings(data) {
-    return this.put('/api/v1/email-settings', data);
+    return this.post('/api/email/config', data);
   }
 
   async testEmail(data) {
-    return this.post('/api/v1/email-settings/test', data);
+    return this.post('/api/email/test', data);
   }
 
   // ========================================

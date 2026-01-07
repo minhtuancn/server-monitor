@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,7 +12,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -21,41 +22,44 @@
             min-height: 100vh;
             color: white;
         }
-        
+
         .loading {
             text-align: center;
         }
-        
+
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid rgba(255,255,255,0.3);
+            border: 4px solid rgba(255, 255, 255, 0.3);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
         }
-        
+
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         h1 {
             font-size: 24px;
             margin-bottom: 10px;
         }
-        
+
         p {
             opacity: 0.9;
             font-size: 14px;
         }
-        
+
         a {
             color: white;
             text-decoration: underline;
         }
     </style>
 </head>
+
 <body>
     <div class="loading">
         <div class="spinner"></div>
@@ -65,7 +69,7 @@
             If not redirected, <a href="dashboard.html">click here</a>
         </p>
     </div>
-    
+
     <script>
         // Backup redirect if meta refresh fails
         setTimeout(() => {
@@ -73,4 +77,5 @@
         }, 1000);
     </script>
 </body>
+
 </html>
