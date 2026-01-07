@@ -46,12 +46,12 @@
 - [x] Show connection status indicator (toast notifications 2026-01-07)
 - [x] Add retry logic for failed requests (via form-helpers 2026-01-07)
 
-### 6. Documentation
-- [ ] Update README with new database path fixes
-- [ ] Document .env configuration options
+### 6. Documentation ✅ PARTIALLY COMPLETED
+- [x] Update README with new database path fixes (completed 2026-01-07)
+- [x] Document .env configuration options (completed 2026-01-07)
+- [x] Document frontend component structure (completed 2026-01-07)
 - [ ] Create API documentation (consider Swagger/OpenAPI)
 - [ ] Update CONTRIBUTING.md with testing guidelines
-- [ ] Document frontend component structure
 
 ### 7. Code Quality
 - [ ] Add ESLint configuration for JavaScript
