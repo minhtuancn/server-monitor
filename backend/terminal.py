@@ -20,17 +20,23 @@ import select
 import io
 import tempfile
 import time
+import uuid
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import database as db
 from ssh_key_manager import get_decrypted_key
+from observability import StructuredLogger, get_metrics_collector
 
 PORT = 9084  # WebSocket terminal port
 
 # Session timeout (idle timeout in seconds)
-SESSION_IDLE_TIMEOUT = 1800  # 30 minutes
+SESSION_IDLE_TIMEOUT = int(os.environ.get('TERMINAL_IDLE_TIMEOUT_SECONDS', '1800'))  # 30 minutes default
+
+# Initialize structured logger
+logger = StructuredLogger('terminal')
+metrics = get_metrics_collector()
 
 class SSHTerminalSession:
     """
@@ -63,8 +69,19 @@ class SSHTerminalSession:
             server = db.get_server(self.server_id, decrypt_password=True)
             
             if not server:
+                logger.error('Terminal connection failed - server not found',
+                            session_id=self.session_id,
+                            server_id=self.server_id,
+                            user_id=self.user_id)
                 await self.send_error("Server not found")
                 return False
+            
+            logger.info('Establishing terminal SSH connection',
+                       session_id=self.session_id,
+                       server_id=self.server_id,
+                       server_name=server.get('name'),
+                       user_id=self.user_id,
+                       ssh_key_id=self.ssh_key_id)
             
             # Create SSH client
             self.ssh_client = paramiko.SSHClient()
@@ -141,6 +158,29 @@ class SSHTerminalSession:
             self.running = True
             self.last_activity = time.time()
             
+            # Add audit log
+            if self.user_id:
+                db.add_audit_log(
+                    user_id=self.user_id,
+                    action='terminal.connect',
+                    target_type='server',
+                    target_id=str(self.server_id),
+                    meta={
+                        'session_id': self.session_id,
+                        'ssh_key_id': self.ssh_key_id,
+                        'hostname': server['host']
+                    }
+                )
+            
+            logger.info('Terminal SSH connection established',
+                       session_id=self.session_id,
+                       server_id=self.server_id,
+                       server_name=server.get('name'),
+                       user_id=self.user_id)
+            
+            # Update metrics
+            metrics.terminal_sessions += 1
+            
             # Send success message
             await self.send_message({
                 'type': 'connected',
@@ -150,7 +190,19 @@ class SSHTerminalSession:
             
             return True
         
+        except paramiko.AuthenticationException:
+            logger.warning('Terminal authentication failed',
+                          session_id=self.session_id,
+                          server_id=self.server_id,
+                          user_id=self.user_id)
+            await self.send_error("Authentication failed")
+            return False
         except Exception as e:
+            logger.error('Terminal connection error',
+                        session_id=self.session_id,
+                        server_id=self.server_id,
+                        user_id=self.user_id,
+                        error=str(e))
             await self.send_error(f"Connection failed: {str(e)}")
             return False
     
@@ -218,6 +270,11 @@ class SSHTerminalSession:
         if SESSION_IDLE_TIMEOUT > 0:
             idle_time = time.time() - self.last_activity
             if idle_time > SESSION_IDLE_TIMEOUT:
+                logger.info('Terminal session idle timeout',
+                           session_id=self.session_id,
+                           server_id=self.server_id,
+                           user_id=self.user_id,
+                           idle_seconds=int(idle_time))
                 return True
         return False
     
@@ -237,6 +294,20 @@ class SSHTerminalSession:
         self._cleanup_done = True
         self.running = False
         
+        duration_seconds = int(time.time() - self.last_activity) if hasattr(self, 'last_activity') else 0
+        is_timeout = self.check_idle_timeout()
+        
+        logger.info('Closing terminal session',
+                   session_id=self.session_id,
+                   server_id=self.server_id,
+                   user_id=self.user_id,
+                   duration_seconds=duration_seconds,
+                   reason='timeout' if is_timeout else 'closed')
+        
+        # Update metrics
+        if metrics.terminal_sessions > 0:
+            metrics.terminal_sessions -= 1
+        
         try:
             # Close SSH channel
             if self.channel:
@@ -255,7 +326,7 @@ class SSHTerminalSession:
         
         # Update session in database
         if self.session_id:
-            status = 'timeout' if self.check_idle_timeout() else 'closed'
+            status = 'timeout' if is_timeout else 'closed'
             db.end_terminal_session(self.session_id, status=status)
 
 # Active sessions
@@ -276,6 +347,8 @@ async def handle_terminal(websocket, path):
         server_id = init_data.get('server_id')
         
         if not token or not server_id:
+            logger.warning('Terminal connection missing credentials',
+                          remote_host=websocket.remote_address[0] if websocket.remote_address else 'unknown')
             await websocket.send(json.dumps({
                 'type': 'error',
                 'message': 'Token and server_id required'
@@ -286,6 +359,8 @@ async def handle_terminal(websocket, path):
         auth_result = db.verify_session(token)
         
         if not auth_result.get('valid'):
+            logger.warning('Terminal connection invalid token',
+                          remote_host=websocket.remote_address[0] if websocket.remote_address else 'unknown')
             await websocket.send(json.dumps({
                 'type': 'error',
                 'message': 'Invalid authentication token'
@@ -295,6 +370,9 @@ async def handle_terminal(websocket, path):
         try:
             server_id = int(server_id)
         except ValueError:
+            logger.warning('Terminal connection invalid server_id',
+                          server_id=server_id,
+                          remote_host=websocket.remote_address[0] if websocket.remote_address else 'unknown')
             await websocket.send(json.dumps({
                 'type': 'error',
                 'message': 'Invalid server_id'
@@ -422,11 +500,17 @@ async def main():
     # Initialize database
     db.init_database()
     
+    logger.info('Starting Terminal WebSocket Server',
+               port=PORT,
+               idle_timeout_seconds=SESSION_IDLE_TIMEOUT,
+               version='Phase 6')
+    
     print(f'╔══════════════════════════════════════════════════════════╗')
     print(f'║  Web Terminal Server                                     ║')
     print(f'╚══════════════════════════════════════════════════════════╝')
     print(f'\n🖥️  WebSocket server running on ws://0.0.0.0:{PORT}')
     print(f'🔒 Authentication required')
+    print(f'⏱️  Idle timeout: {SESSION_IDLE_TIMEOUT} seconds')
     print(f'\n📝 Protocol:')
     print(f'   1. Connect to ws://server:{PORT}')
     print(f'   2. Send: {{"token": "...", "server_id": 123}}')
@@ -441,4 +525,5 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
+        logger.info('Terminal server shutdown requested')
         print('\n\n👋 Shutting down terminal server...')

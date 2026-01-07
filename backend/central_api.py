@@ -10,6 +10,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import sys
 import os
+import time
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
@@ -27,8 +28,23 @@ import ssh_key_manager
 import inventory_collector
 from ssh_key_manager import get_decrypted_key
 import task_runner
+from observability import (
+    StructuredLogger, 
+    RequestContext, 
+    HealthCheck, 
+    get_metrics_collector
+)
+import startup_validation
+from task_policy import get_task_policy, TaskPolicyViolation
 
 PORT = 9083  # Different port for central server
+
+# Initialize structured logger
+logger = StructuredLogger('central_api')
+metrics = get_metrics_collector()
+
+# Initialize task policy
+task_policy = get_task_policy()
 
 # Constants for task validation
 TASK_COMMAND_MAX_LENGTH = int(os.environ.get('TASK_COMMAND_MAX_LENGTH', '10000'))
@@ -79,6 +95,12 @@ def verify_auth_token(handler):
 
 class CentralAPIHandler(BaseHTTPRequestHandler):
     
+    def __init__(self, *args, **kwargs):
+        # Initialize request tracking
+        self.request_id = None
+        self.request_start_time = None
+        super().__init__(*args, **kwargs)
+    
     def _set_headers(self, status=200, extra_headers=None):
         self.send_response(status)
         self.send_header('Content-type', 'application/json')
@@ -91,6 +113,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         for key, value in {**cors_headers, **sec_headers}.items():
             self.send_header(key, value)
         
+        # Add request correlation headers
+        if self.request_id:
+            self.send_header('X-Request-Id', self.request_id)
+        
         # Add any extra headers (will override if keys conflict)
         if extra_headers:
             for key, value in extra_headers.items():
@@ -100,15 +126,50 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         
         self.end_headers()
     
+    def _start_request(self):
+        """Initialize request tracking"""
+        self.request_start_time = time.time()
+        self.request_id = RequestContext.get_or_generate_request_id(self.headers)
+    
+    def _finish_request(self, status_code: int, user_id: str = None):
+        """Log request completion"""
+        if self.request_start_time:
+            latency_ms = (time.time() - self.request_start_time) * 1000
+            
+            # Get client IP
+            ip_address = self.client_address[0] if self.client_address else None
+            
+            # Get user agent
+            user_agent = self.headers.get('User-Agent')
+            
+            # Log the request
+            logger.request(
+                method=self.command,
+                path=self.path,
+                status_code=status_code,
+                latency_ms=latency_ms,
+                request_id=self.request_id,
+                user_id=user_id,
+                user_agent=user_agent,
+                ip_address=ip_address
+            )
+            
+            # Record metrics
+            metrics.record_request(self.path, latency_ms)
+    
     def do_OPTIONS(self):
+        self._start_request()
+        
         # Apply security middleware
         sec_result = security.apply_security_middleware(self, 'OPTIONS')
         if sec_result['block']:
             self._set_headers(sec_result['status'], sec_result.get('headers'))
             self.wfile.write(json.dumps(sec_result['body']).encode())
+            self._finish_request(sec_result['status'])
             return
         
         self._set_headers(200, sec_result.get('headers'))
+        self._finish_request(200)
     
     def _read_body(self):
         """Read and parse POST body"""
@@ -123,16 +184,86 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             return {}
     
     def do_GET(self):
+        self._start_request()
+        
         # Apply security middleware
         sec_result = security.apply_security_middleware(self, 'GET')
         if sec_result['block']:
             self._set_headers(sec_result['status'], sec_result.get('headers'))
             self.wfile.write(json.dumps(sec_result['body']).encode())
+            self._finish_request(sec_result['status'])
             return
         
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
+        
+        # ==================== OBSERVABILITY ENDPOINTS ====================
+        
+        if path == '/api/health':
+            # Liveness check - is the process running?
+            health_status = HealthCheck.liveness()
+            self._set_headers()
+            self.wfile.write(json.dumps(health_status).encode())
+            self._finish_request(200)
+            return
+        
+        elif path == '/api/ready':
+            # Readiness check - is the service ready to handle requests?
+            readiness_status = HealthCheck.readiness()
+            status_code = 200 if readiness_status['status'] == 'ready' else 503
+            self._set_headers(status_code)
+            self.wfile.write(json.dumps(readiness_status).encode())
+            self._finish_request(status_code)
+            return
+        
+        elif path == '/api/metrics':
+            # Metrics endpoint (admin only or localhost)
+            auth_result = verify_auth_token(self)
+            
+            # Allow access from localhost without auth
+            client_ip = self.client_address[0] if self.client_address else None
+            is_localhost = client_ip in ['127.0.0.1', '::1', 'localhost']
+            
+            if not is_localhost:
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    self._finish_request(401)
+                    return
+                
+                if auth_result.get('role') not in ['admin']:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                    self._finish_request(403)
+                    return
+            
+            # Update metrics from task_runner if available
+            try:
+                metrics.tasks_running = len(task_runner.running_tasks)
+                metrics.tasks_queued = task_runner.task_queue.qsize()
+            except:
+                pass
+            
+            # Return metrics in requested format
+            accept_header = self.headers.get('Accept', '')
+            if 'text/plain' in accept_header or 'prometheus' in accept_header:
+                # Prometheus format
+                prometheus_metrics = metrics.to_prometheus()
+                self.send_response(200)
+                self.send_header('Content-type', 'text/plain; version=0.0.4')
+                if self.request_id:
+                    self.send_header('X-Request-Id', self.request_id)
+                self.end_headers()
+                self.wfile.write(prometheus_metrics.encode())
+                self._finish_request(200)
+            else:
+                # JSON format
+                json_metrics = metrics.get_metrics()
+                self._set_headers()
+                self.wfile.write(json.dumps(json_metrics).encode())
+                self._finish_request(200)
+            return
         
         # ==================== AUTHENTICATION ====================
         
@@ -147,9 +278,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     'username': auth_result.get('username'),
                     'role': auth_result.get('role')
                 }).encode())
+                self._finish_request(200, user_id=str(auth_result.get('user_id')))
             else:
                 self._set_headers(401)
                 self.wfile.write(json.dumps({'valid': False, 'error': auth_result.get('error')}).encode())
+                self._finish_request(401)
             return
         
         # ==================== USER MANAGEMENT ====================
@@ -1117,13 +1250,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
+            self._finish_request(404)
     
     def do_POST(self):
+        self._start_request()
+        
         # Apply security middleware
         sec_result = security.apply_security_middleware(self, 'POST')
         if sec_result['block']:
             self._set_headers(sec_result['status'], sec_result.get('headers'))
             self.wfile.write(json.dumps(sec_result['body']).encode())
+            self._finish_request(sec_result['status'])
             return
         
         path = self.path
@@ -1470,13 +1607,38 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if not command:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Command is required'}).encode())
+                    self._finish_request(400, user_id=str(auth_result.get('user_id')))
                     return
                 
                 # Security: Basic command validation
                 if len(command) > TASK_COMMAND_MAX_LENGTH:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': f'Command too long (max {TASK_COMMAND_MAX_LENGTH} characters)'}).encode())
+                    self._finish_request(400, user_id=str(auth_result.get('user_id')))
                     return
+                
+                # Security: Validate command against safety policy
+                is_valid, policy_reason = task_policy.validate_command(command)
+                if not is_valid:
+                    logger.warning('Task command blocked by policy',
+                                  user_id=auth_result.get('user_id'),
+                                  server_id=server_id,
+                                  command_preview=command[:100],
+                                  policy_reason=policy_reason)
+                    
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({
+                        'error': 'Command violates safety policy',
+                        'reason': policy_reason,
+                        'policy_mode': task_policy.mode
+                    }).encode())
+                    self._finish_request(403, user_id=str(auth_result.get('user_id')))
+                    return
+                
+                logger.info('Task command passed policy check',
+                           user_id=auth_result.get('user_id'),
+                           server_id=server_id,
+                           command_preview=command[:100])
                 
                 # Get optional parameters
                 timeout_seconds = data.get('timeout_seconds', 60)
@@ -2336,6 +2498,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
     
     def do_PUT(self):
+        self._start_request()
+        
         path = self.path
         data = self._read_body()
         
@@ -2344,6 +2508,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         if not auth_result['valid'] or auth_result.get('role') == 'public':
             self._set_headers(401)
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+            self._finish_request(401)
             return
         
         # ==================== USER MANAGEMENT ====================
@@ -2489,12 +2654,16 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             success, message, failed = settings_mgr.update_multiple_settings(updates, user_id=auth_result.get('user_id'))
             self._set_headers(200 if success else 400)
             self.wfile.write(json.dumps({'success': success, 'message': message, 'failed': failed}).encode())
+            self._finish_request(200 if success else 400)
         
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
+            self._finish_request(404)
     
     def do_DELETE(self):
+        self._start_request()
+        
         path = self.path
         
         # Check authentication
@@ -2502,6 +2671,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         if not auth_result['valid'] or auth_result.get('role') == 'public':
             self._set_headers(401)
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+            self._finish_request(401)
             return
         
         # ==================== USER MANAGEMENT ====================
@@ -2621,16 +2791,27 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
+            self._finish_request(404)
     
     def log_message(self, format, *args):
+        # Suppress default HTTP logging (we use structured logging)
         pass
 
 if __name__ == '__main__':
+    # Validate configuration and secrets
+    startup_validation.validate_configuration()
+    
     # Initialize database
     db.init_database()
     
     # Cleanup expired sessions (older than 7 days)
     cleanup_result = db.cleanup_expired_sessions()
+    
+    # Log startup
+    logger.info('Starting Central API Server', 
+                port=PORT, 
+                sessions_cleaned=cleanup_result["deleted"],
+                version='v4')
     
     server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)
     print(f'╔══════════════════════════════════════════════════════════╗')
@@ -2640,6 +2821,10 @@ if __name__ == '__main__':
     print(f'🔒 Authentication: Enabled (sessions expire after 7 days)')
     print(f'🧹 Cleaned up {cleanup_result["deleted"]} expired sessions')
     print(f'\n📡 API Endpoints:')
+    print(f'   Observability (Phase 6):')
+    print(f'   • GET  /api/health                 - Liveness check (public)')
+    print(f'   • GET  /api/ready                  - Readiness check (public)')
+    print(f'   • GET  /api/metrics                - Prometheus/JSON metrics (admin/localhost)')
     print(f'   Auth:')
     print(f'   • POST /api/auth/login             - Admin login')
     print(f'   • POST /api/auth/logout            - Admin logout')
