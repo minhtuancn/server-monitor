@@ -99,6 +99,74 @@ export type TerminalSession = {
 export type AuditLog = {
   id: number;
   user_id: number;
+  action: string;
+  target_type: string;
+  target_id: string;
+  meta?: Record<string, unknown>;
+  ip?: string;
+  created_at: string;
+  username?: string;
+  server_name?: string;
+};
+
+export type ServerInventory = {
+  server_id: number;
+  collected_at: string;
+  inventory: {
+    collected_at: string;
+    os: {
+      name: string;
+      version: string;
+      pretty_name?: string;
+    };
+    kernel: string;
+    hostname: string;
+    uptime: {
+      uptime_seconds?: number;
+      uptime_human?: string;
+      uptime_since?: string;
+    };
+    cpu: {
+      model?: string;
+      cores: number;
+    };
+    memory: {
+      total_mb: number;
+      used_mb?: number;
+      available_mb?: number;
+      used_percent?: number;
+    };
+    disk: {
+      total_gb?: number;
+      used_gb?: number;
+      available_gb?: number;
+      used_percent?: number;
+    };
+    network: {
+      primary_ip?: string;
+      interfaces?: string[];
+    };
+    packages?: Array<{ type: string; count: number }>;
+    services?: Array<{ type: string; running_count: number }>;
+    error?: string;
+  };
+};
+
+export type RecentActivity = {
+  activities: Array<{
+    id: string;
+    user_id: number;
+    username?: string;
+    action: string;
+    target_type: string;
+    target_id: string;
+    server_name?: string;
+    meta?: Record<string, unknown>;
+    created_at: string;
+  }>;
+  count: number;
+};
+  user_id: number;
   username?: string;
   action: string;
   target_type?: string;
