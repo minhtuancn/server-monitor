@@ -8,7 +8,7 @@ type SessionResponse =
   | { authenticated: true; user?: SessionUser };
 
 export function useSession() {
-  return useQuery<SessionResponse>({
+  const query = useQuery<SessionResponse>({
     queryKey: ["session"],
     queryFn: async () => {
       const res = await fetch("/api/auth/session", { cache: "no-store" });
@@ -19,4 +19,11 @@ export function useSession() {
     },
     staleTime: 5 * 60 * 1000,
   });
+
+  return {
+    ...query,
+    user: query.data && query.data.authenticated ? query.data.user : undefined,
+    isAdmin: query.data && query.data.authenticated ? query.data.user?.role === "admin" : false,
+    isAuthenticated: query.data?.authenticated ?? false,
+  };
 }
