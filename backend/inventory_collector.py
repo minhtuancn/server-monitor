@@ -93,7 +93,7 @@ class InventoryCollector:
                         key_file.seek(0)
                         pkey = key_class.from_private_key(key_file)
                         break
-                    except:
+                    except (paramiko.SSHException, ValueError):
                         continue
                 
                 if pkey:
@@ -131,7 +131,7 @@ class InventoryCollector:
         if self.ssh_client:
             try:
                 self.ssh_client.close()
-            except:
+            except Exception:
                 pass
             self.ssh_client = None
     
@@ -292,7 +292,7 @@ class InventoryCollector:
                     info['used_gb'] = int(parts[2].rstrip('G'))
                     info['available_gb'] = int(parts[3].rstrip('G'))
                     info['used_percent'] = int(parts[4].rstrip('%'))
-                except:
+                except (ValueError, IndexError):
                     pass
         
         return info

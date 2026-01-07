@@ -135,7 +135,7 @@ export default function ServerWorkspacePage() {
   const onAddNote = async (values: NoteForm) => {
     await apiFetch(\`/api/servers/\${serverId}/notes\`, {
       method: "POST",
-      body: JSON.stringify({ title: "Note", ...values }),
+      body: JSON.stringify({ ...values, title: "Note" }),
     });
     reset();
     queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
@@ -455,7 +455,7 @@ export default function ServerWorkspacePage() {
                                     1024 *
                                     1024
                                 )}{" "}
-                                ({inventory.inventory.memory.used_percent}%)
+                                ({inventory.inventory.memory.used_percent ?? "N/A"}%)
                               </Typography>
                             </Box>
                             <Box>
@@ -518,7 +518,7 @@ export default function ServerWorkspacePage() {
                               </Typography>
                               <Typography>
                                 {inventory.inventory.disk.used_gb} GB (
-                                {inventory.inventory.disk.used_percent}%)
+                                {inventory.inventory.disk.used_percent ?? "N/A"}%)
                               </Typography>
                             </Box>
                             <Box>

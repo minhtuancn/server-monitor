@@ -24,6 +24,8 @@ import security
 from user_management import get_user_manager
 from settings_manager import get_settings_manager
 import ssh_key_manager
+import inventory_collector
+from ssh_key_manager import get_decrypted_key
 
 PORT = 9083  # Different port for central server
 
@@ -1308,10 +1310,6 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self._set_headers(404)
                     self.wfile.write(json.dumps({'error': 'Server not found'}).encode())
                     return
-                
-                # Import inventory collector
-                import inventory_collector
-                from ssh_key_manager import get_decrypted_key
                 
                 # Get SSH key from vault if provided
                 ssh_key_pem = None

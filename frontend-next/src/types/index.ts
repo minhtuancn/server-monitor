@@ -166,13 +166,3 @@ export type RecentActivity = {
   }>;
   count: number;
 };
-  user_id: number;
-  username?: string;
-  action: string;
-  target_type?: string;
-  target_id?: string;
-  meta_json?: string;
-  ip?: string;
-  user_agent?: string;
-  created_at: string;
-};
