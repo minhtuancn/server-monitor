@@ -26,6 +26,7 @@ from settings_manager import get_settings_manager
 import ssh_key_manager
 import inventory_collector
 from ssh_key_manager import get_decrypted_key
+import task_runner
 
 PORT = 9083  # Different port for central server
 
@@ -795,6 +796,93 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': f'Failed to get key: {str(e)}'}).encode())
 
         
+        # ==================== TASKS (PHASE 4 MODULE 4) ====================
+        
+        elif path == '/api/tasks':
+            # Get all tasks with filtering
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            role = auth_result.get('role', 'viewer')
+            user_id = auth_result.get('user_id')
+            
+            try:
+                # Parse query parameters
+                server_id_str = query.get('server_id', [None])[0]
+                user_id_filter = query.get('user_id', [None])[0]
+                status = query.get('status', [None])[0]
+                from_date = query.get('from', [None])[0]
+                to_date = query.get('to', [None])[0]
+                limit = int(query.get('limit', ['100'])[0])
+                offset = int(query.get('offset', ['0'])[0])
+                
+                # RBAC: admin sees all, operator/viewer sees only own tasks
+                if role == 'admin':
+                    # Admin can filter by any user
+                    if user_id_filter:
+                        user_id_filter = int(user_id_filter)
+                else:
+                    # Operator and viewer can only see own tasks
+                    user_id_filter = user_id
+                
+                # Get tasks
+                tasks = db.get_tasks(
+                    server_id=int(server_id_str) if server_id_str else None,
+                    user_id=user_id_filter,
+                    status=status,
+                    from_date=from_date,
+                    to_date=to_date,
+                    limit=min(limit, 100),
+                    offset=offset
+                )
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'tasks': tasks,
+                    'count': len(tasks),
+                    'limit': limit,
+                    'offset': offset
+                }).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get tasks: {str(e)}'}).encode())
+        
+        elif path.startswith('/api/tasks/') and not path.endswith('/cancel'):
+            # Get single task by ID
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            role = auth_result.get('role', 'viewer')
+            user_id = auth_result.get('user_id')
+            
+            task_id = path.split('/')[-1]
+            
+            try:
+                task = db.get_task(task_id)
+                
+                if not task:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Task not found'}).encode())
+                    return
+                
+                # RBAC: admin sees all, operator/viewer sees only own tasks
+                if role != 'admin' and task['user_id'] != user_id:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied. You can only view your own tasks'}).encode())
+                    return
+                
+                self._set_headers()
+                self.wfile.write(json.dumps(task).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get task: {str(e)}'}).encode())
+        
         # ==================== EMAIL ALERTS ====================
         
         elif path == '/api/email/config':
@@ -1281,6 +1369,107 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 except ValueError:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+                except Exception as e:
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({'error': f'Failed to add note: {str(e)}'}).encode())
+                return
+        
+        elif path.startswith('/api/servers/') and '/tasks' in path and not '/inventory' in path:
+            # POST /api/servers/:id/tasks
+            # Create a new task for command execution
+            parts = path.split('/')
+            if len(parts) >= 5 and parts[4] == 'tasks':
+                server_id = int(parts[3])
+                
+                # Only admin and operator can create tasks
+                role = auth_result.get('role', 'viewer')
+                if role not in ['admin', 'operator']:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                    return
+                
+                # Validate input
+                command = data.get('command', '').strip()
+                if not command:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Command is required'}).encode())
+                    return
+                
+                # Security: Basic command validation
+                if len(command) > 10000:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Command too long (max 10000 characters)'}).encode())
+                    return
+                
+                # Get optional parameters
+                timeout_seconds = data.get('timeout_seconds', 60)
+                store_output = 1 if data.get('store_output', False) else 0
+                
+                try:
+                    # Validate timeout
+                    timeout_seconds = int(timeout_seconds)
+                    if timeout_seconds < 1 or timeout_seconds > 600:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': 'Timeout must be between 1 and 600 seconds'}).encode())
+                        return
+                    
+                    # Check if server exists
+                    server = db.get_server(server_id)
+                    if not server:
+                        self._set_headers(404)
+                        self.wfile.write(json.dumps({'error': 'Server not found'}).encode())
+                        return
+                    
+                    # Create task
+                    user_id = auth_result.get('user_id')
+                    result = db.create_task(
+                        server_id=server_id,
+                        user_id=user_id,
+                        command=command,
+                        timeout_seconds=timeout_seconds,
+                        store_output=store_output
+                    )
+                    
+                    if result.get('success'):
+                        task_id = result.get('task_id')
+                        
+                        # Enqueue task for execution
+                        task_runner.enqueue_task(task_id)
+                        
+                        # Audit log
+                        db.add_audit_log(
+                            user_id=user_id,
+                            action='task.create',
+                            target_type='server',
+                            target_id=str(server_id),
+                            meta={
+                                'task_id': task_id,
+                                'command_preview': command[:100],
+                                'timeout_seconds': timeout_seconds,
+                                'store_output': store_output
+                            },
+                            ip=self.client_address[0],
+                            user_agent=self.headers.get('User-Agent', '')
+                        )
+                        
+                        self._set_headers(201)
+                        self.wfile.write(json.dumps({
+                            'success': True,
+                            'task_id': task_id,
+                            'message': 'Task created and queued for execution'
+                        }).encode())
+                    else:
+                        self._set_headers(500)
+                        self.wfile.write(json.dumps({
+                            'error': result.get('error', 'Failed to create task')
+                        }).encode())
+                        
+                except ValueError as e:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': f'Invalid input: {str(e)}'}).encode())
+                except Exception as e:
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({'error': f'Failed to create task: {str(e)}'}).encode())
                 return
         
         # ==================== SERVER INVENTORY (Phase 4 Module 3) ====================
@@ -1792,6 +1981,82 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to create key: {str(e)}'}).encode())
+        
+        # ==================== TASKS (PHASE 4 MODULE 4) ====================
+        
+        elif path.startswith('/api/tasks/') and path.endswith('/cancel'):
+            # POST /api/tasks/:id/cancel
+            # Cancel a running task
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            role = auth_result.get('role', 'viewer')
+            user_id = auth_result.get('user_id')
+            
+            # Extract task_id from path
+            task_id = path.split('/')[-2]
+            
+            try:
+                # Get task to check ownership
+                task = db.get_task(task_id)
+                
+                if not task:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Task not found'}).encode())
+                    return
+                
+                # RBAC: admin can cancel any task, operator/viewer can only cancel own tasks
+                if role != 'admin' and task['user_id'] != user_id:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied. You can only cancel your own tasks'}).encode())
+                    return
+                
+                # Can only cancel queued or running tasks
+                if task['status'] not in ['queued', 'running']:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({
+                        'error': f'Cannot cancel task in status: {task["status"]}'
+                    }).encode())
+                    return
+                
+                # Cancel the task
+                cancelled = task_runner.cancel_task(task_id)
+                
+                if cancelled or task['status'] == 'queued':
+                    # Update status to cancelled
+                    db.update_task_status(task_id, 'cancelled')
+                    
+                    # Audit log
+                    db.add_audit_log(
+                        user_id=user_id,
+                        action='task.cancel',
+                        target_type='task',
+                        target_id=task_id,
+                        meta={
+                            'server_id': task['server_id'],
+                            'command_preview': task['command'][:100]
+                        },
+                        ip=self.client_address[0],
+                        user_agent=self.headers.get('User-Agent', '')
+                    )
+                    
+                    self._set_headers()
+                    self.wfile.write(json.dumps({
+                        'success': True,
+                        'message': 'Task cancelled successfully'
+                    }).encode())
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({
+                        'error': 'Task is not currently running'
+                    }).encode())
+                    
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to cancel task: {str(e)}'}).encode())
         
         # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
         

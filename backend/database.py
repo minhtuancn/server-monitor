@@ -303,6 +303,48 @@ def init_database():
         ON server_inventory_snapshots(collected_at)
     ''')
     
+    # Tasks table (Phase 4 Module 4)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            server_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            command TEXT NOT NULL,
+            status TEXT NOT NULL,
+            exit_code INTEGER,
+            stdout TEXT,
+            stderr TEXT,
+            timeout_seconds INTEGER DEFAULT 60,
+            store_output INTEGER DEFAULT 0,
+            started_at TEXT,
+            finished_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for tasks
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_server_id 
+        ON tasks(server_id, created_at DESC)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_user_id 
+        ON tasks(user_id, created_at DESC)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_status 
+        ON tasks(status)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_created_at 
+        ON tasks(created_at DESC)
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -1721,6 +1763,205 @@ def get_server_inventory_snapshots(server_id, limit=10):
     
     conn.close()
     return snapshots
+
+# ==================== TASKS MANAGEMENT (PHASE 4 MODULE 4) ====================
+
+def create_task(server_id, user_id, command, timeout_seconds=60, store_output=0):
+    """
+    Create a new task for remote command execution
+    
+    Args:
+        server_id: ID of target server
+        user_id: ID of user creating the task
+        command: Command to execute
+        timeout_seconds: Command timeout in seconds
+        store_output: Whether to store stdout/stderr (0 or 1)
+    
+    Returns:
+        Dict with success status and task_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        task_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        cursor.execute('''
+            INSERT INTO tasks (id, server_id, user_id, command, status, timeout_seconds, store_output, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (task_id, server_id, user_id, command, 'queued', timeout_seconds, store_output, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'task_id': task_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_task(task_id):
+    """
+    Get task by ID
+    
+    Args:
+        task_id: Task ID
+    
+    Returns:
+        Task dict or None
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    task = dict(zip(columns, row))
+    
+    conn.close()
+    return task
+
+def get_tasks(server_id=None, user_id=None, status=None, limit=100, offset=0, from_date=None, to_date=None):
+    """
+    Get tasks with optional filtering
+    
+    Args:
+        server_id: Filter by server ID
+        user_id: Filter by user ID
+        status: Filter by status
+        limit: Maximum number of records to return
+        offset: Offset for pagination
+        from_date: Filter by start date (ISO format)
+        to_date: Filter by end date (ISO format)
+    
+    Returns:
+        List of task dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Build query with filters
+    query = 'SELECT * FROM tasks WHERE 1=1'
+    params = []
+    
+    if server_id:
+        query += ' AND server_id = ?'
+        params.append(server_id)
+    
+    if user_id:
+        query += ' AND user_id = ?'
+        params.append(user_id)
+    
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
+    
+    if from_date:
+        query += ' AND created_at >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND created_at <= ?'
+        params.append(to_date)
+    
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    params.extend([limit, offset])
+    
+    cursor.execute(query, params)
+    
+    columns = [desc[0] for desc in cursor.description]
+    tasks = []
+    
+    for row in cursor.fetchall():
+        task = dict(zip(columns, row))
+        tasks.append(task)
+    
+    conn.close()
+    return tasks
+
+def update_task_status(task_id, status, exit_code=None, stdout=None, stderr=None, started_at=None, finished_at=None):
+    """
+    Update task status and results
+    
+    Args:
+        task_id: Task ID
+        status: New status (queued, running, success, failed, timeout, cancelled)
+        exit_code: Exit code
+        stdout: Standard output
+        stderr: Standard error
+        started_at: When task started (ISO format)
+        finished_at: When task finished (ISO format)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        updates = ['status = ?']
+        values = [status]
+        
+        if exit_code is not None:
+            updates.append('exit_code = ?')
+            values.append(exit_code)
+        
+        if stdout is not None:
+            updates.append('stdout = ?')
+            values.append(stdout)
+        
+        if stderr is not None:
+            updates.append('stderr = ?')
+            values.append(stderr)
+        
+        if started_at is not None:
+            updates.append('started_at = ?')
+            values.append(started_at)
+        
+        if finished_at is not None:
+            updates.append('finished_at = ?')
+            values.append(finished_at)
+        
+        values.append(task_id)
+        
+        query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(query, values)
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_old_tasks(days=30):
+    """
+    Delete tasks older than specified days
+    
+    Args:
+        days: Number of days to keep
+    
+    Returns:
+        Dict with number of deleted tasks
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        DELETE FROM tasks 
+        WHERE datetime(created_at, '+' || ? || ' days') < datetime('now')
+    """, (days,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return {'deleted': deleted, 'message': f'Deleted {deleted} old tasks'}
 
 if __name__ == '__main__':
     # Initialize database
