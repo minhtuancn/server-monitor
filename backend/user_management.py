@@ -8,6 +8,7 @@ import sqlite3
 import hashlib
 import secrets
 import re
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -36,7 +37,10 @@ ROLES = {
 }
 
 class UserManagement:
-    def __init__(self, db_path: str = 'data/servers.db'):
+    def __init__(self, db_path: str = None):
+        # Use provided path or calculate relative to backend directory
+        if db_path is None:
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
         self.db_path = db_path
         self._ensure_tables()
     
@@ -55,7 +59,37 @@ class UserManagement:
             'password_reset_token', 'reset_token_expires'
         }
         
-        if existing_columns:
+        if not existing_columns:
+            # Create users table if it doesn't exist
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user',
+                    avatar_url TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    last_login TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    password_reset_token TEXT,
+                    reset_token_expires TEXT
+                )
+            ''')
+            
+            # Create default admin user if no users exist
+            c.execute("SELECT COUNT(*) FROM users")
+            if c.fetchone()[0] == 0:
+                # Create default admin user (admin/admin123)
+                # Hash password inline to avoid calling self methods during initialization
+                salt = secrets.token_hex(16)
+                hash_obj = hashlib.sha256((salt + 'admin123').encode())
+                default_password_hash = f"{salt}${hash_obj.hexdigest()}"
+                c.execute('''
+                    INSERT INTO users (username, email, password_hash, role, is_active)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', ('admin', 'admin@example.com', default_password_hash, 'admin', 1))
+        else:
             # Add missing columns
             missing_columns = required_columns - existing_columns
             for col in missing_columns:
@@ -424,7 +458,7 @@ class UserManagement:
 # Singleton instance
 _user_manager = None
 
-def get_user_manager(db_path: str = 'data/servers.db') -> UserManagement:
+def get_user_manager(db_path: str = None) -> UserManagement:
     """Get UserManagement singleton instance"""
     global _user_manager
     if _user_manager is None:

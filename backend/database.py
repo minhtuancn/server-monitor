@@ -20,7 +20,9 @@ try:
 except ImportError:
     pass
 
-DB_PATH = os.environ.get('DB_PATH', '/opt/server-monitor-dev/data/servers.db')
+# Determine database path - support both development and production paths
+_default_db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
+DB_PATH = os.environ.get('DB_PATH', _default_db_path)
 
 # Encryption key - Use environment variable or generate a random default
 # WARNING: Random default means encrypted data won't survive server restarts

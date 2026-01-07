@@ -6,6 +6,7 @@ Handles system-wide configuration settings
 
 import sqlite3
 import json
+import os
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -66,7 +67,10 @@ DATE_FORMATS = [
 
 
 class SettingsManager:
-    def __init__(self, db_path: str = 'data/servers.db'):
+    def __init__(self, db_path: str = None):
+        # Use provided path or calculate relative to backend directory
+        if db_path is None:
+            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
         self.db_path = db_path
         self._ensure_tables()
         self._initialize_defaults()
@@ -293,7 +297,7 @@ class SettingsManager:
 # Singleton instance
 _settings_manager = None
 
-def get_settings_manager(db_path: str = 'data/servers.db') -> SettingsManager:
+def get_settings_manager(db_path: str = None) -> SettingsManager:
     """Get SettingsManager singleton instance"""
     global _settings_manager
     if _settings_manager is None:
