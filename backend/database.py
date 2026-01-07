@@ -824,6 +824,27 @@ def logout_user(token):
     
     return {'success': deleted > 0}
 
+def get_admin_user(user_id):
+    """Get admin user by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, username, email, role, is_active, created_at, last_login 
+        FROM admin_users 
+        WHERE id = ?
+    ''', (user_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+    
+    columns = ['id', 'username', 'email', 'role', 'is_active', 'created_at', 'last_login']
+    user = dict(zip(columns, row))
+    return user
+
 def get_all_users():
     """Get all admin users"""
     conn = get_connection()
@@ -1290,6 +1311,134 @@ def export_alerts_csv(server_id=None, is_read=None):
     
     return output.getvalue()
 
+def _sanitize_csv_field(value):
+    """
+    Sanitize CSV field to prevent CSV injection
+    Prefix with single quote if starts with =, +, -, @, tab, or carriage return
+    
+    Args:
+        value: Field value to sanitize
+        
+    Returns:
+        Sanitized field value
+    """
+    if value is None:
+        return ''
+    
+    value_str = str(value)
+    
+    # Check if field starts with potentially dangerous characters
+    if value_str and len(value_str) > 0:
+        first_char = value_str[0]
+        if first_char in ['=', '+', '-', '@', '\t', '\r']:
+            # Prefix with single quote to prevent formula injection
+            return "'" + value_str
+    
+    return value_str
+
+def export_audit_logs_csv(user_id=None, action=None, target_type=None, start_date=None, end_date=None, limit=10000):
+    """
+    Export audit logs to CSV format with proper sanitization
+    
+    Args:
+        user_id: Filter by user ID
+        action: Filter by action
+        target_type: Filter by target type
+        start_date: Filter by start date (ISO format)
+        end_date: Filter by end date (ISO format)
+        limit: Maximum number of records to export (default 10000)
+    
+    Returns:
+        CSV string
+    """
+    import csv
+    from io import StringIO
+    
+    # Get audit logs with filters
+    logs = get_audit_logs(
+        user_id=user_id,
+        action=action,
+        target_type=target_type,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+        offset=0
+    )
+    
+    output = StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+    
+    # Header
+    writer.writerow(['ID', 'User ID', 'Action', 'Target Type', 'Target ID', 'IP', 'Created At'])
+    
+    # Data - sanitize each field to prevent CSV injection
+    # Note: We deliberately exclude meta_json and user_agent to avoid exporting 
+    # potentially large or sensitive data
+    for log in logs:
+        writer.writerow([
+            _sanitize_csv_field(log.get('id')),
+            _sanitize_csv_field(log.get('user_id')),
+            _sanitize_csv_field(log.get('action')),
+            _sanitize_csv_field(log.get('target_type')),
+            _sanitize_csv_field(log.get('target_id')),
+            _sanitize_csv_field(log.get('ip')),
+            _sanitize_csv_field(log.get('created_at'))
+        ])
+    
+    return output.getvalue()
+
+def export_audit_logs_json(user_id=None, action=None, target_type=None, start_date=None, end_date=None, limit=10000):
+    """
+    Export audit logs to JSON format
+    
+    Args:
+        user_id: Filter by user ID
+        action: Filter by action
+        target_type: Filter by target type
+        start_date: Filter by start date (ISO format)
+        end_date: Filter by end date (ISO format)
+        limit: Maximum number of records to export (default 10000)
+    
+    Returns:
+        JSON string
+    """
+    # Get audit logs with filters
+    logs = get_audit_logs(
+        user_id=user_id,
+        action=action,
+        target_type=target_type,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+        offset=0
+    )
+    
+    # Sanitize logs: limit meta_json size and remove user_agent if too large
+    sanitized_logs = []
+    for log in logs:
+        sanitized_log = {
+            'id': log.get('id'),
+            'user_id': log.get('user_id'),
+            'action': log.get('action'),
+            'target_type': log.get('target_type'),
+            'target_id': log.get('target_id'),
+            'ip': log.get('ip'),
+            'created_at': log.get('created_at')
+        }
+        
+        # Include limited meta_json (max 1000 chars to avoid huge exports)
+        meta = log.get('meta')
+        if meta:
+            meta_str = json.dumps(meta)
+            if len(meta_str) > 1000:
+                sanitized_log['meta'] = {'_truncated': True, '_size': len(meta_str)}
+            else:
+                sanitized_log['meta'] = meta
+        
+        sanitized_logs.append(sanitized_log)
+    
+    return json.dumps(sanitized_logs, indent=2, ensure_ascii=False)
+
 # ==================== SERVER NOTES ====================
 
 def add_server_note(server_id, title, content='', created_by=None):
@@ -1573,6 +1722,35 @@ def get_audit_logs(user_id=None, action=None, target_type=None, start_date=None,
     
     conn.close()
     return logs
+
+def cleanup_old_audit_logs(days=90):
+    """
+    Delete audit logs older than specified days
+    
+    Args:
+        days: Number of days to retain (default 90)
+    
+    Returns:
+        Dict with number of deleted logs
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Calculate cutoff date
+    from datetime import datetime, timedelta
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat() + 'Z'
+    
+    # Delete old logs
+    cursor.execute("""
+        DELETE FROM audit_logs 
+        WHERE created_at < ?
+    """, (cutoff_date,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return {'deleted': deleted, 'message': f'Deleted {deleted} audit logs older than {days} days', 'cutoff_date': cutoff_date}
 
 # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
 
