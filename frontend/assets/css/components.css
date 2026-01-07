@@ -500,6 +500,41 @@ textarea.form-control {
 
 .table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-md);
+}
+
+/* Show scroll indicator on mobile */
+@media (max-width: 768px) {
+  .table-responsive {
+    box-shadow: inset -10px 0 10px -10px rgba(0,0,0,0.1);
+  }
+  
+  .table-responsive::after {
+    content: '→';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    opacity: 0.7;
+    pointer-events: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+  }
+  
+  /* Make tables more compact on mobile */
+  .table {
+    font-size: var(--text-sm);
+  }
+  
+  .table th,
+  .table td {
+    padding: var(--space-xs) var(--space-sm);
+    white-space: nowrap;
+  }
 }
 
 /* Loading Spinner */
