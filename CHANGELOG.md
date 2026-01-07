@@ -9,6 +9,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Phase 4
 
+### 🚀 Phase 4 Module 3: Server Inventory & System Info
+
+**Agentless Inventory Collection + Server Workspace UX + Recent Activity Dashboard**
+
+### Added
+
+**Backend:**
+- ✨ `inventory_collector.py` - Agentless system information collection via SSH
+  - Read-only command execution with timeout
+  - Support for various Linux distributions
+  - SSH Key Vault integration
+  - Best-effort collection with graceful fallback
+- ✨ `server_inventory_latest` table - Store most recent inventory per server
+- ✨ `server_inventory_snapshots` table - Historical inventory snapshots
+- ✨ Inventory management functions in `database.py`
+  - `save_server_inventory()` - Save/update inventory data
+  - `get_server_inventory_latest()` - Get most recent inventory
+  - `get_server_inventory_snapshots()` - Get historical snapshots
+- ✨ API endpoints for inventory
+  - `POST /api/servers/{id}/inventory/refresh` - Trigger collection (admin/operator)
+  - `GET /api/servers/{id}/inventory/latest` - Get latest inventory (all roles)
+  - `GET /api/activity/recent` - Get recent activity for dashboard
+- ✨ Inventory collection includes:
+  - OS information (name, version, kernel)
+  - Hostname and uptime
+  - CPU details (model, cores)
+  - Memory usage (total, used, available)
+  - Disk usage (total, used, available)
+  - Network configuration (primary IP, interfaces)
+  - Optional: Package counts and running services
+- ✨ Audit logging for `inventory.refresh` actions
+
+**Frontend:**
+- ✨ Server Workspace page with tabbed interface
+  - Overview tab: Server details and current metrics
+  - Inventory tab: System information cards
+  - Terminal tab: Quick access to terminal
+  - Notes tab: Server notes with Markdown
+- ✨ Inventory UI components
+  - Refresh Inventory button with loading states
+  - Card-based layout for OS, CPU, Memory, Disk, Network
+  - Empty states and error handling
+  - Timestamp display for last collection
+- ✨ Recent Activity widget on Dashboard
+  - Shows recent user actions (terminal, keys, inventory, etc.)
+  - Enriched with usernames and server names
+  - Icons for different action types
+  - Time-ago formatting
+  - Auto-refresh every 30 seconds
+- ✨ TypeScript types for inventory data structures
+
+**Documentation:**
+- 📚 `docs/modules/INVENTORY.md` - Complete inventory module documentation
+- 📚 Updated README.md with inventory features
+- 📚 Updated CHANGELOG.md with Phase 4 Module 3 changes
+
+**Features:**
+- 📦 **Agentless Collection:** No agent installation required, uses SSH
+- 🔐 **Secure Authentication:** Supports SSH Key Vault, file paths, and passwords
+- 🖥️ **Comprehensive Data:** OS, kernel, hardware, and resource information
+- 🔄 **Server Workspace:** Unified tabbed interface for server management
+- 📊 **Recent Activity:** Real-time dashboard widget showing latest actions
+- 🛡️ **RBAC Enforcement:** Proper role-based access control
+- 📝 **Audit Logging:** All refresh operations logged for compliance
+
 ### 🚀 Phase 4 Module 2: Web Terminal Enhancement
 
 **Secure Session Management with SSH Key Vault Integration**

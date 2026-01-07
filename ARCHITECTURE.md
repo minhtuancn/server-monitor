@@ -37,11 +37,15 @@ This document describes the technical architecture of the Server Monitor Dashboa
           └──────────┤  - user_management.py   │
                      │  - security.py          │
                      │  - database.py          │
+                     │  - inventory_collector  │
                      └──────┬──────────────────┘
                             │
                      ┌──────▼──────────┐
                      │  SQLite Database │
                      │  data/servers.db │
+                     │  - servers       │
+                     │  - inventory     │
+                     │  - audit_logs    │
                      └──────────────────┘
 ```
 
