@@ -21,6 +21,7 @@ import io
 import tempfile
 import time
 import uuid
+import signal
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -37,6 +38,9 @@ SESSION_IDLE_TIMEOUT = int(os.environ.get('TERMINAL_IDLE_TIMEOUT_SECONDS', '1800
 # Initialize structured logger
 logger = StructuredLogger('terminal')
 metrics = get_metrics_collector()
+
+# Global server for graceful shutdown
+ws_server = None
 
 class SSHTerminalSession:
     """
@@ -497,6 +501,8 @@ async def handle_terminal(websocket, path):
 
 async def main():
     """Start WebSocket server"""
+    global ws_server
+    
     # Initialize database
     db.init_database()
     
@@ -518,12 +524,60 @@ async def main():
     print(f'   4. Receive: {{"type": "output", "data": "..."}}')
     print(f'\n✨ Press Ctrl+C to stop')
     
-    async with websockets.serve(handle_terminal, '0.0.0.0', PORT):
-        await asyncio.Future()  # Run forever
+    ws_server = await websockets.serve(handle_terminal, '0.0.0.0', PORT)
+    await asyncio.Future()  # Run forever
+
+
+def graceful_shutdown():
+    """
+    Handle graceful shutdown on SIGTERM/SIGINT
+    - Close all active terminal sessions
+    - Mark sessions as interrupted in database
+    - Close WebSocket server
+    """
+    global ws_server
+    
+    logger.info('Received shutdown signal, shutting down gracefully')
+    print(f'\n\n🛑 Shutting down terminal server gracefully...')
+    
+    try:
+        # Close all active sessions
+        logger.info(f'Closing {len(active_sessions)} active terminal sessions')
+        for session_id, session in list(active_sessions.items()):
+            try:
+                # Mark as interrupted in database
+                db.end_terminal_session(session_id, status='interrupted')
+                # Close SSH connection
+                session.close()
+                logger.info(f'Closed terminal session {session_id}')
+            except Exception as e:
+                logger.error(f'Error closing session {session_id}', error=str(e))
+        
+        active_sessions.clear()
+        
+        # Close WebSocket server
+        if ws_server:
+            logger.info('Closing WebSocket server')
+            ws_server.close()
+        
+        logger.info('Terminal server shutdown complete')
+        print('✓ Terminal server shutdown complete')
+        
+    except Exception as e:
+        logger.error('Error during graceful shutdown', error=str(e))
+        print(f'⚠️  Error during shutdown: {e}')
+
 
 if __name__ == '__main__':
+    # Setup signal handlers
+    def signal_handler(signum, frame):
+        graceful_shutdown()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info('Terminal server shutdown requested')
-        print('\n\n👋 Shutting down terminal server...')
+        graceful_shutdown()

@@ -38,6 +38,7 @@ from observability import (
 import startup_validation
 from task_policy import get_task_policy, TaskPolicyViolation
 from audit_cleanup import get_audit_cleanup_scheduler
+from task_recovery import run_startup_recovery
 
 PORT = 9083  # Different port for central server
 
@@ -3035,6 +3036,9 @@ if __name__ == '__main__':
     # Initialize database
     db.init_database()
     
+    # Run startup recovery for tasks and terminal sessions
+    recovery_result = run_startup_recovery()
+    
     # Cleanup expired sessions (older than 7 days)
     cleanup_result = db.cleanup_expired_sessions()
     
@@ -3046,6 +3050,8 @@ if __name__ == '__main__':
     logger.info('Starting Central API Server', 
                 port=PORT, 
                 sessions_cleaned=cleanup_result["deleted"],
+                tasks_recovered=recovery_result['tasks']['recovered'],
+                terminal_sessions_recovered=recovery_result['terminal_sessions']['recovered'],
                 audit_cleanup_enabled=audit_scheduler.enabled,
                 audit_retention_days=audit_scheduler.retention_days,
                 version='v4')
@@ -3057,6 +3063,8 @@ if __name__ == '__main__':
     print(f'\n🚀 Server running on http://0.0.0.0:{PORT}')
     print(f'🔒 Authentication: Enabled (sessions expire after 7 days)')
     print(f'🧹 Cleaned up {cleanup_result["deleted"]} expired sessions')
+    if recovery_result['total_recovered'] > 0:
+        print(f'🔄 Recovered {recovery_result["total_recovered"]} interrupted tasks/sessions')
     print(f'\n📡 API Endpoints:')
     print(f'   Observability (Phase 6):')
     print(f'   • GET  /api/health                 - Liveness check (public)')

@@ -10,6 +10,7 @@ import websockets
 import json
 import sys
 import os
+import signal
 from datetime import datetime
 
 # Add current directory to path
@@ -36,6 +37,9 @@ stats = {
     'messages_sent': 0,
     'uptime': datetime.now()
 }
+
+# Global server for graceful shutdown
+ws_server = None
 
 async def broadcast_server_stats():
     """
@@ -255,6 +259,8 @@ async def main():
     """
     Start WebSocket server
     """
+    global ws_server
+    
     # Initialize database
     db.init_database()
     
@@ -285,13 +291,56 @@ async def main():
         )
 
 
+def graceful_shutdown():
+    """
+    Handle graceful shutdown on SIGTERM/SIGINT
+    - Close all WebSocket connections
+    - Close SSH connections
+    - Flush logs
+    """
+    global ws_server
+    
+    logger.info('Received shutdown signal, shutting down gracefully')
+    print(f'\n\n🛑 Shutting down WebSocket monitoring server gracefully...')
+    
+    try:
+        # Close all connected clients
+        logger.info(f'Closing {len(connected_clients)} active WebSocket connections')
+        for client in list(connected_clients):
+            try:
+                asyncio.create_task(client.close())
+            except Exception as e:
+                logger.error('Error closing WebSocket client', error=str(e))
+        
+        connected_clients.clear()
+        
+        # Close SSH connections
+        try:
+            ssh.ssh_pool.close_all()
+        except Exception as e:
+            logger.error('Failed to close SSH connections', error=str(e))
+        
+        logger.info('WebSocket monitoring server shutdown complete')
+        print('✓ WebSocket monitoring server shutdown complete')
+        
+    except Exception as e:
+        logger.error('Error during graceful shutdown', error=str(e))
+        print(f'⚠️  Error during shutdown: {e}')
+
+
 if __name__ == '__main__':
+    # Setup signal handlers
+    def signal_handler(signum, frame):
+        graceful_shutdown()
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info('WebSocket monitoring server shutdown requested')
-        print("\n\nShutting down WebSocket server...")
-        print("Goodbye!")
+        graceful_shutdown()
     except Exception as e:
         logger.error('WebSocket monitoring server fatal error', error=str(e))
         print(f"Fatal error: {e}")
