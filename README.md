@@ -121,7 +121,6 @@ python3 -m http.server 9081 &
 ### Stop Services
 
 ```bash
-cd /opt/server-monitor-dev
 ./stop-all.sh
 ```
 
@@ -371,12 +370,27 @@ python3 -m pytest -v
 
 ## 📚 Documentation
 
+### Getting Started
+- [README.md](README.md) - This file, overview and quick start
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide
+- [HTTPS-SETUP.md](HTTPS-SETUP.md) - SSL/HTTPS configuration
+
+### Architecture & Design
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
-- [IMPLEMENTATION_REPORT_V4.1.md](IMPLEMENTATION_REPORT_V4.1.md) - Implementation details
-- [API-TESTING-GUIDE.txt](API-TESTING-GUIDE.txt) - API testing guide
 - [MULTI-SERVER-GUIDE.md](MULTI-SERVER-GUIDE.md) - Multi-server setup
-- [QUICKSTART.txt](QUICKSTART.txt) - Quick start guide
-- [TODO.md](TODO.md) - Future improvements
+
+### Operations
+- [POST-PRODUCTION.md](POST-PRODUCTION.md) - Monitoring, logging, maintenance
+- [TEST_GUIDE.md](TEST_GUIDE.md) - Testing instructions
+
+### Security
+- [SECURITY.md](SECURITY.md) - Security guide and audit findings
+
+### Planning
+- [ROADMAP.md](ROADMAP.md) - Feature roadmap
+- [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) - Action items
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
+- [CHANGELOG.md](CHANGELOG.md) - Version history
 
 ---
 
@@ -445,7 +459,7 @@ docker-compose up -d
 
 ### Development Workflow
 
-1. Make changes in `/opt/server-monitor-dev/`
+1. Clone the repository to your working directory
 2. Test on dev ports (9081, 9083, 9084, 9085)
 3. Run automated tests: `pytest tests/ -v`
 4. Update documentation

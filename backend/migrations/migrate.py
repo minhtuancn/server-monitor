@@ -8,8 +8,12 @@ Run migrations to add new features
 import sqlite3
 import os
 from datetime import datetime
+from pathlib import Path
 
-DB_PATH = '/opt/server-monitor-dev/data/servers.db'
+# Database path - use relative path from project root
+_project_root = Path(__file__).parent.parent.parent
+_default_db_path = str(_project_root / 'data' / 'servers.db')
+DB_PATH = os.environ.get('DB_PATH', _default_db_path)
 MIGRATIONS_TABLE = 'schema_migrations'
 
 def get_connection():

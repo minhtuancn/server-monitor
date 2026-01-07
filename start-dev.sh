@@ -2,7 +2,7 @@
 
 #=============================================================================
 # Server Monitor Dashboard - Development Quick Start
-# Usage: bash /opt/server-monitor-dev/start-dev.sh
+# Usage: ./start-dev.sh
 #=============================================================================
 
 set -e
@@ -14,9 +14,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-DEV_DIR="/opt/server-monitor-dev"
-API_PORT=9083
-WEB_PORT=9081
+# Use script directory as base
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_DIR="${SERVER_MONITOR_DIR:-$SCRIPT_DIR}"
+API_PORT="${API_PORT:-9083}"
+WEB_PORT="${FRONTEND_PORT:-9081}"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║      Server Monitor Dashboard - Development Environment          ║${NC}"

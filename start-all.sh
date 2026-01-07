@@ -14,17 +14,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Configuration
-BASE_DIR="/opt/server-monitor-dev"
+# Configuration - Use script directory as base
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="${SERVER_MONITOR_DIR:-$SCRIPT_DIR}"
 BACKEND_DIR="$BASE_DIR/backend"
 LOGS_DIR="$BASE_DIR/logs"
 DATA_DIR="$BASE_DIR/data"
 
-# Ports
-FRONTEND_PORT=9081
-API_PORT=9083
-TERMINAL_PORT=9084
-WEBSOCKET_PORT=9085
+# Ports (can be overridden via environment)
+FRONTEND_PORT="${FRONTEND_PORT:-9081}"
+API_PORT="${API_PORT:-9083}"
+TERMINAL_PORT="${TERMINAL_PORT:-9084}"
+WEBSOCKET_PORT="${WEBSOCKET_PORT:-9085}"
 
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Server Monitor Dashboard v4.1 - Start Services          ║${NC}"
