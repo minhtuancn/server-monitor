@@ -194,7 +194,7 @@ def init_database():
         )
     ''')
     
-    # Server notes table (Markdown)
+    # Server notes table (Markdown) - Phase 4 Module 5 Enhanced
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS server_notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,11 +202,53 @@ def init_database():
             title TEXT NOT NULL,
             content TEXT,
             created_by INTEGER,
+            updated_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            deleted_at TIMESTAMP,
             FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
+            FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    # Tags table (Phase 4 Module 5)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT DEFAULT '#3f51b5',
+            description TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
         )
+    ''')
+    
+    # Server-Tag mapping table (Phase 4 Module 5)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_tag_map (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
+            UNIQUE(server_id, tag_id)
+        )
+    ''')
+    
+    # Create indexes for tags
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_server_tag_map_server_id 
+        ON server_tag_map(server_id)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_server_tag_map_tag_id 
+        ON server_tag_map(tag_id)
     ''')
     
     # Domain settings table
@@ -301,6 +343,48 @@ def init_database():
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_collected_at 
         ON server_inventory_snapshots(collected_at)
+    ''')
+    
+    # Tasks table (Phase 4 Module 4)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id TEXT PRIMARY KEY,
+            server_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            command TEXT NOT NULL,
+            status TEXT NOT NULL,
+            exit_code INTEGER,
+            stdout TEXT,
+            stderr TEXT,
+            timeout_seconds INTEGER DEFAULT 60,
+            store_output INTEGER DEFAULT 0,
+            started_at TEXT,
+            finished_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for tasks
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_server_id 
+        ON tasks(server_id, created_at DESC)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_user_id 
+        ON tasks(user_id, created_at DESC)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_status 
+        ON tasks(status)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tasks_created_at 
+        ON tasks(created_at DESC)
     ''')
     
     conn.commit()
@@ -1209,11 +1293,12 @@ def export_alerts_csv(server_id=None, is_read=None):
 # ==================== SERVER NOTES ====================
 
 def add_server_note(server_id, title, content='', created_by=None):
-    """Add a note to a server"""
+    """Add a note to a server (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     try:
+        # Note: updated_by intentionally left NULL on creation, will be set on first update
         cursor.execute('''
             INSERT INTO server_notes (server_id, title, content, created_by)
             VALUES (?, ?, ?, ?)
@@ -1227,17 +1312,24 @@ def add_server_note(server_id, title, content='', created_by=None):
         conn.close()
         return {'success': False, 'error': str(e)}
 
-def get_server_notes(server_id):
-    """Get all notes for a server"""
+def get_server_notes(server_id, include_deleted=False):
+    """Get all notes for a server (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT * FROM server_notes 
-        WHERE server_id = ?
-        ORDER BY updated_at DESC
-    ''', (server_id,))
+    if include_deleted:
+        cursor.execute('''
+            SELECT * FROM server_notes 
+            WHERE server_id = ?
+            ORDER BY updated_at DESC
+        ''', (server_id,))
+    else:
+        cursor.execute('''
+            SELECT * FROM server_notes 
+            WHERE server_id = ? AND deleted_at IS NULL
+            ORDER BY updated_at DESC
+        ''', (server_id,))
     
     notes = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -1254,8 +1346,8 @@ def get_server_note(note_id):
     conn.close()
     return dict(note) if note else None
 
-def update_server_note(note_id, title=None, content=None):
-    """Update a server note"""
+def update_server_note(note_id, title=None, content=None, updated_by=None):
+    """Update a server note (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -1269,6 +1361,10 @@ def update_server_note(note_id, title=None, content=None):
     if content is not None:
         updates.append('content = ?')
         values.append(content)
+    
+    if updated_by is not None:
+        updates.append('updated_by = ?')
+        values.append(updated_by)
     
     if not updates:
         conn.close()
@@ -1291,13 +1387,20 @@ def update_server_note(note_id, title=None, content=None):
         conn.close()
         return {'success': False, 'error': str(e)}
 
-def delete_server_note(note_id):
-    """Delete a server note"""
+def delete_server_note(note_id, soft_delete=True):
+    """Delete a server note (soft delete by default, Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     try:
-        cursor.execute('DELETE FROM server_notes WHERE id = ?', (note_id,))
+        if soft_delete:
+            cursor.execute('''
+                UPDATE server_notes 
+                SET deleted_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (note_id,))
+        else:
+            cursor.execute('DELETE FROM server_notes WHERE id = ?', (note_id,))
         conn.commit()
         conn.close()
         return {'success': True, 'message': 'Note deleted successfully'}
@@ -1721,6 +1824,477 @@ def get_server_inventory_snapshots(server_id, limit=10):
     
     conn.close()
     return snapshots
+
+# ==================== TASKS MANAGEMENT (PHASE 4 MODULE 4) ====================
+
+def create_task(server_id, user_id, command, timeout_seconds=60, store_output=0):
+    """
+    Create a new task for remote command execution
+    
+    Args:
+        server_id: ID of target server
+        user_id: ID of user creating the task
+        command: Command to execute
+        timeout_seconds: Command timeout in seconds
+        store_output: Whether to store stdout/stderr (0 or 1)
+    
+    Returns:
+        Dict with success status and task_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        task_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        cursor.execute('''
+            INSERT INTO tasks (id, server_id, user_id, command, status, timeout_seconds, store_output, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (task_id, server_id, user_id, command, 'queued', timeout_seconds, store_output, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'task_id': task_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_task(task_id):
+    """
+    Get task by ID
+    
+    Args:
+        task_id: Task ID
+    
+    Returns:
+        Task dict or None
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tasks WHERE id = ?', (task_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    task = dict(zip(columns, row))
+    
+    conn.close()
+    return task
+
+def get_tasks(server_id=None, user_id=None, status=None, limit=100, offset=0, from_date=None, to_date=None):
+    """
+    Get tasks with optional filtering
+    
+    Args:
+        server_id: Filter by server ID
+        user_id: Filter by user ID
+        status: Filter by status
+        limit: Maximum number of records to return
+        offset: Offset for pagination
+        from_date: Filter by start date (ISO format)
+        to_date: Filter by end date (ISO format)
+    
+    Returns:
+        List of task dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Build query with filters
+    query = 'SELECT * FROM tasks WHERE 1=1'
+    params = []
+    
+    if server_id:
+        query += ' AND server_id = ?'
+        params.append(server_id)
+    
+    if user_id:
+        query += ' AND user_id = ?'
+        params.append(user_id)
+    
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
+    
+    if from_date:
+        query += ' AND created_at >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND created_at <= ?'
+        params.append(to_date)
+    
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    params.extend([limit, offset])
+    
+    cursor.execute(query, params)
+    
+    columns = [desc[0] for desc in cursor.description]
+    tasks = []
+    
+    for row in cursor.fetchall():
+        task = dict(zip(columns, row))
+        tasks.append(task)
+    
+    conn.close()
+    return tasks
+
+def update_task_status(task_id, status, exit_code=None, stdout=None, stderr=None, started_at=None, finished_at=None):
+    """
+    Update task status and results
+    
+    Args:
+        task_id: Task ID
+        status: New status (queued, running, success, failed, timeout, cancelled)
+        exit_code: Exit code
+        stdout: Standard output
+        stderr: Standard error
+        started_at: When task started (ISO format)
+        finished_at: When task finished (ISO format)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        updates = ['status = ?']
+        values = [status]
+        
+        if exit_code is not None:
+            updates.append('exit_code = ?')
+            values.append(exit_code)
+        
+        if stdout is not None:
+            updates.append('stdout = ?')
+            values.append(stdout)
+        
+        if stderr is not None:
+            updates.append('stderr = ?')
+            values.append(stderr)
+        
+        if started_at is not None:
+            updates.append('started_at = ?')
+            values.append(started_at)
+        
+        if finished_at is not None:
+            updates.append('finished_at = ?')
+            values.append(finished_at)
+        
+        values.append(task_id)
+        
+        query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
+        cursor.execute(query, values)
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_old_tasks(days=30):
+    """
+    Delete tasks older than specified days
+    
+    Args:
+        days: Number of days to keep
+    
+    Returns:
+        Dict with number of deleted tasks
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        DELETE FROM tasks 
+        WHERE datetime(created_at, '+' || ? || ' days') < datetime('now')
+    """, (days,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return {'deleted': deleted, 'message': f'Deleted {deleted} old tasks'}
+
+# ==================== TAGS MANAGEMENT (PHASE 4 MODULE 5) ====================
+
+def create_tag(name, color='#3f51b5', description='', created_by=None):
+    """
+    Create a new tag
+    
+    Args:
+        name: Tag name
+        color: Tag color (hex)
+        description: Tag description
+        created_by: User ID
+    
+    Returns:
+        Dict with success status and tag_id
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO tags (name, color, description, created_by)
+            VALUES (?, ?, ?, ?)
+        ''', (name, color, description, created_by))
+        
+        conn.commit()
+        tag_id = cursor.lastrowid
+        conn.close()
+        return {'success': True, 'tag_id': tag_id}
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': f'Tag "{name}" already exists'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_tags():
+    """
+    Get all tags
+    
+    Returns:
+        List of tag dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tags ORDER BY name')
+    
+    columns = [desc[0] for desc in cursor.description]
+    tags = []
+    
+    for row in cursor.fetchall():
+        tag = dict(zip(columns, row))
+        tags.append(tag)
+    
+    conn.close()
+    return tags
+
+def get_tag(tag_id):
+    """
+    Get tag by ID
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        Tag dict or None
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tags WHERE id = ?', (tag_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    tag = dict(zip(columns, row))
+    
+    conn.close()
+    return tag
+
+def update_tag(tag_id, **kwargs):
+    """
+    Update tag
+    
+    Args:
+        tag_id: Tag ID
+        **kwargs: Fields to update (name, color, description)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    allowed_fields = ['name', 'color', 'description']
+    
+    updates = []
+    values = []
+    
+    for key, value in kwargs.items():
+        if key in allowed_fields:
+            updates.append(f'{key} = ?')
+            values.append(value)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No valid fields to update'}
+    
+    values.append(tag_id)
+    
+    query = f"UPDATE tags SET {', '.join(updates)} WHERE id = ?"
+    
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Tag {tag_id} updated'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_tag(tag_id):
+    """
+    Delete a tag (also removes all server-tag mappings)
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Tag not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Tag {tag_id} deleted'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def add_server_tag(server_id, tag_id, created_by=None):
+    """
+    Add a tag to a server
+    
+    Args:
+        server_id: Server ID
+        tag_id: Tag ID
+        created_by: User ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO server_tag_map (server_id, tag_id, created_by)
+            VALUES (?, ?, ?)
+        ''', (server_id, tag_id, created_by))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': 'Tag already added to server'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def remove_server_tag(server_id, tag_id):
+    """
+    Remove a tag from a server
+    
+    Args:
+        server_id: Server ID
+        tag_id: Tag ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            DELETE FROM server_tag_map 
+            WHERE server_id = ? AND tag_id = ?
+        ''', (server_id, tag_id))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Tag not found on server'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_server_tags(server_id):
+    """
+    Get all tags for a server
+    
+    Args:
+        server_id: Server ID
+    
+    Returns:
+        List of tag dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.* FROM tags t
+        INNER JOIN server_tag_map stm ON t.id = stm.tag_id
+        WHERE stm.server_id = ?
+        ORDER BY t.name
+    ''', (server_id,))
+    
+    columns = [desc[0] for desc in cursor.description]
+    tags = []
+    
+    for row in cursor.fetchall():
+        tag = dict(zip(columns, row))
+        tags.append(tag)
+    
+    conn.close()
+    return tags
+
+def get_servers_by_tag(tag_id):
+    """
+    Get all servers with a specific tag
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        List of server IDs
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT server_id FROM server_tag_map
+        WHERE tag_id = ?
+    ''', (tag_id,))
+    
+    server_ids = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    return server_ids
 
 if __name__ == '__main__':
     # Initialize database
