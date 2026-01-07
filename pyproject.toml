@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "server-monitor"
+version = "1.0.0"
+description = "Multi-server monitoring system with real-time updates, web terminal, and advanced security"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Minh Tuấn", email = "vietkeynet@gmail.com"}
+]
+requires-python = ">=3.8"
+keywords = ["monitoring", "server", "dashboard", "ssh", "websocket"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Networking :: Monitoring",
+]
+
+dependencies = [
+    "paramiko>=2.12.0",
+    "PyJWT>=2.8.0",
+    "python-dotenv>=1.0.0",
+]
+
+# Note: The project also uses Python standard library modules:
+# - http.server, json, sqlite3, hashlib, secrets, base64, datetime
+# - collections, functools, typing, os, sys, time, re, csv, io
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "requests>=2.31.0",
+    "flake8>=6.0.0",
+    "bandit>=1.7.0",
+]
+test = [
+    "pytest>=7.4.0",
+    "requests>=2.31.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/minhtuancn/server-monitor"
+Documentation = "https://github.com/minhtuancn/server-monitor#readme"
+Repository = "https://github.com/minhtuancn/server-monitor.git"
+Issues = "https://github.com/minhtuancn/server-monitor/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.flake8]
+max-line-length = 150
+max-complexity = 15
+exclude = [
+    ".git",
+    "__pycache__",
+    "venv",
+    "env",
+    ".venv",
+    "build",
+    "dist",
+]
+ignore = ["E501", "W503"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv"]
+skips = ["B101"]  # Skip assert warnings in tests

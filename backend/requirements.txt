@@ -1,1 +1,9 @@
-paramiko>=2.12.0
+# Backend Requirements for Server Monitor
+# Core Dependencies
+paramiko>=2.12.0      # SSH connection management
+PyJWT>=2.8.0          # JWT token authentication
+python-dotenv>=1.0.0  # Environment variable management
+
+# Note: The application also uses Python standard library modules:
+# - http.server, json, sqlite3, hashlib, secrets, base64, datetime
+# - collections, functools, typing, os, sys, time, re

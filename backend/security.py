@@ -5,6 +5,7 @@ Security middleware for Server Monitor API
 Adds rate limiting, CORS restrictions, security headers, and RBAC
 """
 
+import os
 import time
 import jwt
 import json
@@ -12,6 +13,13 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Callable, Optional, Dict
+
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100  # requests per window
@@ -321,10 +329,19 @@ def get_security_stats():
     }
 
 
-# JWT Configuration
-JWT_SECRET = 'your-secret-key-change-in-production'  # TODO: Move to environment variable
+# JWT Configuration - Use environment variable or generate a random default
+# WARNING: Random default means tokens won't survive server restarts
+_jwt_secret_env = os.environ.get('JWT_SECRET')
+if _jwt_secret_env:
+    JWT_SECRET = _jwt_secret_env
+else:
+    import secrets as _secrets
+    JWT_SECRET = _secrets.token_urlsafe(32)
+    print("WARNING: JWT_SECRET not set in environment. Using randomly generated secret.")
+    print("         Tokens will not survive server restarts. Set JWT_SECRET in .env for production.")
+
 JWT_ALGORITHM = 'HS256'
-JWT_EXPIRATION = 24 * 60 * 60  # 24 hours in seconds
+JWT_EXPIRATION = int(os.environ.get('JWT_EXPIRATION', 24 * 60 * 60))  # 24 hours in seconds
 
 
 class AuthMiddleware:
