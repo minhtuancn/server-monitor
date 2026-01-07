@@ -13,10 +13,19 @@ import hashlib
 import secrets
 import base64
 
-DB_PATH = '/opt/server-monitor-dev/data/servers.db'
+# Load environment variables
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-# Simple encryption key (in production, use environment variable)
-ENCRYPTION_KEY = b'monitoring_secret_key_32_bytes!!'
+DB_PATH = os.environ.get('DB_PATH', '/opt/server-monitor-dev/data/servers.db')
+
+# Encryption key - Use environment variable or a default (change in production)
+_default_key = b'monitoring_secret_key_32_bytes!!'
+_env_key = os.environ.get('ENCRYPTION_KEY')
+ENCRYPTION_KEY = _env_key.encode()[:32].ljust(32, b'!') if _env_key else _default_key
 
 def hash_password(password):
     """Hash password using SHA256 (for admin users)"""

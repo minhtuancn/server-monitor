@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Tests](https://img.shields.io/badge/tests-23%2F25%20passing-green)]()
 [![Security](https://img.shields.io/badge/security-9%2F10-yellow)]()
-[![License](https://img.shields.io/badge/license-GPL--v3-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)
 
@@ -59,6 +59,11 @@ pip3 install -r requirements.txt --break-system-packages
 # Install test dependencies (optional)
 cd ../tests
 pip3 install -r requirements.txt --break-system-packages
+
+# Configure environment (recommended for production)
+cd /opt/server-monitor-dev
+cp .env.example .env
+# Edit .env and set secure values for JWT_SECRET and ENCRYPTION_KEY
 ```
 
 ### Start Services
@@ -417,9 +422,7 @@ docker-compose up -d
 
 ## 📄 License
 
-GPL v3 License - See [LICENSE](LICENSE) file for details.
-
-This project is licensed under the GNU General Public License v3.0.
+MIT License - See [LICENSE](LICENSE) file for details.
 
 Copyright (c) 2026 Minh Tuấn
 
