@@ -23,6 +23,7 @@ import alert_manager
 import security
 from user_management import get_user_manager
 from settings_manager import get_settings_manager
+import ssh_key_manager
 
 PORT = 9083  # Different port for central server
 
@@ -712,47 +713,60 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid snippet ID'}).encode())
         
-        # ==================== SSH KEY MANAGEMENT ====================
+        # ==================== SSH KEY VAULT ====================
         
         elif path == '/api/ssh-keys':
-            # Get all SSH keys
+            # List all SSH keys (encrypted key vault)
             auth_result = verify_auth_token(self)
             if not auth_result['valid'] or auth_result.get('role') == 'public':
                 self._set_headers(401)
                 self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
                 return
             
-            self._set_headers()
-            keys = db.get_ssh_keys()
-            # Don't expose sensitive paths in list view
-            for key in keys:
-                key.pop('passphrase', None)
-            self.wfile.write(json.dumps(keys).encode())
+            # Only admin and operator can view keys
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                return
+            
+            try:
+                keys = ssh_key_manager.list_keys(include_deleted=False)
+                self._set_headers()
+                self.wfile.write(json.dumps({'keys': keys}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to list keys: {str(e)}'}).encode())
         
         elif path.startswith('/api/ssh-keys/'):
-            # Get single SSH key
+            # Get single SSH key metadata
             auth_result = verify_auth_token(self)
             if not auth_result['valid'] or auth_result.get('role') == 'public':
                 self._set_headers(401)
                 self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin and operator can view keys
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
                 return
             
             key_id = path.split('/')[-1]
             try:
-                key_id = int(key_id)
-                key = db.get_ssh_key(key_id, decrypt_passphrase=False)
+                key = ssh_key_manager.get_key(key_id, include_deleted=False)
                 
                 if key:
-                    # Don't expose passphrase
-                    key.pop('passphrase', None)
                     self._set_headers()
                     self.wfile.write(json.dumps(key).encode())
                 else:
                     self._set_headers(404)
                     self.wfile.write(json.dumps({'error': 'SSH key not found'}).encode())
-            except ValueError:
-                self._set_headers(400)
-                self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get key: {str(e)}'}).encode())
+
         
         # ==================== EMAIL ALERTS ====================
         
@@ -1465,6 +1479,63 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
         
+        # ==================== SSH KEY VAULT ====================
+        
+        elif path == '/api/ssh-keys':
+            # Create new SSH key (encrypted key vault)
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin and operator can create keys
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                return
+            
+            try:
+                name = data.get('name', '').strip()
+                description = data.get('description', '').strip()
+                private_key = data.get('private_key', '').strip()
+                
+                if not name:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Name is required'}).encode())
+                    return
+                
+                if not private_key:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Private key is required'}).encode())
+                    return
+                
+                # Get user ID from auth
+                user_id = auth_result.get('user_id')
+                
+                # Create encrypted key
+                result = ssh_key_manager.create_key(
+                    name=name,
+                    private_key=private_key,
+                    description=description,
+                    user_id=user_id
+                )
+                
+                self._set_headers(201)
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': 'SSH key created successfully',
+                    'key': result
+                }).encode())
+            
+            except ValueError as e:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to create key: {str(e)}'}).encode())
+        
         # ==================== EMAIL ALERTS ====================
         
         elif path == '/api/email/config':
@@ -1721,20 +1792,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid snippet ID'}).encode())
         
-        elif path.startswith('/api/ssh-keys/'):
-            # Update SSH key
-            key_id = path.split('/')[-1]
-            
-            try:
-                key_id = int(key_id)
-                result = db.update_ssh_key(key_id, **data)
-                
-                self._set_headers()
-                self.wfile.write(json.dumps(result).encode())
-            
-            except ValueError:
-                self._set_headers(400)
-                self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
+        # Note: SSH keys from key vault cannot be updated (create new key instead)
+        # elif path.startswith('/api/ssh-keys/'):
+        #     # SSH keys are immutable - delete and create new one if needed
         
         # ==================== NOTIFICATION CHANNEL TOGGLES ====================
         elif path == '/api/notifications/channels':
@@ -1857,19 +1917,31 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'Invalid snippet ID'}).encode())
         
         elif path.startswith('/api/ssh-keys/'):
-            # Delete SSH key
+            # Delete SSH key (soft delete, admin only)
+            # Only admin can delete keys
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required to delete keys'}).encode())
+                return
+            
             key_id = path.split('/')[-1]
             
             try:
-                key_id = int(key_id)
-                result = db.delete_ssh_key(key_id)
+                success = ssh_key_manager.delete_key(key_id)
                 
-                self._set_headers()
-                self.wfile.write(json.dumps(result).encode())
+                if success:
+                    self._set_headers()
+                    self.wfile.write(json.dumps({
+                        'success': True,
+                        'message': 'SSH key deleted successfully'
+                    }).encode())
+                else:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'SSH key not found'}).encode())
             
-            except ValueError:
-                self._set_headers(400)
-                self.wfile.write(json.dumps({'error': 'Invalid SSH key ID'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to delete key: {str(e)}'}).encode())
         
         else:
             self._set_headers(404)

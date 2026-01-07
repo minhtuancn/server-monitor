@@ -35,11 +35,15 @@ export type StatsOverview = {
 };
 
 export type SSHKey = {
-  id: number;
+  id: string;  // UUID instead of number
   name: string;
-  public_key: string;
+  description?: string;
+  public_key?: string;
+  key_type?: string;  // rsa, ed25519, ecdsa, etc.
   fingerprint?: string;
+  created_by?: string;
   created_at?: string;
+  deleted_at?: string;
 };
 
 export type EmailConfig = {

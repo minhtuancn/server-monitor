@@ -24,6 +24,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 📊 **Real-time Monitoring**: Cập nhật metrics thời gian thực qua WebSocket
 - 🖥️ **Web Terminal**: SSH terminal emulator trên browser (xterm.js)
 - 🔐 **Secure Authentication**: JWT-based auth with HttpOnly cookies, RBAC
+- 🔑 **SSH Key Vault**: Encrypted SSH private key storage with AES-256-GCM (Phase 4)
 - 🛡️ **Security Hardened**: Rate limiting, CORS, input validation, CSRF protection
 - 📧 **Email Alerts**: Cảnh báo tự động qua email khi vượt ngưỡng
 - 📤 **Export Data**: Xuất dữ liệu ra CSV/JSON
@@ -37,9 +38,11 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - Remote troubleshooting qua web terminal
 - Theo dõi performance metrics real-time
 - Nhận cảnh báo tự động về issues
+- Quản lý SSH keys với mã hoá bảo mật
 
-### 🎉 What's New in v2.0 (2026-01-07)
+### 🎉 What's New
 
+**v2.0 (2026-01-07):**
 - ✨ **Next.js Frontend**: Complete rewrite with modern stack (Next.js 14, TypeScript, MUI)
 - 🔐 **Enhanced Security**: HttpOnly cookies, RBAC, SSRF protection, path validation
 - 🛡️ **BFF Layer**: Backend-for-Frontend with authentication proxy
@@ -48,6 +51,12 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🌍 **i18n Support**: next-intl integration for 8 languages
 - 📝 **Access Control**: Admin-only pages, role-based navigation
 - 🚀 **CI/CD**: Separate workflows for frontend and backend
+
+**Phase 4 Module 1 (2026-01-07):**
+- 🔑 **SSH Key Vault**: Secure SSH private key storage with AES-256-GCM encryption
+- 🔐 **Military-Grade Security**: PBKDF2 key derivation, authentication tags, no plaintext storage
+- 🎨 **Professional UI**: Full key management interface with validation and security warnings
+- 🛡️ **Access Control**: Admin/operator only, soft delete, audit trail
 - 📚 **Comprehensive Docs**: Updated for Next.js, deployment guides, troubleshooting
 
 ---
