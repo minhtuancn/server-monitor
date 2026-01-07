@@ -70,6 +70,25 @@ export default function DashboardPage() {
     formState: { errors, isSubmitting },
   } = useForm<ServerForm>({ resolver: zodResolver(serverSchema) });
 
+  const { data: recentActivity } = useQuery({
+    queryKey: ["recent-activity"],
+    queryFn: () =>
+      apiFetch<{
+        activities: Array<{
+          id: string;
+          user_id: number;
+          username?: string;
+          action: string;
+          target_type: string;
+          target_id: string;
+          server_name?: string;
+          created_at: string;
+        }>;
+        count: number;
+      }>("/api/activity/recent?limit=10"),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   const onCreateServer = async (values: ServerForm) => {
     setFormError(null);
     try {
@@ -224,6 +243,83 @@ export default function DashboardPage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Recent Activity Widget */}
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Recent Activity
+          </Typography>
+          {recentActivity?.activities && recentActivity.activities.length > 0 ? (
+            <Stack spacing={1} mt={2}>
+              {recentActivity.activities.map((activity) => {
+                const getActionIcon = (action: string) => {
+                  if (action.includes("terminal")) return "💻";
+                  if (action.includes("ssh_key")) return "🔑";
+                  if (action.includes("inventory")) return "📊";
+                  if (action.includes("user")) return "👤";
+                  if (action.includes("server")) return "🖥️";
+                  return "📝";
+                };
+
+                const getActionText = (action: string) => {
+                  const parts = action.split(".");
+                  if (parts.length >= 2) {
+                    return `${parts[0]} ${parts[1]}`;
+                  }
+                  return action;
+                };
+
+                const timeAgo = (dateStr: string) => {
+                  const date = new Date(dateStr);
+                  const now = new Date();
+                  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+                  if (seconds < 60) return `${seconds}s ago`;
+                  const minutes = Math.floor(seconds / 60);
+                  if (minutes < 60) return `${minutes}m ago`;
+                  const hours = Math.floor(minutes / 60);
+                  if (hours < 24) return `${hours}h ago`;
+                  const days = Math.floor(hours / 24);
+                  return `${days}d ago`;
+                };
+
+                return (
+                  <Box
+                    key={activity.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      p: 1.5,
+                      borderRadius: 1,
+                      "&:hover": { bgcolor: "action.hover" },
+                    }}
+                  >
+                    <Typography fontSize="1.5rem">{getActionIcon(activity.action)}</Typography>
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="body2" noWrap>
+                        <strong>{activity.username || `User ${activity.user_id}`}</strong>{" "}
+                        {getActionText(activity.action)}
+                        {activity.server_name && (
+                          <> on <strong>{activity.server_name}</strong></>
+                        )}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {timeAgo(activity.created_at)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Stack>
+          ) : (
+            <Typography color="text.secondary" mt={2}>
+              No recent activity
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
 
       <Card id="servers">
         <CardContent>

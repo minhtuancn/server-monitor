@@ -24,6 +24,8 @@ import security
 from user_management import get_user_manager
 from settings_manager import get_settings_manager
 import ssh_key_manager
+import inventory_collector
+from ssh_key_manager import get_decrypted_key
 
 PORT = 9083  # Different port for central server
 
@@ -364,8 +366,33 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(servers).encode())
         
         elif path.startswith('/api/servers/'):
-            # Check for sub-paths (notes, etc.)
+            # Check for sub-paths (notes, inventory, etc.)
             parts = [p for p in path.split('/') if p]
+            
+            if len(parts) >= 5 and parts[3] == 'inventory' and parts[4] == 'latest':
+                # GET /api/servers/:id/inventory/latest
+                # Get latest inventory for a server (all authenticated roles)
+                auth_result = verify_auth_token(self)
+                if not auth_result.get('valid'):
+                    self._set_headers(401)
+                    self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                    return
+                
+                try:
+                    server_id = int(parts[2])
+                    inventory = db.get_server_inventory_latest(server_id)
+                    
+                    if inventory:
+                        self._set_headers()
+                        self.wfile.write(json.dumps(inventory).encode())
+                    else:
+                        self._set_headers(404)
+                        self.wfile.write(json.dumps({'error': 'No inventory data found. Try refreshing inventory first.'}).encode())
+                except ValueError:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+                return
+            
             if len(parts) >= 4 and parts[3] == 'notes':
                 # GET /api/servers/:id/notes
                 # Check authentication
@@ -875,6 +902,53 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to get audit logs: {str(e)}'}).encode())
         
+        elif path == '/api/activity/recent':
+            # Get recent activity for dashboard (all authenticated users)
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            try:
+                # Get limit from query params
+                limit = int(query.get('limit', ['20'])[0])
+                
+                # Get recent audit logs
+                logs = db.get_audit_logs(
+                    limit=min(limit, 50)  # Cap at 50
+                )
+                
+                # Enrich with user and server details
+                enriched_logs = []
+                for log in logs:
+                    enriched = dict(log)
+                    
+                    # Get username
+                    user = db.get_admin_user(log['user_id'])
+                    if user:
+                        enriched['username'] = user.get('username', 'Unknown')
+                    
+                    # Get server name if target is a server
+                    if log['target_type'] == 'server':
+                        try:
+                            server = db.get_server(int(log['target_id']))
+                            if server:
+                                enriched['server_name'] = server.get('name', 'Unknown')
+                        except:
+                            pass
+                    
+                    enriched_logs.append(enriched)
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'activities': enriched_logs,
+                    'count': len(enriched_logs)
+                }).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get recent activity: {str(e)}'}).encode())
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -1208,6 +1282,90 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
                 return
+        
+        # ==================== SERVER INVENTORY (Phase 4 Module 3) ====================
+        
+        elif path.startswith('/api/servers/') and '/inventory/refresh' in path:
+            # POST /api/servers/:id/inventory/refresh
+            # Refresh inventory for a server (admin/operator only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Check role (admin or operator)
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                return
+            
+            parts = [p for p in path.split('/') if p]
+            try:
+                server_id = int(parts[2])
+                server = get_server_with_auth(server_id)
+                
+                if not server:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Server not found'}).encode())
+                    return
+                
+                # Get SSH key from vault if provided
+                ssh_key_pem = None
+                ssh_key_id = data.get('ssh_key_id')
+                if ssh_key_id:
+                    ssh_key_pem = get_decrypted_key(ssh_key_id)
+                
+                # Collect inventory
+                inventory = inventory_collector.collect_server_inventory(
+                    server_id=server_id,
+                    server=server,
+                    ssh_key_pem=ssh_key_pem,
+                    include_packages=data.get('include_packages', False),
+                    include_services=data.get('include_services', False)
+                )
+                
+                # Save to database
+                result = db.save_server_inventory(
+                    server_id=server_id,
+                    inventory_json=json.dumps(inventory),
+                    save_snapshot=True
+                )
+                
+                if result['success']:
+                    # Add audit log
+                    db.add_audit_log(
+                        user_id=auth_result.get('user_id'),
+                        action='inventory.refresh',
+                        target_type='server',
+                        target_id=str(server_id),
+                        meta={'server_name': server.get('name'), 'collected_at': result['collected_at']},
+                        ip=self.client_address[0],
+                        user_agent=self.headers.get('User-Agent', '')
+                    )
+                    
+                    self._set_headers()
+                    self.wfile.write(json.dumps({
+                        'success': True,
+                        'message': 'Inventory refreshed successfully',
+                        'collected_at': result['collected_at'],
+                        'inventory': inventory
+                    }).encode())
+                else:
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({
+                        'success': False,
+                        'error': result.get('error', 'Failed to save inventory')
+                    }).encode())
+                    
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to refresh inventory: {str(e)}'}).encode())
+            return
         
         # ==================== REMOTE AGENT MANAGEMENT ====================
         

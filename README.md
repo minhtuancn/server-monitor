@@ -23,6 +23,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🌐 **Multi-Server Management**: Quản lý nhiều servers từ một giao diện
 - 📊 **Real-time Monitoring**: Cập nhật metrics thời gian thực qua WebSocket
 - 🖥️ **Web Terminal**: SSH terminal emulator trên browser (xterm.js)
+- 📦 **System Inventory**: Agentless inventory collection via SSH (Phase 4 Module 3)
 - 🔐 **Secure Authentication**: JWT-based auth with HttpOnly cookies, RBAC
 - 🔑 **SSH Key Vault**: Encrypted SSH private key storage with AES-256-GCM (Phase 4)
 - 🛡️ **Security Hardened**: Rate limiting, CORS, input validation, CSRF protection
@@ -66,6 +67,14 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - ⏱️ **Idle Timeout**: Automatic session termination after 30 minutes of inactivity
 - 🛡️ **RBAC Enforcement**: Admin/operator access with session ownership checks
 - 🔍 **Session Management**: API endpoints to list and stop sessions
+
+**Phase 4 Module 3 (2026-01-07):**
+- 📦 **System Inventory**: Agentless inventory collection via SSH without agents
+- 🖥️ **Comprehensive Data**: OS, kernel, CPU, memory, disk, network information
+- 🔄 **Server Workspace**: Tab-based UI with Overview, Inventory, Terminal, Notes
+- 📊 **Recent Activity**: Dashboard widget showing latest user actions across the system
+- 🔐 **Vault Integration**: Use encrypted SSH keys from vault for inventory collection
+- 📝 **Audit Logging**: All inventory refresh operations logged for compliance
 
 ---
 

@@ -272,6 +272,37 @@ def init_database():
         ON audit_logs(created_at)
     ''')
     
+    # Server inventory tables (Phase 4 Module 3)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_inventory_latest (
+            server_id INTEGER PRIMARY KEY,
+            collected_at TEXT NOT NULL,
+            inventory_json TEXT NOT NULL,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_inventory_snapshots (
+            id TEXT PRIMARY KEY,
+            server_id INTEGER NOT NULL,
+            collected_at TEXT NOT NULL,
+            inventory_json TEXT NOT NULL,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create index for inventory snapshots
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_server_id 
+        ON server_inventory_snapshots(server_id)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_inventory_snapshots_collected_at 
+        ON server_inventory_snapshots(collected_at)
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -1583,6 +1614,113 @@ def get_terminal_sessions(user_id=None, server_id=None, status='active'):
     
     conn.close()
     return sessions
+
+# ==================== INVENTORY MANAGEMENT (Phase 4 Module 3) ====================
+
+def save_server_inventory(server_id, inventory_json, save_snapshot=True):
+    """
+    Save server inventory data
+    
+    Args:
+        server_id: Server ID
+        inventory_json: Inventory data as JSON string
+        save_snapshot: Whether to save a snapshot for history
+    
+    Returns:
+        Dict with success status
+    """
+    import uuid
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        collected_at = datetime.utcnow().isoformat() + 'Z'
+        
+        # Save/update latest inventory
+        cursor.execute('''
+            INSERT OR REPLACE INTO server_inventory_latest (server_id, collected_at, inventory_json)
+            VALUES (?, ?, ?)
+        ''', (server_id, collected_at, inventory_json))
+        
+        # Optionally save snapshot for history
+        if save_snapshot:
+            snapshot_id = str(uuid.uuid4())
+            cursor.execute('''
+                INSERT INTO server_inventory_snapshots (id, server_id, collected_at, inventory_json)
+                VALUES (?, ?, ?, ?)
+            ''', (snapshot_id, server_id, collected_at, inventory_json))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'collected_at': collected_at}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_server_inventory_latest(server_id):
+    """
+    Get latest inventory for a server
+    
+    Args:
+        server_id: Server ID
+    
+    Returns:
+        Inventory data dict or None
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT collected_at, inventory_json
+        FROM server_inventory_latest
+        WHERE server_id = ?
+    ''', (server_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if row:
+        return {
+            'server_id': server_id,
+            'collected_at': row[0],
+            'inventory': json.loads(row[1])
+        }
+    return None
+
+def get_server_inventory_snapshots(server_id, limit=10):
+    """
+    Get inventory snapshots for a server
+    
+    Args:
+        server_id: Server ID
+        limit: Maximum number of snapshots to return
+    
+    Returns:
+        List of inventory snapshots
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT id, collected_at, inventory_json
+        FROM server_inventory_snapshots
+        WHERE server_id = ?
+        ORDER BY collected_at DESC
+        LIMIT ?
+    ''', (server_id, limit))
+    
+    snapshots = []
+    for row in cursor.fetchall():
+        snapshots.append({
+            'id': row[0],
+            'server_id': server_id,
+            'collected_at': row[1],
+            'inventory': json.loads(row[2])
+        })
+    
+    conn.close()
+    return snapshots
 
 if __name__ == '__main__':
     # Initialize database
