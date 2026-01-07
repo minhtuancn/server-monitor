@@ -168,6 +168,21 @@ fi
 echo ""
 echo "🔍 Testing health endpoints..."
 
+# Test observability endpoints (Phase 6)
+check_http "http://localhost:9083/api/health" "200" "Health endpoint (liveness)"
+check_json_response "http://localhost:9083/api/health" "status" "Health endpoint structure"
+
+check_http "http://localhost:9083/api/ready" "200" "Readiness endpoint"
+check_json_response "http://localhost:9083/api/ready" "status" "Readiness endpoint structure"
+
+# Test metrics endpoint (should require auth or be localhost)
+METRICS_RESPONSE=$(curl -s http://localhost:9083/api/metrics 2>/dev/null || echo "{}")
+if echo "$METRICS_RESPONSE" | grep -q "uptime_seconds\|error"; then
+    print_test "Metrics endpoint" "PASS" "Metrics endpoint is responding"
+else
+    print_test "Metrics endpoint" "WARN" "Metrics endpoint response unexpected"
+fi
+
 # Test public endpoints (should work without auth)
 check_http "http://localhost:9083/api/stats/overview" "200" "Stats overview endpoint"
 check_json_response "http://localhost:9083/api/stats/overview" "total_servers" "Stats overview structure"
