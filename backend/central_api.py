@@ -1062,6 +1062,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         
         elif path == '/docs' or path == '/api/docs':
             # Serve Swagger UI (public read access)
+            # Note: In production, consider serving Swagger UI assets locally
+            # or adding SRI (Subresource Integrity) hashes for CDN resources
             swagger_html = '''<!DOCTYPE html>
 <html lang="en">
 <head>
