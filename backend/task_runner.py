@@ -222,12 +222,14 @@ class TaskRunner:
         except paramiko.AuthenticationException as e:
             return False, -1, '', f'SSH authentication failed: {str(e)}'
         except paramiko.SSHException as e:
-            return False, -1, '', f'SSH error: {str(e)}'
-        except Exception as e:
-            # Check if it's a timeout
-            if 'timed out' in str(e).lower() or 'timeout' in str(e).lower():
+            if isinstance(e, paramiko.ssh_exception.SSHException) and 'timed out' in str(e).lower():
                 db.update_task_status(self.task_id, 'timeout')
                 return False, -1, '', f'Command execution timeout after {timeout} seconds'
+            return False, -1, '', f'SSH error: {str(e)}'
+        except socket.timeout as e:
+            db.update_task_status(self.task_id, 'timeout')
+            return False, -1, '', f'Command execution timeout after {timeout} seconds'
+        except Exception as e:
             return False, -1, '', f'Execution error: {str(e)}'
     
     def _truncate_output(self, output):
@@ -281,8 +283,9 @@ def worker_thread():
             current_count = server_task_count.get(server_id, 0)
             
             if current_count >= TASKS_CONCURRENT_PER_SERVER:
-                # Re-queue task and try later
-                time.sleep(1)
+                # Re-queue task and try later with exponential backoff
+                retry_delay = min(5, 1 * (1 + current_count))  # Max 5 seconds delay
+                time.sleep(retry_delay)
                 task_queue.put(task_id)
                 task_queue.task_done()
                 continue
@@ -321,8 +324,34 @@ def start_task_workers():
 
 
 def enqueue_task(task_id):
-    """Add task to execution queue"""
-    task_queue.put(task_id)
+    """
+    Add task to execution queue
+    
+    Returns:
+        bool: True if task was enqueued successfully, False otherwise
+    """
+    try:
+        task_queue.put(task_id, timeout=5)  # 5 second timeout
+        return True
+    except queue.Full:
+        # Queue is full, mark task as failed
+        db.update_task_status(
+            task_id,
+            'failed',
+            exit_code=-1,
+            stderr='Task queue is full. Please try again later.'
+        )
+        return False
+    except Exception as e:
+        # Unexpected error
+        print(f"Error enqueuing task {task_id}: {e}")
+        db.update_task_status(
+            task_id,
+            'failed',
+            exit_code=-1,
+            stderr=f'Failed to enqueue task: {str(e)}'
+        )
+        return False
 
 
 def cancel_task(task_id):

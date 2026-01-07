@@ -30,6 +30,10 @@ import task_runner
 
 PORT = 9083  # Different port for central server
 
+# Constants for task validation
+TASK_COMMAND_MAX_LENGTH = int(os.environ.get('TASK_COMMAND_MAX_LENGTH', '10000'))
+TASK_COMMAND_PREVIEW_LENGTH = 100
+
 # Initialize managers
 user_mgr = get_user_manager()
 settings_mgr = get_settings_manager()
@@ -1396,9 +1400,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     return
                 
                 # Security: Basic command validation
-                if len(command) > 10000:
+                if len(command) > TASK_COMMAND_MAX_LENGTH:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({'error': 'Command too long (max 10000 characters)'}).encode())
+                    self.wfile.write(json.dumps({'error': f'Command too long (max {TASK_COMMAND_MAX_LENGTH} characters)'}).encode())
                     return
                 
                 # Get optional parameters
@@ -1444,7 +1448,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                             target_id=str(server_id),
                             meta={
                                 'task_id': task_id,
-                                'command_preview': command[:100],
+                                'command_preview': command[:TASK_COMMAND_PREVIEW_LENGTH],
                                 'timeout_seconds': timeout_seconds,
                                 'store_output': store_output
                             },
@@ -2037,7 +2041,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         target_id=task_id,
                         meta={
                             'server_id': task['server_id'],
-                            'command_preview': task['command'][:100]
+                            'command_preview': task['command'][:TASK_COMMAND_PREVIEW_LENGTH]
                         },
                         ip=self.client_address[0],
                         user_agent=self.headers.get('User-Agent', '')

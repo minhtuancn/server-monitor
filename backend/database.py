@@ -1298,10 +1298,11 @@ def add_server_note(server_id, title, content='', created_by=None):
     cursor = conn.cursor()
     
     try:
+        # Note: updated_by intentionally left NULL on creation, will be set on first update
         cursor.execute('''
-            INSERT INTO server_notes (server_id, title, content, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (server_id, title, content, created_by, created_by))
+            INSERT INTO server_notes (server_id, title, content, created_by)
+            VALUES (?, ?, ?, ?)
+        ''', (server_id, title, content, created_by))
         
         conn.commit()
         note_id = cursor.lastrowid
