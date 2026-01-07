@@ -15,7 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type SettingsResponse = Record<string, unknown>;
 
@@ -23,11 +23,17 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [localValues, setLocalValues] = useState<Record<string, unknown>>({});
 
-  const { isLoading, error } = useQuery<SettingsResponse>({
+  const { data: settings, isLoading, error } = useQuery<SettingsResponse>({
     queryKey: ["settings"],
     queryFn: () => apiFetch<SettingsResponse>("/api/settings"),
-    onSuccess: (settings) => setLocalValues(settings),
   });
+
+  // Update local values when settings change
+  useEffect(() => {
+    if (settings) {
+      setLocalValues(settings);
+    }
+  }, [settings]);
 
   const mutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: unknown }) => {

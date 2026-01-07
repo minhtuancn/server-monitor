@@ -176,10 +176,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const href = `/${locale}${item.href}`;
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
+                /* eslint-disable @typescript-eslint/no-explicit-any */
                 <ListItemButton
                   key={item.label}
-                  component={Link}
-                  href={href}
+                  component={Link as any}
+                  href={href as any}
                   selected={!!active}
                   onClick={() => isMobile && setMobileOpen(false)}
                   sx={{
@@ -188,6 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     my: 0.5,
                   }}
                 >
+                  {/* eslint-enable @typescript-eslint/no-explicit-any */}
                   <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.label} />
                 </ListItemButton>
