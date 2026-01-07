@@ -296,9 +296,19 @@ sudo systemctl start server-monitor-frontend
 sudo systemctl status server-monitor-*
 ```
 
-**Legacy service files** (for backward compatibility):
-- `services/server-dashboard-api-v2.service` - Old API service
-- `services/server-monitor-frontend.service` - Old frontend service (uses www-data user)
+> **⚠️ Legacy Service Files (DEPRECATED)**
+> 
+> The following service files are deprecated and moved to `services/legacy/`:
+> - `server-dashboard-api-v2.service` - Old monolithic API (replaced by modular architecture)
+> - `opencode-dashboard.service` - From different project, not part of server-monitor
+> 
+> These services are no longer maintained. For migration instructions, see `services/legacy/README.md`
+> 
+> The current standard services are in `services/systemd/`:
+> - `server-monitor-api.service` - Central API
+> - `server-monitor-ws.service` - WebSocket server
+> - `server-monitor-terminal.service` - Terminal service
+> - `server-monitor-frontend.service` - Next.js frontend
 
 
 npm ci  # Install exact versions from package-lock.json

@@ -453,8 +453,13 @@ server-monitor/
 │   └── terminal.log
 │
 ├── services/                   # Systemd services
-│   ├── server-dashboard-api-v2.service
-│   └── server-monitor-frontend.service
+│   ├── systemd/               # Production service files (source of truth)
+│   │   ├── server-monitor-api.service
+│   │   ├── server-monitor-ws.service
+│   │   ├── server-monitor-terminal.service
+│   │   └── server-monitor-frontend.service
+│   ├── legacy/                # Deprecated service files
+│   └── server-monitor-frontend.service  # Alternative frontend service
 │
 └── .github/workflows/          # CI/CD
     ├── ci.yml                 # Backend CI
@@ -476,9 +481,13 @@ Terminal 2: cd frontend-next && npm run dev
 
 ```
 systemd
-  ├─ server-dashboard-api-v2.service
-  │   ├─ central_api.py (9083)
-  │   ├─ websocket_server.py (9085)
+  ├─ server-monitor-api.service
+  │   └─ central_api.py (9083)
+  │
+  ├─ server-monitor-ws.service
+  │   └─ websocket_server.py (9085)
+  │
+  ├─ server-monitor-terminal.service
   │   └─ terminal.py (9084)
   │
   └─ server-monitor-frontend.service
