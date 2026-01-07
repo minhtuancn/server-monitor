@@ -3,17 +3,20 @@
 *Priority-ordered list of specific tasks to improve the project*
 
 **Last Updated:** 2026-01-07  
-**Recent Progress:** 2 high-priority items completed (frontend cleanup + form handling)
+**Recent Progress:** Complete project audit, documentation update, production readiness review
 
-## 🔴 CRITICAL (Do Immediately)
+---
+
+## 🔴 CRITICAL (Before Production Deployment)
 
 ### 1. Security & Configuration
-- [ ] Change default admin password in production
-- [ ] Update JWT_SECRET in .env for production
-- [ ] Update ENCRYPTION_KEY in .env for production
-- [ ] Review and update CORS allowed origins for production
-- [ ] Add HTTPS setup documentation
-- [ ] Configure firewall rules
+- [ ] Change default admin password in production (default: admin/admin123)
+- [ ] Update JWT_SECRET in .env for production (min 32 chars)
+- [ ] Update ENCRYPTION_KEY in .env for production (min 24 chars)
+- [ ] Review and update CORS allowed origins for production (`backend/security.py`)
+- [x] Add HTTPS setup documentation (HTTPS-SETUP.md exists)
+- [ ] Configure firewall rules (ports: 9081, 9083, 9084, 9085)
+- [ ] Review Bandit security scan findings (see SECURITY.md)
 
 ### 2. Code Cleanup ✅ COMPLETED
 - [x] Remove backup HTML files (completed 2026-01-07)

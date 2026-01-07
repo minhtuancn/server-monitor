@@ -2,7 +2,7 @@
 
 #=============================================================================
 # Server Monitor Dashboard - Stop Development Servers
-# Usage: bash /opt/server-monitor-dev/stop-dev.sh
+# Usage: ./stop-dev.sh
 #=============================================================================
 
 # Colors
@@ -12,7 +12,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-DEV_DIR="/opt/server-monitor-dev"
+# Use script directory as base
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_DIR="${SERVER_MONITOR_DIR:-$SCRIPT_DIR}"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║         Stopping Development Servers...                          ║${NC}"

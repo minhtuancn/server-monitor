@@ -9,9 +9,12 @@ import os
 import sys
 from urllib import request, error
 from datetime import datetime
+from pathlib import Path
 
-# Telegram config file path
-TELEGRAM_CONFIG_FILE = '/opt/server-monitor-dev/data/telegram_config.json'
+# Telegram config file path - use relative path from project root
+_project_root = Path(__file__).parent.parent
+_default_config_path = str(_project_root / 'data' / 'telegram_config.json')
+TELEGRAM_CONFIG_FILE = os.environ.get('TELEGRAM_CONFIG_FILE', _default_config_path)
 
 
 def get_telegram_config():
