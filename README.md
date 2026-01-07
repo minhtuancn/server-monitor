@@ -341,8 +341,12 @@ server-monitor/
 │   └── requirements.txt
 │
 ├── services/                   # Systemd service files
-│   ├── server-dashboard-api-v2.service
-│   └── server-monitor-frontend.service
+│   ├── systemd/               # Production service files (source of truth)
+│   │   ├── server-monitor-api.service
+│   │   ├── server-monitor-ws.service
+│   │   ├── server-monitor-terminal.service
+│   │   └── server-monitor-frontend.service
+│   └── legacy/                # Deprecated service files
 │
 ├── data/                       # Data storage (auto-created)
 │   ├── servers.db             # SQLite database
@@ -690,18 +694,36 @@ python3 -c "import database; database.init_database()"
 ./start-all.sh
 ```
 
-### Production (with systemd)
+### Production
+
+**Option A: Automated Installation (Recommended)**
 
 ```bash
-# Copy service files
-cp services/*.service /etc/systemd/system/
+# One-command installer - sets up everything automatically
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
 
-# Enable and start services
-systemctl daemon-reload
-systemctl enable server-dashboard-api-v2.service
-systemctl enable opencode-dashboard.service
-systemctl start server-dashboard-api-v2.service
-systemctl start opencode-dashboard.service
+# Manage services using smctl
+sudo smctl status       # Check service status
+sudo smctl restart      # Restart all services
+sudo smctl logs api     # View API logs
+sudo smctl update       # Update to latest version
+```
+
+**Option B: Manual systemd Installation**
+
+```bash
+# Copy systemd service files to system directory
+sudo cp services/systemd/*.service /etc/systemd/system/
+
+# Reload systemd and enable services
+sudo systemctl daemon-reload
+sudo systemctl enable --now server-monitor-api.service
+sudo systemctl enable --now server-monitor-ws.service
+sudo systemctl enable --now server-monitor-terminal.service
+sudo systemctl enable --now server-monitor-frontend.service
+
+# Check service status
+sudo systemctl status server-monitor-*
 ```
 
 ### Docker (future)

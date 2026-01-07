@@ -1,11 +1,11 @@
 [Unit]
 Description=Server Monitor Next.js Frontend
-After=network.target server-dashboard-api-v2.service
+After=network.target server-monitor-api.service server-monitor-ws.service server-monitor-terminal.service
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=server-monitor
+Group=server-monitor
 WorkingDirectory=/opt/server-monitor/frontend-next
 Environment="NODE_ENV=production"
 Environment="PORT=9081"
@@ -15,8 +15,9 @@ Environment="NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084"
 ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=10
-StandardOutput=append:/var/log/server-monitor/frontend.log
-StandardError=append:/var/log/server-monitor/frontend.error.log
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=server-monitor-frontend
 
 # Security hardening
 NoNewPrivileges=true

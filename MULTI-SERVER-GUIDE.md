@@ -415,23 +415,29 @@ pip3 install paramiko
 ```
 /opt/server-monitor-dev/
 ├── backend/
-│   ├── central_api.py          # Central API server (NEW)
-│   ├── agent.py                # Agent script for remote servers (NEW)
-│   ├── database.py             # SQLite database module (NEW)
-│   ├── ssh_manager.py          # SSH connection manager (NEW)
-│   ├── requirements.txt        # Python dependencies (NEW)
-│   ├── server_dashboard_api_v2.py  # Old single-server API
-│   └── server_dashboard_api_v3.py  # Backup
+│   ├── central_api.py          # Central API server
+│   ├── agent.py                # Agent script for remote servers
+│   ├── database.py             # SQLite database module
+│   ├── ssh_manager.py          # SSH connection manager
+│   ├── websocket_server.py     # WebSocket server
+│   ├── terminal.py             # Web terminal service
+│   ├── requirements.txt        # Python dependencies
+│   └── legacy/                 # Deprecated files (not used)
+│       ├── server_dashboard_api_v2.py  # Old single-server API
+│       └── server_dashboard_api_v3.py  # Old backup
 │
 ├── frontend/
 │   ├── dashboard.html          # Old single-server UI
 │   └── multi-dashboard.html    # TODO: Multi-server UI
 │
+├── frontend-next/              # Modern Next.js frontend
+│   └── ...
+│
 ├── data/
 │   └── servers.db              # SQLite database (auto-created)
 │
-├── start-central.sh            # Start central server (NEW)
-├── deploy-agent.sh             # Deploy agent to remote (NEW)
+├── start-central.sh            # Start central server
+├── deploy-agent.sh             # Deploy agent to remote
 ├── MULTI-SERVER-GUIDE.md       # This file
 └── README-DEV.md               # Original dev guide
 ```
