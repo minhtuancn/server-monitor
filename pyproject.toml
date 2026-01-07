@@ -34,6 +34,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
+# Note: The project also uses Python standard library modules:
+# - http.server, json, sqlite3, hashlib, secrets, base64, datetime
+# - collections, functools, typing, os, sys, time, re, csv, io
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",

@@ -68,7 +68,10 @@ jobs:
       - name: Run unit tests
         run: |
           cd tests
-          python -m pytest --tb=short -v || echo "Some tests require running API server"
+          # Note: Integration tests require running API server
+          # Run tests with continue-on-error for CI awareness
+          python -m pytest --tb=short -v 2>&1 || echo "::warning::Some integration tests failed - they require a running API server"
+        continue-on-error: true
 
   security:
     name: Security Scan

@@ -22,10 +22,18 @@ except ImportError:
 
 DB_PATH = os.environ.get('DB_PATH', '/opt/server-monitor-dev/data/servers.db')
 
-# Encryption key - Use environment variable or a default (change in production)
-_default_key = b'monitoring_secret_key_32_bytes!!'
+# Encryption key - Use environment variable or generate a random default
+# WARNING: Random default means encrypted data won't survive server restarts
 _env_key = os.environ.get('ENCRYPTION_KEY')
-ENCRYPTION_KEY = _env_key.encode()[:32].ljust(32, b'!') if _env_key else _default_key
+if _env_key:
+    # Pad key to 32 bytes using SHA256 hash for consistent, secure padding
+    _key_hash = hashlib.sha256(_env_key.encode()).digest()
+    ENCRYPTION_KEY = _key_hash
+else:
+    # Generate a random key for development
+    ENCRYPTION_KEY = secrets.token_bytes(32)
+    print("WARNING: ENCRYPTION_KEY not set in environment. Using randomly generated key.")
+    print("         Encrypted data will not survive server restarts. Set ENCRYPTION_KEY in .env for production.")
 
 def hash_password(password):
     """Hash password using SHA256 (for admin users)"""
