@@ -295,9 +295,213 @@ npm run dev
 
 ---
 
-### 9. System Check
+### 9. Phase 4 Features
 
-#### 9.1 API Checks
+#### 9.1 SSH Key Vault
+- [ ] Navigate to `/settings/ssh-keys` or SSH Keys management page
+- [ ] Click "Add SSH Key to Vault"
+- [ ] Enter key name and description
+- [ ] Paste private key (PEM format)
+- [ ] Save key
+- [ ] Key appears in list with:
+  - Name and description
+  - Key type (RSA, Ed25519, etc.)
+  - Fingerprint
+  - Created date
+  - Active status
+- [ ] Test SSH key connection (if UI supports)
+- [ ] Use vault key when adding/testing server connection
+- [ ] Delete key (soft delete, admin only)
+- [ ] Verify audit log entry created for key operations
+
+#### 9.2 Terminal Sessions & Audit
+- [ ] Navigate to server workspace terminal tab
+- [ ] Start new terminal session
+- [ ] Verify session tracked in database
+- [ ] Execute commands in terminal
+- [ ] Check session list endpoint: `GET /api/terminal/sessions`
+- [ ] Session shows:
+  - Server ID and name
+  - User who started session
+  - SSH key used (if any)
+  - Start time
+  - Status (active/closed/timeout/error)
+  - Last activity timestamp
+- [ ] Test idle timeout (30 minutes default)
+- [ ] Stop active session via API or UI
+- [ ] Verify session status changes to "closed"
+- [ ] Check audit log for terminal operations
+
+#### 9.3 System Inventory
+- [ ] Navigate to server workspace
+- [ ] Click "Inventory" tab
+- [ ] Click "Refresh Inventory" button
+- [ ] Loading indicator appears
+- [ ] Inventory data displays:
+  - OS name and version
+  - Kernel version
+  - CPU model and cores
+  - Total memory
+  - Disk information
+  - Network interfaces
+  - Last collected timestamp
+- [ ] Verify data is accurate (compare with actual server)
+- [ ] Check inventory refresh uses SSH key from vault (if configured)
+- [ ] Verify audit log entry for inventory refresh
+- [ ] Test inventory for multiple servers
+- [ ] Check historical snapshots (if backend supports)
+
+#### 9.4 Tasks / Remote Command Execution
+- [ ] Navigate to server workspace
+- [ ] Click "Tasks" tab
+- [ ] Click "Execute Command" button
+- [ ] Enter command (e.g., `df -h`, `uptime`)
+- [ ] Set timeout (default: 300s)
+- [ ] Configure output storage (default: disabled)
+- [ ] Submit task
+- [ ] Task appears in list with:
+  - Command (truncated if long)
+  - Status (queued → running → completed/failed)
+  - Created by user
+  - Created timestamp
+  - Duration
+- [ ] Task status updates in real-time (3s polling)
+- [ ] Click task to view details:
+  - Full command
+  - Exit code
+  - stdout output (if stored)
+  - stderr output (if stored)
+  - Start and completion times
+- [ ] Test task cancellation:
+  - Create long-running task
+  - Click "Cancel" button
+  - Verify status changes to "cancelled"
+- [ ] Test task timeout:
+  - Create task with short timeout
+  - Verify status changes to "timeout"
+- [ ] Test task failure:
+  - Execute invalid command
+  - Verify status is "failed"
+  - Check stderr output
+- [ ] Verify RBAC:
+  - Admin/operator can create tasks
+  - Viewers can only view own tasks
+- [ ] Check audit log for task operations
+- [ ] Test tasks page: `GET /api/tasks?server_id=X&status=completed`
+
+#### 9.5 Notes & Tags Enhancement
+- [ ] Navigate to server workspace "Notes" tab
+- [ ] Create note with title and content
+- [ ] Edit existing note
+- [ ] Verify `updated_by` field is set on edit
+- [ ] Delete note (soft delete)
+- [ ] Verify note doesn't appear in list after delete
+- [ ] Navigate to Tags management page
+- [ ] Create tag:
+  - Name (e.g., "production")
+  - Color (hex color picker)
+  - Description
+- [ ] Edit tag details
+- [ ] Assign tag to server
+- [ ] Verify tag appears on server card/list
+- [ ] Filter servers by tag
+- [ ] Remove tag from server
+- [ ] Delete tag (cascades to server associations)
+- [ ] Verify audit log entries for note/tag operations
+
+#### 9.6 Audit Logs Viewer
+- [ ] Navigate to audit logs page (admin/operator only)
+- [ ] Audit logs list displays with columns:
+  - Timestamp
+  - User
+  - Action type
+  - Target type and ID
+  - IP address
+  - Metadata
+- [ ] Filter by:
+  - User ID
+  - Action type
+  - Target type
+  - Target ID
+  - Date range
+- [ ] Pagination works correctly
+- [ ] Verify audit entries for:
+  - User login/logout
+  - Server create/update/delete
+  - SSH key add/delete
+  - Terminal session start/stop
+  - Inventory refresh
+  - Task create/cancel/complete
+  - Note/tag CRUD operations
+- [ ] Server-specific audit view in server workspace
+
+#### 9.7 Recent Activity Dashboard Widget
+- [ ] Navigate to dashboard
+- [ ] Recent Activity widget displays
+- [ ] Shows last 10 activities across system
+- [ ] Each activity shows:
+  - User who performed action
+  - Action description
+  - Timestamp (relative: "2 minutes ago")
+  - Icon/indicator for action type
+- [ ] Activities update after new actions
+- [ ] Empty state: "No recent activity"
+- [ ] Error state handles API failures gracefully
+- [ ] Loading state shows skeleton/spinner
+
+---
+
+### 10. API Documentation (Phase 5)
+
+#### 10.1 OpenAPI Specification
+- [ ] Access OpenAPI spec: `http://localhost:9083/api/openapi.yaml`
+- [ ] YAML file downloads successfully
+- [ ] Spec is valid OpenAPI 3.0.3 format
+- [ ] All major endpoints documented:
+  - Authentication endpoints
+  - Server CRUD
+  - Monitoring/stats
+  - SSH Keys vault
+  - Terminal sessions
+  - Inventory
+  - Tasks
+  - Notes & Tags
+  - Audit logs
+  - Settings
+  - Export
+- [ ] Request/response schemas defined
+- [ ] Error codes documented (401/403/404/422/429/500)
+- [ ] Security schemes documented
+
+#### 10.2 Swagger UI
+- [ ] Access Swagger UI: `http://localhost:9083/docs`
+- [ ] Swagger UI loads successfully
+- [ ] API documentation renders correctly
+- [ ] All tags/sections visible:
+  - Authentication
+  - Users
+  - Servers
+  - Monitoring
+  - SSH Keys
+  - Terminal
+  - Inventory
+  - Tasks
+  - Notes & Tags
+  - Audit Logs
+  - Settings
+  - Notifications
+  - Export
+- [ ] Click on endpoint to expand details
+- [ ] Request/response examples visible
+- [ ] "Try it out" button available
+- [ ] Can execute test requests (if auth configured)
+- [ ] Filter/search functionality works
+
+---
+
+### 11. System Check
+
+#### 11.1 API Checks
 - [ ] Navigate to `/system-check`
 - [ ] API status checks display
 - [ ] Check status for:
@@ -306,7 +510,7 @@ npm run dev
   - Terminal Server (9084)
 - [ ] All should show "Online" or similar status
 
-#### 9.2 WebSocket Checks
+#### 11.2 WebSocket Checks
 - [ ] WebSocket connection status displays
 - [ ] Shows "Connected" for monitoring WS
 - [ ] Shows "Connected" for terminal WS (if connected)
@@ -341,15 +545,15 @@ npm run dev
 
 ---
 
-### 11. Internationalization (i18n)
+### 13. Internationalization (i18n)
 
-#### 11.1 Language Switching
+#### 13.1 Language Switching
 - [ ] Check if language switcher exists in UI
 - [ ] Switch to Vietnamese (`/vi/dashboard`)
 - [ ] UI text changes to Vietnamese
 - [ ] Switch back to English (`/en/dashboard`)
 
-#### 11.2 Translations
+#### 13.2 Translations
 - [ ] Login page has translations
 - [ ] Dashboard page has translations
 - [ ] Settings pages have translations
@@ -357,24 +561,24 @@ npm run dev
 
 ---
 
-### 12. Performance & UX
+### 14. Performance & UX
 
-#### 12.1 Loading States
+#### 14.1 Loading States
 - [ ] All data fetching shows loading indicators
 - [ ] Skeleton loaders or spinners appear while loading
 - [ ] No blank screens during loading
 
-#### 12.2 Error States
+#### 14.2 Error States
 - [ ] Failed API calls show error messages
 - [ ] Error messages are user-friendly
 - [ ] Retry options available where appropriate
 
-#### 12.3 Empty States
+#### 14.3 Empty States
 - [ ] Empty server list shows helpful message
 - [ ] Empty notifications shows "No alerts"
 - [ ] Empty SSH keys shows "No keys configured"
 
-#### 12.4 Toast Notifications
+#### 14.4 Toast Notifications
 - [ ] Success toasts appear for successful actions
 - [ ] Error toasts appear for failed actions
 - [ ] Toasts auto-dismiss after 6 seconds

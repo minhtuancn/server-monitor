@@ -1041,6 +1041,79 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to get recent activity: {str(e)}'}).encode())
         
+        # ==================== OPENAPI / SWAGGER UI ====================
+        
+        elif path == '/api/openapi.yaml' or path == '/openapi.yaml':
+            # Serve OpenAPI specification (public read access)
+            try:
+                import os
+                openapi_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'docs', 'openapi.yaml')
+                if os.path.exists(openapi_path):
+                    with open(openapi_path, 'r') as f:
+                        openapi_content = f.read()
+                    self._set_headers(200, {'Content-Type': 'text/yaml'})
+                    self.wfile.write(openapi_content.encode())
+                else:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'OpenAPI specification not found'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to load OpenAPI spec: {str(e)}'}).encode())
+        
+        elif path == '/docs' or path == '/api/docs':
+            # Serve Swagger UI (public read access)
+            # Note: In production, consider serving Swagger UI assets locally
+            # or adding SRI (Subresource Integrity) hashes for CDN resources
+            swagger_html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Monitor API Documentation</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.10.0/swagger-ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .topbar {
+            display: none;
+        }
+        .swagger-ui .info .title {
+            font-size: 36px;
+        }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            const ui = SwaggerUIBundle({
+                url: '/api/openapi.yaml',
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                displayRequestDuration: true,
+                filter: true,
+                tryItOutEnabled: true
+            });
+            window.ui = ui;
+        }
+    </script>
+</body>
+</html>'''
+            self._set_headers(200, {'Content-Type': 'text/html; charset=utf-8'})
+            self.wfile.write(swagger_html.encode())
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -2607,6 +2680,9 @@ if __name__ == '__main__':
     print(f'   • POST /api/terminal/sessions/<id>/stop - Stop terminal session (auth)')
     print(f'\n   Audit Logs (Phase 4 Module 6):')
     print(f'   • GET  /api/audit-logs             - Get audit logs (admin only)')
+    print(f'\n   Documentation:')
+    print(f'   • GET  /docs                       - Swagger UI (API documentation)')
+    print(f'   • GET  /api/openapi.yaml           - OpenAPI specification')
     print(f'\n   Other:')
     print(f'   • GET  /api/ssh/pubkey             - Get SSH public key')
     print(f'   • GET  /api/stats/overview         - Get overview statistics')
