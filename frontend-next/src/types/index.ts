@@ -81,3 +81,30 @@ export type User = {
   avatar_url?: string;
   permissions?: string[];
 };
+
+export type TerminalSession = {
+  id: string;
+  server_id: number;
+  user_id: number;
+  username?: string;
+  server_name?: string;
+  ssh_key_id?: string;
+  ssh_key_name?: string;
+  status: "active" | "closed" | "timeout" | "error";
+  started_at: string;
+  ended_at?: string;
+  last_activity?: string;
+};
+
+export type AuditLog = {
+  id: number;
+  user_id: number;
+  username?: string;
+  action: string;
+  target_type?: string;
+  target_id?: string;
+  meta_json?: string;
+  ip?: string;
+  user_agent?: string;
+  created_at: string;
+};

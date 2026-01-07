@@ -18,6 +18,8 @@ import PeopleIcon from "@mui/icons-material/People";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import PolicyIcon from "@mui/icons-material/Policy";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import HistoryIcon from "@mui/icons-material/History";
 import {
   AppBar,
   Avatar,
@@ -71,6 +73,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/terminal",
         icon: <TerminalIcon />,
       },
+      {
+        label: "Terminal Sessions",
+        href: "/terminal/sessions",
+        icon: <AssignmentIcon />,
+        roles: ["admin", "operator"],
+      },
     ],
   },
   {
@@ -105,6 +113,12 @@ const NAV_SECTIONS: NavSection[] = [
         icon: <NotificationsIcon />,
       },
       { label: "Users", href: "/users", icon: <PeopleIcon />, roles: ["admin"] },
+      {
+        label: "Audit Logs",
+        href: "/audit-logs",
+        icon: <HistoryIcon />,
+        roles: ["admin"],
+      },
       {
         label: "System Check",
         href: "/system-check",
