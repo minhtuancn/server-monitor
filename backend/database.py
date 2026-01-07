@@ -12,6 +12,7 @@ import os
 import hashlib
 import secrets
 import base64
+from pathlib import Path
 
 # Load environment variables
 try:
@@ -21,7 +22,9 @@ except ImportError:
     pass
 
 # Determine database path - support both development and production paths
-_default_db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
+# Use pathlib for cleaner path manipulation
+from pathlib import Path
+_default_db_path = str(Path(__file__).parent.parent / 'data' / 'servers.db')
 DB_PATH = os.environ.get('DB_PATH', _default_db_path)
 
 # Encryption key - Use environment variable or generate a random default

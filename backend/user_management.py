@@ -49,63 +49,78 @@ class UserManagement:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
-        # Check if users table exists and has all columns
-        c.execute("PRAGMA table_info(users)")
-        existing_columns = {row[1] for row in c.fetchall()}
-        
-        required_columns = {
-            'id', 'username', 'email', 'password_hash', 'role',
-            'avatar_url', 'is_active', 'last_login', 'created_at',
-            'password_reset_token', 'reset_token_expires'
-        }
-        
-        if not existing_columns:
-            # Create users table if it doesn't exist
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'user',
-                    avatar_url TEXT,
-                    is_active INTEGER DEFAULT 1,
-                    last_login TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    password_reset_token TEXT,
-                    reset_token_expires TEXT
-                )
-            ''')
+        try:
+            # Check if users table exists and has all columns
+            c.execute("PRAGMA table_info(users)")
+            existing_columns = {row[1] for row in c.fetchall()}
             
-            # Create default admin user if no users exist
-            c.execute("SELECT COUNT(*) FROM users")
-            if c.fetchone()[0] == 0:
-                # Create default admin user (admin/admin123)
-                # Hash password inline to avoid calling self methods during initialization
-                salt = secrets.token_hex(16)
-                hash_obj = hashlib.sha256((salt + 'admin123').encode())
-                default_password_hash = f"{salt}${hash_obj.hexdigest()}"
+            required_columns = {
+                'id', 'username', 'email', 'password_hash', 'role',
+                'avatar_url', 'is_active', 'last_login', 'created_at',
+                'password_reset_token', 'reset_token_expires'
+            }
+            
+            if not existing_columns:
+                # Create users table if it doesn't exist
                 c.execute('''
-                    INSERT INTO users (username, email, password_hash, role, is_active)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', ('admin', 'admin@example.com', default_password_hash, 'admin', 1))
-        else:
-            # Add missing columns
-            missing_columns = required_columns - existing_columns
-            for col in missing_columns:
-                if col == 'avatar_url':
-                    c.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
-                elif col == 'is_active':
-                    c.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
-                elif col == 'last_login':
-                    c.execute("ALTER TABLE users ADD COLUMN last_login TEXT")
-                elif col == 'password_reset_token':
-                    c.execute("ALTER TABLE users ADD COLUMN password_reset_token TEXT")
-                elif col == 'reset_token_expires':
-                    c.execute("ALTER TABLE users ADD COLUMN reset_token_expires TEXT")
-        
-        conn.commit()
-        conn.close()
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        role TEXT NOT NULL DEFAULT 'user',
+                        avatar_url TEXT,
+                        is_active INTEGER DEFAULT 1,
+                        last_login TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        password_reset_token TEXT,
+                        reset_token_expires TEXT
+                    )
+                ''')
+                
+                # Create default admin user if no users exist
+                c.execute("SELECT COUNT(*) FROM users")
+                if c.fetchone()[0] == 0:
+                    # Create default admin user
+                    # SECURITY WARNING: Change this password in production!
+                    # Generate a strong password or require password change on first login
+                    import warnings
+                    warnings.warn(
+                        "Default admin user created with password 'admin123'. "
+                        "CHANGE THIS IMMEDIATELY in production!",
+                        UserWarning
+                    )
+                    # Hash password inline to avoid calling self methods during initialization
+                    salt = secrets.token_hex(16)
+                    hash_obj = hashlib.sha256((salt + 'admin123').encode())
+                    default_password_hash = f"{salt}${hash_obj.hexdigest()}"
+                    c.execute('''
+                        INSERT INTO users (username, email, password_hash, role, is_active)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', ('admin', 'admin@example.com', default_password_hash, 'admin', 1))
+                    print("\n⚠️  WARNING: Default admin user created (admin/admin123)")
+                    print("    CHANGE PASSWORD IMMEDIATELY in production!\n")
+            else:
+                # Add missing columns
+                missing_columns = required_columns - existing_columns
+                for col in missing_columns:
+                    if col == 'avatar_url':
+                        c.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT")
+                    elif col == 'is_active':
+                        c.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
+                    elif col == 'last_login':
+                        c.execute("ALTER TABLE users ADD COLUMN last_login TEXT")
+                    elif col == 'password_reset_token':
+                        c.execute("ALTER TABLE users ADD COLUMN password_reset_token TEXT")
+                    elif col == 'reset_token_expires':
+                        c.execute("ALTER TABLE users ADD COLUMN reset_token_expires TEXT")
+            
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise RuntimeError(f"Failed to initialize users table: {e}")
+        finally:
+            conn.close()
     
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection"""
