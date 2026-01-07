@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-01-07 - Phase 5: Production Polish
+
+### 🚀 Production-Ready Release with OpenAPI Documentation
+
+This release focuses on production polish, comprehensive API documentation, and enhanced testing infrastructure to make the project OSS-ready and enterprise-grade.
+
+### Added
+
+**OpenAPI / Swagger Documentation**
+- ✨ Comprehensive OpenAPI 3.0.3 specification at `docs/openapi.yaml`
+  - All API endpoints documented with request/response schemas
+  - Security schemes (Bearer token + HttpOnly cookies)
+  - Error codes standardized (401/403/404/422/429/500)
+  - Examples for all major operations
+- ✨ Swagger UI integration at `/docs` endpoint
+  - Interactive API documentation
+  - "Try it out" functionality for testing endpoints
+  - Accessible from Central API (port 9083)
+- ✨ OpenAPI YAML endpoint at `/api/openapi.yaml`
+  - Public access for API consumers
+  - Machine-readable specification
+
+**Testing Infrastructure**
+- ✨ Automated smoke test script (`scripts/smoke.sh`)
+  - Port availability checks
+  - Health endpoint verification
+  - Authentication flow testing
+  - Database connectivity checks
+  - Verbose mode for detailed output
+  - Exit codes for CI integration
+- ✨ Comprehensive smoke test checklist
+  - Phase 4 features coverage (SSH Vault, Terminal, Inventory, Tasks, Notes/Tags)
+  - Phase 5 features coverage (OpenAPI, Swagger UI)
+  - Step-by-step manual testing procedures
+  - Troubleshooting guides
+
+**Documentation**
+- ✨ API Reference complete with:
+  - 70+ documented endpoints
+  - Authentication flows
+  - RBAC authorization patterns
+  - WebSocket connection details
+  - Ports and reverse proxy paths
+
+### Changed
+
+- ⚡ Improved startup messages with documentation links
+- ⚡ Enhanced SMOKE_TEST_CHECKLIST.md with Phase 4 & 5 features
+- ⚡ Better test organization and coverage documentation
+
+### Documentation Improvements
+
+- 📚 API endpoints now have canonical documentation
+- 📚 Security schemes clearly defined
+- 📚 Integration examples for API consumers
+- 📚 Testing procedures standardized
+
+### Technical Details
+
+**API Coverage:**
+- Authentication: login, logout, verify, session
+- Users: CRUD, roles, password management
+- Servers: CRUD, connection testing, inventory, tasks, notes
+- SSH Keys: Vault operations, testing
+- Terminal: Sessions management, stop operations
+- Monitoring: Real-time stats, WebSocket
+- Tasks: Remote command execution, status tracking
+- Audit Logs: Activity tracking, filtering
+- Settings: Application configuration
+- Notifications: Email, Telegram, Slack
+- Export: CSV, JSON formats
+
+**Testing:**
+- Crypto vault: 9/9 tests passing ✅
+- Security tests: Require running server (integration tests)
+- Smoke tests: Automated script for quick validation
+- CI/CD: GitHub Actions workflows for backend and frontend
+
+---
+
 ## [Unreleased] - Phase 4
 
 ### 🚀 Phase 4 Module 4 & 5: Tasks/Remote Command + Notes/Tags Enhancement

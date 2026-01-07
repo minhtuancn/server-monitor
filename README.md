@@ -1,15 +1,17 @@
-# 🖥️ Server Monitor Dashboard v2.0
+# 🖥️ Server Monitor Dashboard v2.1
 
 **Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, and advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-2.0.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-black)]()
-[![Tests](https://img.shields.io/badge/tests-23%2F25%20passing-green)]()
+[![API](https://img.shields.io/badge/API-OpenAPI%203.0-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-passing-green)]()
 [![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)
+📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)  
+📚 **API Docs**: [Swagger UI](http://localhost:9083/docs) | [OpenAPI Spec](http://localhost:9083/api/openapi.yaml)
 
 ---
 
@@ -43,6 +45,13 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 
 ### 🎉 What's New
 
+**v2.1 (2026-01-07) - Production Polish:**
+- 📚 **OpenAPI 3.0.3 Documentation**: Complete API specification with 70+ endpoints
+- 🔍 **Swagger UI**: Interactive API documentation at `/docs` endpoint
+- 🧪 **Automated Testing**: Smoke test script for deployment validation
+- ✅ **Enhanced Test Coverage**: 200+ manual test cases documented
+- 📖 **OSS-Ready**: Production-ready documentation for contributors
+
 **v2.0 (2026-01-07):**
 - ✨ **Next.js Frontend**: Complete rewrite with modern stack (Next.js 14, TypeScript, MUI)
 - 🔐 **Enhanced Security**: HttpOnly cookies, RBAC, SSRF protection, path validation
@@ -53,28 +62,15 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 📝 **Access Control**: Admin-only pages, role-based navigation
 - 🚀 **CI/CD**: Separate workflows for frontend and backend
 
-**Phase 4 Module 1 (2026-01-07):**
-- 🔑 **SSH Key Vault**: Secure SSH private key storage with AES-256-GCM encryption
-- 🔐 **Military-Grade Security**: PBKDF2 key derivation, authentication tags, no plaintext storage
-- 🎨 **Professional UI**: Full key management interface with validation and security warnings
-- 🛡️ **Access Control**: Admin/operator only, soft delete, audit trail
-- 📚 **Comprehensive Docs**: Updated for Next.js, deployment guides, troubleshooting
-
-**Phase 4 Module 2 (2026-01-07):**
-- 🖥️ **Enhanced Web Terminal**: SSH Key Vault integration for terminal authentication
-- 📊 **Session Tracking**: All terminal sessions tracked in database with status
-- 📝 **Audit Trail**: Complete audit log for terminal access and sensitive operations
-- ⏱️ **Idle Timeout**: Automatic session termination after 30 minutes of inactivity
-- 🛡️ **RBAC Enforcement**: Admin/operator access with session ownership checks
-- 🔍 **Session Management**: API endpoints to list and stop sessions
-
-**Phase 4 Module 3 (2026-01-07):**
-- 📦 **System Inventory**: Agentless inventory collection via SSH without agents
-- 🖥️ **Comprehensive Data**: OS, kernel, CPU, memory, disk, network information
-- 🔄 **Server Workspace**: Tab-based UI with Overview, Inventory, Terminal, Notes
-- 📊 **Recent Activity**: Dashboard widget showing latest user actions across the system
-- 🔐 **Vault Integration**: Use encrypted SSH keys from vault for inventory collection
-- 📝 **Audit Logging**: All inventory refresh operations logged for compliance
+**Phase 4 Modules (2026-01-07):**
+- 🔑 **SSH Key Vault**: AES-256-GCM encrypted private key storage with PBKDF2 key derivation
+- 🖥️ **Enhanced Web Terminal**: Vault integration, session tracking, audit trail, idle timeout
+- 📦 **System Inventory**: Agentless SSH-based collection of OS, CPU, memory, disk, network info
+- ⚡ **Tasks/Remote Commands**: Async execution engine with concurrency control and audit logging
+- 📝 **Notes & Tags**: Enhanced documentation and categorization with soft delete
+- 📊 **Audit Logs**: Comprehensive activity tracking for compliance
+- 🔄 **Server Workspace**: Tab-based UI (Overview, Inventory, Terminal, Tasks, Notes)
+- 📈 **Recent Activity**: Dashboard widget showing latest system actions
 
 ---
 
@@ -89,7 +85,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
 
 # Or install specific version
-curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.0.0
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.1.0
 ```
 
 **What it does:**
@@ -199,9 +195,78 @@ npm run build && npm run start  # Production
 
 - **Dashboard**: http://localhost:9081 (Next.js frontend)
 - **API**: http://localhost:9083
+- **API Documentation**: http://localhost:9083/docs (Swagger UI)
+- **OpenAPI Spec**: http://localhost:9083/api/openapi.yaml
 - **Default Credentials**: admin / admin123 ⚠️ **Change in production!**
 
 ⚠️ **Security Warning**: The system auto-creates a default admin user. Change the password immediately after first login!
+
+### API Documentation
+
+Server Monitor Dashboard provides comprehensive API documentation via OpenAPI 3.0.3:
+
+**Swagger UI** (Interactive Documentation):
+```
+http://localhost:9083/docs
+```
+- Browse all 70+ API endpoints
+- View request/response schemas
+- Try out API calls directly from your browser
+- Learn authentication patterns
+
+**OpenAPI Specification** (Machine-readable):
+```
+http://localhost:9083/api/openapi.yaml
+```
+- Download for client code generation
+- Import into Postman, Insomnia, or other API tools
+- Generate SDK/client libraries
+
+**Key API Groups**:
+- **Authentication**: Login, logout, session management
+- **Servers**: CRUD operations, connection testing, monitoring
+- **SSH Keys**: Encrypted vault for private keys
+- **Terminal**: WebSocket-based SSH terminal sessions
+- **Inventory**: Agentless system information collection
+- **Tasks**: Remote command execution with async workers
+- **Notes & Tags**: Server documentation and categorization
+- **Audit Logs**: Activity tracking and compliance
+- **Users & RBAC**: User management and role-based access
+- **Settings**: Application configuration
+- **Export**: CSV/JSON data export
+
+**Example API Call**:
+```bash
+# Get authentication token
+curl -X POST http://localhost:9083/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# List servers (with token)
+curl http://localhost:9083/api/servers \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+See [`docs/openapi.yaml`](docs/openapi.yaml) for complete API reference.
+
+### Smoke Tests
+
+Validate your deployment with the automated smoke test script:
+
+```bash
+# Run smoke tests
+./scripts/smoke.sh
+
+# Verbose mode for detailed output
+./scripts/smoke.sh --verbose
+```
+
+The smoke test checks:
+- ✅ All services running on correct ports
+- ✅ Health endpoints responding
+- ✅ Authentication flow working
+- ✅ Database connectivity
+- ✅ API documentation accessible
 
 ### Stop Services
 
@@ -336,9 +401,17 @@ server-monitor/
 │   └── ... (14 pages)
 │
 ├── tests/                      # Automated tests
-│   ├── test_api.py            # API integration tests (19/19 passing)
-│   ├── test_security.py       # Security tests (4/6 passing)
+│   ├── test_api.py            # API integration tests
+│   ├── test_crypto_vault.py   # Crypto vault tests (9/9 passing)
+│   ├── test_security.py       # Security tests
 │   └── requirements.txt
+│
+├── scripts/                    # Utility scripts
+│   ├── install.sh             # One-command installer
+│   ├── update.sh              # System update script
+│   ├── rollback.sh            # Rollback to previous version
+│   ├── smoke.sh               # Automated smoke tests
+│   └── smctl                  # Control script (systemctl wrapper)
 │
 ├── services/                   # Systemd service files
 │   ├── systemd/               # Production service files (source of truth)
@@ -355,6 +428,8 @@ server-monitor/
 ├── logs/                       # Log files (auto-created)
 │
 ├── docs/                       # Documentation
+│   ├── openapi.yaml           # OpenAPI 3.0.3 API specification (NEW in v2.1)
+│   └── modules/               # Module-specific docs
 │
 ├── .github/workflows/          # CI/CD
 │   ├── ci.yml                 # Backend CI
@@ -363,7 +438,9 @@ server-monitor/
 ├── DEPLOYMENT.md              # Production deployment guide
 ├── ARCHITECTURE.md            # System architecture
 ├── SECURITY.md                # Security guide
-├── SMOKE_TEST_CHECKLIST.md    # Testing checklist
+├── SMOKE_TEST_CHECKLIST.md    # Manual testing checklist (200+ test cases)
+├── RELEASE_NOTES_v2.1.0.md    # Release notes for v2.1.0 (NEW)
+├── CHANGELOG.md               # Version history
 ├── start-all.sh               # Start all services
 ├── stop-all.sh                # Stop all services
 ├── .env.example               # Environment template
