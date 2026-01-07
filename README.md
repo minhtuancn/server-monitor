@@ -54,14 +54,47 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### One-Command Installation on Linux (Recommended)
+
+**For production deployments**, use our automated installer:
+
+```bash
+# Install latest version
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
+
+# Or install specific version
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.0.0
+```
+
+**What it does:**
+- ✅ Installs all dependencies (Python, Node.js, system packages)
+- ✅ Creates systemd services for auto-start on boot
+- ✅ Sets up SQLite database with secure configuration
+- ✅ Generates random JWT and encryption secrets
+- ✅ Configures firewall-friendly setup
+- ✅ Ready in 3-5 minutes!
+
+**After installation:**
+- Access: `http://YOUR_SERVER_IP:9081`
+- Default login: `admin` / `admin123` (⚠️ change immediately!)
+- Manage: `sudo smctl status|restart|logs|update`
+
+📖 **Full installation guide**: [docs/INSTALLER.md](docs/INSTALLER.md)
+
+---
+
+### Manual Installation (Development)
+
+For development or if you prefer manual control:
+
+#### Prerequisites
 
 - Python 3.8+
 - Node.js 18+ and npm
 - Linux server (tested on Debian/Ubuntu)
 - SSH access to monitored servers
 
-### Installation
+#### Installation Steps
 
 ```bash
 # Clone repository
@@ -150,6 +183,77 @@ npm run build && npm run start  # Production
 ./stop-all.sh  # Stops backend services
 
 # Stop frontend: Ctrl+C in the terminal where npm is running
+```
+
+---
+
+## 🔄 Update & Maintenance
+
+### Update Installed System
+
+For systems installed via the one-command installer:
+
+```bash
+# Update to latest version
+sudo /opt/server-monitor/scripts/update.sh
+
+# Update to specific version
+sudo /opt/server-monitor/scripts/update.sh --ref v2.1.0
+
+# Or use control script
+sudo smctl update
+```
+
+The update process:
+- ✅ Backs up your database automatically
+- ✅ Updates code from GitHub
+- ✅ Rebuilds backend and frontend
+- ✅ Runs database migrations
+- ✅ Restarts services in correct order
+- ✅ Verifies health after update
+
+### Rollback
+
+If an update causes issues:
+
+```bash
+sudo /opt/server-monitor/scripts/rollback.sh
+```
+
+### Service Management
+
+```bash
+# Check status
+sudo systemctl status server-monitor-*
+# Or
+sudo smctl status
+
+# Restart services
+sudo systemctl restart server-monitor-*
+# Or
+sudo smctl restart
+
+# View logs
+sudo journalctl -u server-monitor-* -f
+# Or
+sudo smctl logs
+
+# Backup database
+sudo smctl backup
+
+# Restore database
+sudo smctl restore /var/lib/server-monitor/backups/servers-20260107-120000.db
+```
+
+### Uninstall
+
+```bash
+# Remove services and installation (keeps data)
+sudo smctl uninstall
+
+# Complete cleanup (removes all data)
+sudo rm -rf /var/lib/server-monitor /etc/server-monitor /var/log/server-monitor
+sudo userdel server-monitor
 ```
 
 ---
