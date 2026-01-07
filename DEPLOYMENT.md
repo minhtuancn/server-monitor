@@ -122,7 +122,97 @@ NEXT_PUBLIC_TERMINAL_WS_URL=wss://monitor.example.com/terminal
 
 ## 🚀 Deployment Options
 
-### Option 1: Manual Deployment
+### Option 1: Automated Installer (Recommended for Production)
+
+**The fastest and most reliable way to deploy Server Monitor in production.**
+
+#### Quick Installation
+
+```bash
+# Install latest version
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
+
+# Or install specific version
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.0.0
+```
+
+#### What It Includes
+
+- ✅ **Automatic dependency installation** - Python 3.8+, Node.js 18+, system packages
+- ✅ **Multi-distro support** - Ubuntu, Debian, CentOS, RHEL, Fedora, Arch
+- ✅ **Systemd integration** - 4 services with auto-start and auto-restart
+- ✅ **Security hardened** - Non-root user, secure file permissions
+- ✅ **SQLite database** - Automatic initialization in `/var/lib/server-monitor/`
+- ✅ **Configuration generation** - Random JWT and encryption secrets
+- ✅ **Health checks** - Post-install verification
+
+#### Directory Layout
+
+```
+/opt/server-monitor/          # Application code
+/etc/server-monitor/          # Configuration (server-monitor.env)
+/var/lib/server-monitor/      # Database and backups
+/var/log/server-monitor/      # Logs (via journald)
+```
+
+#### Systemd Services
+
+| Service | Description | Port |
+|---------|-------------|------|
+| `server-monitor-api.service` | Backend REST API | 9083 |
+| `server-monitor-ws.service` | Real-time monitoring WebSocket | 9085 |
+| `server-monitor-terminal.service` | Terminal WebSocket | 9084 |
+| `server-monitor-frontend.service` | Next.js frontend | 9081 |
+
+#### Post-Install Management
+
+```bash
+# Check status
+sudo systemctl status server-monitor-*
+
+# Restart services
+sudo systemctl restart server-monitor-*
+
+# View logs
+sudo journalctl -u server-monitor-* -f
+
+# Use control script
+sudo smctl status|restart|logs|update|backup
+```
+
+#### Update Process
+
+```bash
+# Update to latest
+sudo /opt/server-monitor/scripts/update.sh
+
+# Update to specific version
+sudo /opt/server-monitor/scripts/update.sh --ref v2.1.0
+
+# Or use control script
+sudo smctl update
+```
+
+**Update includes:**
+- Automatic database backup
+- Safe code update with rollback capability
+- Dependency reinstallation
+- Database migrations
+- Service restart
+
+#### Rollback
+
+```bash
+sudo /opt/server-monitor/scripts/rollback.sh
+```
+
+📖 **Complete installer guide**: [docs/INSTALLER.md](docs/INSTALLER.md)
+
+---
+
+### Option 2: Manual Deployment
+
+For development or custom deployments:
 
 ```bash
 # 1. Clone repository
@@ -157,55 +247,60 @@ cd frontend-next
 npm run dev  # Development mode with hot reload
 ```
 
-### Option 2: Systemd Services
+### Option 3: Systemd Services (Manual Setup)
 
-For production servers, use systemd for automatic service management and restart on failure:
+For production servers without using the installer, you can manually set up systemd services.
 
-#### Backend Services
-
-```bash
-# Copy backend service files
-sudo cp services/server-dashboard-api-v2.service /etc/systemd/system/
-
-# Edit paths in service file to match your installation
-sudo nano /etc/systemd/system/server-dashboard-api-v2.service
-# Update WorkingDirectory to your installation path (e.g., /opt/server-monitor/backend)
-
-# Enable and start backend services
-sudo systemctl daemon-reload
-sudo systemctl enable server-dashboard-api-v2.service
-sudo systemctl start server-dashboard-api-v2.service
-```
-
-#### Next.js Frontend Service
+**Recommended:** Use the systemd unit files from `services/systemd/` directory which are production-ready:
 
 ```bash
-# Copy frontend service file
-sudo cp services/server-monitor-frontend.service /etc/systemd/system/
+# Create service user
+sudo useradd --system --no-create-home --shell /bin/false server-monitor
 
-# Edit paths and environment in service file
-sudo nano /etc/systemd/system/server-monitor-frontend.service
-# Update:
-# - WorkingDirectory=/your/path/to/frontend-next
-# - Environment variables if needed
-
-# Create log directory
+# Create directories
+sudo mkdir -p /opt/server-monitor
+sudo mkdir -p /etc/server-monitor
+sudo mkdir -p /var/lib/server-monitor
 sudo mkdir -p /var/log/server-monitor
-sudo chown www-data:www-data /var/log/server-monitor
 
-# Enable and start frontend service
+# Copy your code to /opt/server-monitor
+# Set up Python venv at /opt/server-monitor/.venv
+# Build Next.js frontend
+
+# Copy service files
+sudo cp services/systemd/*.service /etc/systemd/system/
+
+# Create environment file
+sudo nano /etc/server-monitor/server-monitor.env
+# Add all required environment variables (see .env.example)
+
+# Set permissions
+sudo chown -R server-monitor:server-monitor /opt/server-monitor
+sudo chown -R server-monitor:server-monitor /var/lib/server-monitor
+sudo chown -R server-monitor:server-monitor /var/log/server-monitor
+sudo chown root:server-monitor /etc/server-monitor/server-monitor.env
+sudo chmod 640 /etc/server-monitor/server-monitor.env
+
+# Enable and start services
 sudo systemctl daemon-reload
-sudo systemctl enable server-monitor-frontend.service
-sudo systemctl start server-monitor-frontend.service
+sudo systemctl enable server-monitor-api
+sudo systemctl enable server-monitor-ws
+sudo systemctl enable server-monitor-terminal
+sudo systemctl enable server-monitor-frontend
+sudo systemctl start server-monitor-api
+sudo systemctl start server-monitor-ws
+sudo systemctl start server-monitor-terminal
+sudo systemctl start server-monitor-frontend
 
 # Check status
-sudo systemctl status server-monitor-frontend.service
-sudo journalctl -u server-monitor-frontend.service -f
+sudo systemctl status server-monitor-*
 ```
 
-**Note:** Make sure to build the Next.js app before starting the service:
-```bash
-cd frontend-next
+**Legacy service files** (for backward compatibility):
+- `services/server-dashboard-api-v2.service` - Old API service
+- `services/server-monitor-frontend.service` - Old frontend service (uses www-data user)
+
+
 npm ci  # Install exact versions from package-lock.json
 npm run build  # Build for production
 ```

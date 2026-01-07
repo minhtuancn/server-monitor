@@ -1,0 +1,28 @@
+[Unit]
+Description=Server Monitor Terminal Service
+Documentation=https://github.com/minhtuancn/server-monitor
+After=network.target server-monitor-api.service
+
+[Service]
+Type=simple
+User=server-monitor
+Group=server-monitor
+WorkingDirectory=/opt/server-monitor/backend
+EnvironmentFile=/etc/server-monitor/server-monitor.env
+ExecStart=/opt/server-monitor/.venv/bin/python3 /opt/server-monitor/backend/terminal.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=server-monitor-terminal
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/server-monitor
+ReadWritePaths=/var/log/server-monitor
+
+[Install]
+WantedBy=multi-user.target
