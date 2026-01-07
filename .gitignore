@@ -66,6 +66,10 @@ websocket.pid
 *.bak
 *.old
 *~
+*-old.html
+*-old2.html
+*-backup.html
+backup/
 
 # Export files (may contain sensitive data)
 exports/*.csv
