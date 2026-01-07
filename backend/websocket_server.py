@@ -17,12 +17,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import database as db
 import ssh_manager as ssh
+from observability import StructuredLogger, get_metrics_collector
 
 PORT = 9085  # WebSocket port for monitoring updates
 UPDATE_INTERVAL = 3  # Update every 3 seconds
 
 # Store connected clients
 connected_clients = set()
+
+# Initialize structured logger
+logger = StructuredLogger('websocket_monitor')
+metrics = get_metrics_collector()
 
 # Statistics for monitoring
 stats = {
@@ -144,10 +149,17 @@ async def handle_client(websocket, path):
     """
     client_id = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
     
+    logger.info('WebSocket monitoring client connected',
+               client_id=client_id,
+               path=path)
+    
     # Add client to connected set
     connected_clients.add(websocket)
     stats['total_clients'] += 1
     stats['active_connections'] = len(connected_clients)
+    
+    # Update metrics
+    metrics.websocket_connections = len(connected_clients)
     
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client connected: {client_id}")
     print(f"Active connections: {stats['active_connections']}")
@@ -198,14 +210,26 @@ async def handle_client(websocket, path):
                 print(f"Error processing client message: {e}")
     
     except websockets.exceptions.ConnectionClosed:
+        logger.info('WebSocket monitoring client disconnected',
+                   client_id=client_id)
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client disconnected: {client_id}")
     except Exception as e:
+        logger.error('WebSocket monitoring client error',
+                    client_id=client_id,
+                    error=str(e))
         print(f"Error with client {client_id}: {e}")
     finally:
         # Remove client from connected set
         if websocket in connected_clients:
             connected_clients.remove(websocket)
         stats['active_connections'] = len(connected_clients)
+        
+        # Update metrics
+        metrics.websocket_connections = len(connected_clients)
+        
+        logger.info('WebSocket monitoring client cleanup complete',
+                   client_id=client_id,
+                   active_connections=len(connected_clients))
         print(f"Active connections: {stats['active_connections']}")
 
 
@@ -231,6 +255,14 @@ async def main():
     """
     Start WebSocket server
     """
+    # Initialize database
+    db.init_database()
+    
+    logger.info('Starting WebSocket Monitoring Server',
+               port=PORT,
+               update_interval_seconds=UPDATE_INTERVAL,
+               version='Phase 6')
+    
     print(f"\n{'='*60}")
     print(f"  WebSocket Monitoring Server v1.0")
     print(f"{'='*60}")
@@ -239,8 +271,6 @@ async def main():
     print(f"  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}\n")
     
-    # Initialize database
-    db.init_database()
     print("Database initialized")
     
     # Start WebSocket server
@@ -259,8 +289,10 @@ if __name__ == '__main__':
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
+        logger.info('WebSocket monitoring server shutdown requested')
         print("\n\nShutting down WebSocket server...")
         print("Goodbye!")
     except Exception as e:
+        logger.error('WebSocket monitoring server fatal error', error=str(e))
         print(f"Fatal error: {e}")
         sys.exit(1)
