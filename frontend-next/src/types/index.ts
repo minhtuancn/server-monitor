@@ -166,3 +166,19 @@ export type RecentActivity = {
   }>;
   count: number;
 };
+
+export type Task = {
+  id: string;
+  server_id: number;
+  user_id: number;
+  command: string;
+  status: "queued" | "running" | "success" | "failed" | "timeout" | "cancelled";
+  exit_code?: number;
+  stdout?: string;
+  stderr?: string;
+  timeout_seconds: number;
+  store_output: number;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+};

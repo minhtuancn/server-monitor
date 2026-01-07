@@ -1,7 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api-client";
-import { Server, ServerNote, ServerInventory } from "@/types";
+import { Server, ServerNote, ServerInventory, Task } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -11,6 +11,8 @@ import StorageIcon from "@mui/icons-material/Storage";
 import MemoryIcon from "@mui/icons-material/Memory";
 import DnsIcon from "@mui/icons-material/Dns";
 import ComputerIcon from "@mui/icons-material/Computer";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
 import {
   Alert,
   Box,
@@ -19,10 +21,21 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
+  FormControlLabel,
   Grid,
   Stack,
+  Switch,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   Tabs,
   TextField,
   Typography,
@@ -41,6 +54,14 @@ const noteSchema = z.object({
 });
 
 type NoteForm = z.infer<typeof noteSchema>;
+
+const taskSchema = z.object({
+  command: z.string().min(1, "Command is required").max(10000, "Command too long"),
+  timeout_seconds: z.number().min(1).max(600),
+  store_output: z.boolean(),
+});
+
+type TaskForm = z.infer<typeof taskSchema>;
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -86,6 +107,8 @@ export default function ServerWorkspacePage() {
   const serverId = params?.id as string;
   const queryClient = useQueryClient();
   const [tabValue, setTabValue] = useState(0);
+  const [taskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { data: server, isLoading: serverLoading } = useQuery<Server>({
     queryKey: ["server", serverId],
@@ -113,7 +136,7 @@ export default function ServerWorkspacePage() {
 
   const refreshInventoryMutation = useMutation({
     mutationFn: async () => {
-      return apiFetch(\`/api/servers/\${serverId}/inventory/refresh\`, {
+      return apiFetch(`/api/servers/${serverId}/inventory/refresh`, {
         method: "POST",
         body: JSON.stringify({}),
       });
@@ -126,14 +149,71 @@ export default function ServerWorkspacePage() {
   });
 
   const {
+    data: tasks,
+    isLoading: tasksLoading,
+    refetch: refetchTasks,
+  } = useQuery<{ tasks: Task[] }>({
+    queryKey: ["server-tasks", serverId],
+    queryFn: () =>
+      apiFetch<{ tasks: Task[] }>(`/api/tasks?server_id=${serverId}`),
+    enabled: !!serverId && tabValue === 2,
+    refetchInterval: (data) => {
+      // Poll if any tasks are running or queued
+      const hasActiveTasks = data?.tasks?.some(
+        (t) => t.status === "running" || t.status === "queued"
+      );
+      return hasActiveTasks ? 3000 : false; // Poll every 3s if active
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: TaskForm) => {
+      return apiFetch(`/api/servers/${serverId}/tasks`, {
+        method: "POST",
+        body: JSON.stringify(taskData),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["server-tasks", serverId] });
+      taskFormReset();
+      setTaskDialogOpen(false);
+    },
+  });
+
+  const cancelTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      return apiFetch(`/api/tasks/${taskId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["server-tasks", serverId] });
+    },
+  });
+
+  const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<NoteForm>({ resolver: zodResolver(noteSchema) });
 
+  const {
+    register: taskRegister,
+    handleSubmit: handleTaskSubmit,
+    reset: taskFormReset,
+    formState: { errors: taskErrors, isSubmitting: taskIsSubmitting },
+  } = useForm<TaskForm>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: {
+      timeout_seconds: 60,
+      store_output: false,
+    },
+  });
+
   const onAddNote = async (values: NoteForm) => {
-    await apiFetch(\`/api/servers/\${serverId}/notes\`, {
+    await apiFetch(`/api/servers/${serverId}/notes`, {
       method: "POST",
       body: JSON.stringify({ ...values, title: "Note" }),
     });
@@ -141,8 +221,38 @@ export default function ServerWorkspacePage() {
     queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
   };
 
+  const onCreateTask = async (values: TaskForm) => {
+    createTaskMutation.mutate(values);
+  };
+
+  const handleCancelTask = (taskId: string) => {
+    if (confirm("Are you sure you want to cancel this task?")) {
+      cancelTaskMutation.mutate(taskId);
+    }
+  };
+
   const handleRefreshInventory = () => {
     refreshInventoryMutation.mutate();
+  };
+
+  const getTaskStatusColor = (
+    status: string
+  ): "default" | "primary" | "success" | "error" | "warning" | "info" => {
+    switch (status) {
+      case "queued":
+        return "default";
+      case "running":
+        return "primary";
+      case "success":
+        return "success";
+      case "failed":
+      case "timeout":
+        return "error";
+      case "cancelled":
+        return "warning";
+      default:
+        return "default";
+    }
   };
 
   if (serverLoading || !server) {
@@ -187,6 +297,7 @@ export default function ServerWorkspacePage() {
         >
           <Tab label="Overview" />
           <Tab label="Inventory" />
+          <Tab label="Tasks" />
           <Tab label="Terminal" />
           <Tab label="Notes" />
         </Tabs>
@@ -634,6 +745,118 @@ export default function ServerWorkspacePage() {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
+        {/* Tasks Tab */}
+        <Stack spacing={3}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
+              Remote Command Execution
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<PlayArrowIcon />}
+              onClick={() => setTaskDialogOpen(true)}
+            >
+              Run Command
+            </Button>
+          </Stack>
+
+          {tasksLoading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : tasks && tasks.tasks && tasks.tasks.length > 0 ? (
+            <Card>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Command</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Duration</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {tasks.tasks.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell>
+                        <Chip
+                          label={task.status}
+                          color={getTaskStatusColor(task.status)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontFamily: "monospace",
+                            maxWidth: "400px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {task.command}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption">
+                          {new Date(task.created_at).toLocaleString()}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption">
+                          {task.finished_at && task.started_at
+                            ? `${Math.round(
+                                (new Date(task.finished_at).getTime() -
+                                  new Date(task.started_at).getTime()) /
+                                  1000
+                              )}s`
+                            : task.started_at
+                            ? "Running..."
+                            : "N/A"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setSelectedTask(task)}
+                          >
+                            View
+                          </Button>
+                          {(task.status === "running" ||
+                            task.status === "queued") && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              color="error"
+                              startIcon={<StopIcon />}
+                              onClick={() => handleCancelTask(task.id)}
+                              disabled={cancelTaskMutation.isPending}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+          ) : (
+            <Alert severity="info">
+              No tasks executed yet. Click &quot;Run Command&quot; to execute a
+              command on this server.
+            </Alert>
+          )}
+        </Stack>
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={3}>
         {/* Terminal Tab */}
         <Card>
           <CardContent>
@@ -657,7 +880,7 @@ export default function ServerWorkspacePage() {
         </Card>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={3}>
+      <TabPanel value={tabValue} index={4}>
         {/* Notes Tab */}
         <Card>
           <CardContent>
@@ -706,6 +929,176 @@ export default function ServerWorkspacePage() {
           </CardContent>
         </Card>
       </TabPanel>
+
+      {/* Task Creation Dialog */}
+      <Dialog
+        open={taskDialogOpen}
+        onClose={() => setTaskDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Run Remote Command</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="warning">
+              Be careful when running commands. Store output only when necessary
+              to avoid exposing sensitive data.
+            </Alert>
+            <TextField
+              label="Command"
+              multiline
+              minRows={3}
+              fullWidth
+              {...taskRegister("command")}
+              error={!!taskErrors.command}
+              helperText={taskErrors.command?.message}
+              sx={{ fontFamily: "monospace" }}
+            />
+            <TextField
+              label="Timeout (seconds)"
+              type="number"
+              fullWidth
+              {...taskRegister("timeout_seconds", { valueAsNumber: true })}
+              error={!!taskErrors.timeout_seconds}
+              helperText={taskErrors.timeout_seconds?.message || "Max: 600 seconds"}
+            />
+            <FormControlLabel
+              control={
+                <Switch {...taskRegister("store_output")} />
+              }
+              label="Store output (stdout/stderr)"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTaskDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleTaskSubmit(onCreateTask)}
+            disabled={taskIsSubmitting}
+            startIcon={<PlayArrowIcon />}
+          >
+            Run Command
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Task Detail Dialog */}
+      <Dialog
+        open={!!selectedTask}
+        onClose={() => setSelectedTask(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Task Details</DialogTitle>
+        <DialogContent>
+          {selectedTask && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Status
+                </Typography>
+                <Box mt={0.5}>
+                  <Chip
+                    label={selectedTask.status}
+                    color={getTaskStatusColor(selectedTask.status)}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Command
+                </Typography>
+                <Typography
+                  component="pre"
+                  sx={{
+                    fontFamily: "monospace",
+                    fontSize: "0.875rem",
+                    backgroundColor: "action.hover",
+                    p: 1,
+                    borderRadius: 1,
+                    overflowX: "auto",
+                  }}
+                >
+                  {selectedTask.command}
+                </Typography>
+              </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Created At
+                  </Typography>
+                  <Typography variant="body2">
+                    {new Date(selectedTask.created_at).toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary">
+                    Exit Code
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedTask.exit_code ?? "N/A"}
+                  </Typography>
+                </Grid>
+              </Grid>
+              {selectedTask.stdout && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Standard Output
+                  </Typography>
+                  <Typography
+                    component="pre"
+                    sx={{
+                      fontFamily: "monospace",
+                      fontSize: "0.875rem",
+                      backgroundColor: "action.hover",
+                      p: 1,
+                      borderRadius: 1,
+                      overflowX: "auto",
+                      maxHeight: "300px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {selectedTask.stdout}
+                  </Typography>
+                </Box>
+              )}
+              {selectedTask.stderr && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Standard Error
+                  </Typography>
+                  <Typography
+                    component="pre"
+                    sx={{
+                      fontFamily: "monospace",
+                      fontSize: "0.875rem",
+                      backgroundColor: "error.dark",
+                      color: "error.contrastText",
+                      p: 1,
+                      borderRadius: 1,
+                      overflowX: "auto",
+                      maxHeight: "300px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {selectedTask.stderr}
+                  </Typography>
+                </Box>
+              )}
+              {!selectedTask.store_output && selectedTask.status !== "running" && selectedTask.status !== "queued" && (
+                <Alert severity="info">
+                  Output was not stored for this task.
+                </Alert>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedTask(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }
