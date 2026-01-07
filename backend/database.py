@@ -223,6 +223,55 @@ def init_database():
         )
     ''')
     
+    # Terminal sessions table (Phase 4 Module 2)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS terminal_sessions (
+            id TEXT PRIMARY KEY,
+            server_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            ssh_key_id TEXT,
+            started_at TEXT NOT NULL,
+            ended_at TEXT,
+            status TEXT DEFAULT 'active',
+            last_activity TEXT,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE,
+            FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    # Audit logs table (Phase 4 Module 6 - Foundation)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id TEXT NOT NULL,
+            meta_json TEXT,
+            ip TEXT,
+            user_agent TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES admin_users(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for audit logs
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id 
+        ON audit_logs(user_id)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_action 
+        ON audit_logs(action)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at 
+        ON audit_logs(created_at)
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -1285,6 +1334,255 @@ def save_domain_settings(domain_name='', ssl_enabled=0, ssl_type='none', cert_pa
     except Exception as e:
         conn.close()
         return {'success': False, 'error': str(e)}
+
+# ==================== AUDIT LOGS (Phase 4 Module 6) ====================
+
+def add_audit_log(user_id, action, target_type, target_id, meta=None, ip=None, user_agent=None):
+    """
+    Add an audit log entry (append-only)
+    
+    Args:
+        user_id: ID of user performing action
+        action: Action performed (e.g., 'terminal.open', 'ssh_key.create', 'command.execute')
+        target_type: Type of target (e.g., 'server', 'ssh_key', 'user')
+        target_id: ID of target resource
+        meta: Optional dict with additional metadata
+        ip: Client IP address
+        user_agent: Client user agent
+    
+    Returns:
+        Dict with success status and log_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        log_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        meta_json = json.dumps(meta) if meta else None
+        
+        cursor.execute('''
+            INSERT INTO audit_logs (id, user_id, action, target_type, target_id, meta_json, ip, user_agent, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (log_id, user_id, action, target_type, target_id, meta_json, ip, user_agent, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'log_id': log_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_audit_logs(user_id=None, action=None, target_type=None, start_date=None, end_date=None, limit=100, offset=0):
+    """
+    Get audit logs with optional filtering
+    
+    Args:
+        user_id: Filter by user ID
+        action: Filter by action
+        target_type: Filter by target type
+        start_date: Filter by start date (ISO format)
+        end_date: Filter by end date (ISO format)
+        limit: Maximum number of records to return
+        offset: Offset for pagination
+    
+    Returns:
+        List of audit log entries
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Build query with filters
+    query = 'SELECT * FROM audit_logs WHERE 1=1'
+    params = []
+    
+    if user_id:
+        query += ' AND user_id = ?'
+        params.append(user_id)
+    
+    if action:
+        query += ' AND action = ?'
+        params.append(action)
+    
+    if target_type:
+        query += ' AND target_type = ?'
+        params.append(target_type)
+    
+    if start_date:
+        query += ' AND created_at >= ?'
+        params.append(start_date)
+    
+    if end_date:
+        query += ' AND created_at <= ?'
+        params.append(end_date)
+    
+    query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
+    params.extend([limit, offset])
+    
+    cursor.execute(query, params)
+    
+    logs = []
+    for row in cursor.fetchall():
+        log = {
+            'id': row[0],
+            'user_id': row[1],
+            'action': row[2],
+            'target_type': row[3],
+            'target_id': row[4],
+            'meta': json.loads(row[5]) if row[5] else None,
+            'ip': row[6],
+            'user_agent': row[7],
+            'created_at': row[8]
+        }
+        logs.append(log)
+    
+    conn.close()
+    return logs
+
+# ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
+
+def create_terminal_session(server_id, user_id, ssh_key_id=None):
+    """
+    Create a new terminal session
+    
+    Args:
+        server_id: Server ID
+        user_id: User ID
+        ssh_key_id: Optional SSH key ID from vault
+    
+    Returns:
+        Dict with success status and session_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        session_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        cursor.execute('''
+            INSERT INTO terminal_sessions (id, server_id, user_id, ssh_key_id, started_at, last_activity, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'active')
+        ''', (session_id, server_id, user_id, ssh_key_id, now, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'session_id': session_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def end_terminal_session(session_id, status='closed'):
+    """
+    End a terminal session
+    
+    Args:
+        session_id: Session ID
+        status: Final status (closed, timeout, error)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        cursor.execute('''
+            UPDATE terminal_sessions 
+            SET ended_at = ?, status = ?, last_activity = ?
+            WHERE id = ?
+        ''', (now, status, now, session_id))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def update_terminal_session_activity(session_id):
+    """
+    Update last activity timestamp for a session
+    
+    Args:
+        session_id: Session ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        cursor.execute('''
+            UPDATE terminal_sessions 
+            SET last_activity = ?
+            WHERE id = ?
+        ''', (now, session_id))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_terminal_sessions(user_id=None, server_id=None, status='active'):
+    """
+    Get terminal sessions with optional filtering
+    
+    Args:
+        user_id: Filter by user ID
+        server_id: Filter by server ID
+        status: Filter by status (active, closed, timeout, error)
+    
+    Returns:
+        List of terminal sessions
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    query = 'SELECT * FROM terminal_sessions WHERE 1=1'
+    params = []
+    
+    if user_id:
+        query += ' AND user_id = ?'
+        params.append(user_id)
+    
+    if server_id:
+        query += ' AND server_id = ?'
+        params.append(server_id)
+    
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
+    
+    query += ' ORDER BY started_at DESC'
+    
+    cursor.execute(query, params)
+    
+    sessions = []
+    for row in cursor.fetchall():
+        session = {
+            'id': row[0],
+            'server_id': row[1],
+            'user_id': row[2],
+            'ssh_key_id': row[3],
+            'started_at': row[4],
+            'ended_at': row[5],
+            'status': row[6],
+            'last_activity': row[7]
+        }
+        sessions.append(session)
+    
+    conn.close()
+    return sessions
 
 if __name__ == '__main__':
     # Initialize database

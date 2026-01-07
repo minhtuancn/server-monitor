@@ -59,6 +59,14 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🛡️ **Access Control**: Admin/operator only, soft delete, audit trail
 - 📚 **Comprehensive Docs**: Updated for Next.js, deployment guides, troubleshooting
 
+**Phase 4 Module 2 (2026-01-07):**
+- 🖥️ **Enhanced Web Terminal**: SSH Key Vault integration for terminal authentication
+- 📊 **Session Tracking**: All terminal sessions tracked in database with status
+- 📝 **Audit Trail**: Complete audit log for terminal access and sensitive operations
+- ⏱️ **Idle Timeout**: Automatic session termination after 30 minutes of inactivity
+- 🛡️ **RBAC Enforcement**: Admin/operator access with session ownership checks
+- 🔍 **Session Management**: API endpoints to list and stop sessions
+
 ---
 
 ## 🚀 Quick Start

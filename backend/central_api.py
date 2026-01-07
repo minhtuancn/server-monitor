@@ -788,6 +788,93 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(404)
                 self.wfile.write(json.dumps({'error': 'No email configuration found'}).encode())
         
+        # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
+        
+        elif path == '/api/terminal/sessions':
+            # Get terminal sessions
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin and operator can view terminal sessions
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                return
+            
+            try:
+                # Parse query parameters
+                user_id = query.get('user_id', [None])[0]
+                server_id = query.get('server_id', [None])[0]
+                status = query.get('status', ['active'])[0]
+                
+                # Admins can see all sessions, operators only their own
+                if role == 'operator':
+                    user_id = auth_result.get('user_id')
+                
+                sessions = db.get_terminal_sessions(
+                    user_id=int(user_id) if user_id else None,
+                    server_id=int(server_id) if server_id else None,
+                    status=status
+                )
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({'sessions': sessions}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get sessions: {str(e)}'}).encode())
+        
+        # ==================== AUDIT LOGS (Phase 4 Module 6) ====================
+        
+        elif path == '/api/audit-logs':
+            # Get audit logs (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin can view audit logs
+            role = auth_result.get('role', 'user')
+            if role != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin role required'}).encode())
+                return
+            
+            try:
+                # Parse query parameters
+                user_id = query.get('user_id', [None])[0]
+                action = query.get('action', [None])[0]
+                target_type = query.get('target_type', [None])[0]
+                start_date = query.get('start_date', [None])[0]
+                end_date = query.get('end_date', [None])[0]
+                limit = int(query.get('limit', ['100'])[0])
+                offset = int(query.get('offset', ['0'])[0])
+                
+                logs = db.get_audit_logs(
+                    user_id=int(user_id) if user_id else None,
+                    action=action,
+                    target_type=target_type,
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=limit,
+                    offset=offset
+                )
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'logs': logs,
+                    'count': len(logs),
+                    'limit': limit,
+                    'offset': offset
+                }).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get audit logs: {str(e)}'}).encode())
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -1522,6 +1609,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     user_id=user_id
                 )
                 
+                # Add audit log
+                db.add_audit_log(
+                    user_id=user_id,
+                    action='ssh_key.create',
+                    target_type='ssh_key',
+                    target_id=result['id'],
+                    meta={
+                        'key_name': name,
+                        'key_type': result.get('key_type')
+                    }
+                )
+                
                 self._set_headers(201)
                 self.wfile.write(json.dumps({
                     'success': True,
@@ -1535,6 +1634,73 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to create key: {str(e)}'}).encode())
+        
+        # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
+        
+        elif path.startswith('/api/terminal/sessions/') and path.endswith('/stop'):
+            # Stop a terminal session
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin and operator can stop terminal sessions
+            role = auth_result.get('role', 'user')
+            if role not in ['admin', 'operator']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                return
+            
+            try:
+                session_id = path.split('/')[-2]
+                
+                # Verify user owns this session or is admin
+                sessions = db.get_terminal_sessions(status='active')
+                session = next((s for s in sessions if s['id'] == session_id), None)
+                
+                if not session:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Session not found or already closed'}).encode())
+                    return
+                
+                # Check ownership (operators can only stop their own sessions)
+                user_id = auth_result.get('user_id')
+                if role == 'operator' and session.get('user_id') != user_id:
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({'error': 'Access denied. Can only stop your own sessions'}).encode())
+                    return
+                
+                # Stop the session
+                result = db.end_terminal_session(session_id, status='stopped')
+                
+                if result.get('success'):
+                    # Add audit log
+                    db.add_audit_log(
+                        user_id=user_id,
+                        action='terminal.stop',
+                        target_type='session',
+                        target_id=session_id,
+                        meta={
+                            'stopped_by': 'api',
+                            'server_id': session.get('server_id')
+                        }
+                    )
+                    
+                    self._set_headers()
+                    self.wfile.write(json.dumps({
+                        'success': True,
+                        'message': 'Session stopped successfully'
+                    }).encode())
+                else:
+                    self._set_headers(500)
+                    self.wfile.write(json.dumps({
+                        'error': f'Failed to stop session: {result.get("error")}'
+                    }).encode())
+            
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to stop session: {str(e)}'}).encode())
         
         # ==================== EMAIL ALERTS ====================
         
@@ -1930,6 +2096,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 success = ssh_key_manager.delete_key(key_id)
                 
                 if success:
+                    # Add audit log
+                    db.add_audit_log(
+                        user_id=auth_result.get('user_id'),
+                        action='ssh_key.delete',
+                        target_type='ssh_key',
+                        target_id=key_id,
+                        meta={'soft_delete': True}
+                    )
+                    
                     self._set_headers()
                     self.wfile.write(json.dumps({
                         'success': True,
@@ -1998,10 +2173,14 @@ if __name__ == '__main__':
     print(f'   • GET  /api/ssh-keys               - List all SSH keys (auth)')
     print(f'   • POST /api/ssh-keys               - Add new SSH key (auth)')
     print(f'   • GET  /api/ssh-keys/<id>          - Get SSH key details (auth)')
-    print(f'   • PUT  /api/ssh-keys/<id>          - Update SSH key (auth)')
-    print(f'   • DELETE /api/ssh-keys/<id>        - Delete SSH key (auth)')
-    print(f'   • POST /api/ssh-keys/<id>/test     - Test SSH key connection (auth)')
-    print(f'   Other:')
+    print(f'   • POST /api/ssh-keys               - Add new SSH key to vault (auth)')
+    print(f'   • DELETE /api/ssh-keys/<id>        - Delete SSH key (admin only)')
+    print(f'\n   Terminal Sessions (Phase 4 Module 2):')
+    print(f'   • GET  /api/terminal/sessions      - Get terminal sessions (auth)')
+    print(f'   • POST /api/terminal/sessions/<id>/stop - Stop terminal session (auth)')
+    print(f'\n   Audit Logs (Phase 4 Module 6):')
+    print(f'   • GET  /api/audit-logs             - Get audit logs (admin only)')
+    print(f'\n   Other:')
     print(f'   • GET  /api/ssh/pubkey             - Get SSH public key')
     print(f'   • GET  /api/stats/overview         - Get overview statistics')
     print(f'   • GET  /api/alerts                 - Get alerts')

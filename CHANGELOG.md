@@ -9,6 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - Phase 4
 
+### 🚀 Phase 4 Module 2: Web Terminal Enhancement
+
+**Secure Session Management with SSH Key Vault Integration**
+
+### Added
+
+**Backend:**
+- ✨ `terminal_sessions` table - Track all terminal sessions with metadata
+- ✨ `audit_logs` table - Append-only audit trail for all sensitive operations
+- ✨ Session management functions in `database.py`
+  - `create_terminal_session()` - Create new session record
+  - `end_terminal_session()` - Mark session as ended
+  - `update_terminal_session_activity()` - Update activity timestamp
+  - `get_terminal_sessions()` - Query sessions with filters
+- ✨ Audit log functions in `database.py`
+  - `add_audit_log()` - Add audit entry (append-only)
+  - `get_audit_logs()` - Query logs with filters and pagination
+- ✨ Enhanced `backend/terminal.py`
+  - SSH key vault integration via `ssh_key_id` parameter
+  - Session tracking with database persistence
+  - Idle timeout detection (30 minutes default)
+  - Proper resource cleanup with audit logging
+  - RBAC enforcement (admin/operator only)
+- ✨ API endpoints for session management
+  - `GET /api/terminal/sessions` - List sessions (filtered by role)
+  - `POST /api/terminal/sessions/{id}/stop` - Stop session (with ownership check)
+  - `GET /api/audit-logs` - View audit logs (admin only)
+- ✨ Audit logging for sensitive operations
+  - Terminal open/close events
+  - SSH key create/delete events
+  - Server delete events
+
+**Features:**
+- 🔐 **SSH Key Vault Integration:** Terminal can authenticate using encrypted SSH keys from vault
+- 📊 **Session Tracking:** All terminal sessions tracked in database with status
+- 📝 **Audit Trail:** Complete audit log for terminal access and sensitive operations
+- ⏱️ **Idle Timeout:** Automatic session termination after 30 minutes of inactivity
+- 🛡️ **RBAC:** Admin/operator access with ownership checks
+- 🧹 **Proper Cleanup:** Session resources cleaned up on disconnect
+- 🔍 **Session Management:** API endpoints to list and stop sessions
+
+**Security:**
+- Private keys decrypted only in memory
+- Keys never logged or persisted decrypted
+- Audit logs are append-only (no updates/deletes)
+- RBAC enforcement on all new endpoints
+- Operators can only see/manage their own sessions
+- Admin has full visibility and control
+
+**Documentation:**
+- 📚 `docs/modules/WEB_TERMINAL.md` - Complete module documentation
+  - Technical implementation details
+  - API endpoint specifications
+  - Security features
+  - Testing guide
+  - Troubleshooting guide
+
 ### 🚀 Phase 4 Module 1: SSH Key Vault
 
 **Secure SSH Private Key Management with AES-256-GCM Encryption**
