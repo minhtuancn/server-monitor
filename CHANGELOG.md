@@ -2,159 +2,223 @@
 
 All notable changes to this project will be documented in this file.
 
----
-
-## [v2.0] - 2026-01-06 (PRODUCTION)
-
-### ✅ Added (14 Features)
-- Network Monitoring with bandwidth charts
-- Historical Charts (30 minutes, 4 metrics)
-- Alert System with browser notifications
-- Disk I/O Statistics
-- Docker Container Management
-- Quick Actions Panel
-- System Logs Viewer (4 log files)
-- Security Dashboard (SSH, firewall, sessions)
-- Service Status & Control
-- Advanced Process Manager
-- Scheduled Tasks Viewer (cron jobs)
-- Hardware Information (CPU, temp)
-- Mobile Responsive Design
-- Quick Stats Widgets
-
-### 🔧 Technical
-- Backend: Python 3 (22KB, 635 lines)
-- Frontend: Single HTML file (58KB)
-- Database: In-memory (Python deque, 360 points)
-- Services: 2 systemd services
-- Ports: API 8083, Web 8081
-- RAM Usage: ~32MB total
-
-### 🐛 Fixed
-- CORS issue (API_URL changed to IP instead of localhost)
-- Chart initialization (added 10s warmup)
-- Process kill confirmation modal
-
-### 📝 Documentation
-- DASHBOARD_V2_GUIDE.md
-- DASHBOARD_V2_SUMMARY.txt
-- WATCHDOG_EXPLAINED.md
-- README.md (English)
-- HUONG_DAN.txt (Vietnamese)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [v2.1-dev] - 2026-01-06 (DEVELOPMENT)
+## [2.0.0] - 2026-01-07
 
-### 🎯 Planned Features
+### 🎉 Major Release - Next.js Migration
 
-#### High Priority:
-- [ ] SQLite database for persistent history
-- [ ] Authentication system (login/logout)
-- [ ] Export data to CSV/JSON/Excel
-- [ ] Email alerts configuration
-- [ ] WebSocket for real-time updates
+Complete frontend rewrite with modern stack and comprehensive security hardening.
 
-#### Medium Priority:
-- [ ] Custom metrics/widgets
-- [ ] Dark/Light theme toggle
-- [ ] Advanced filtering & search
-- [ ] Scheduled reports
-- [ ] API rate limiting
+### Added
 
-#### Low Priority:
-- [ ] Web terminal emulator (xterm.js)
-- [ ] Multi-server monitoring
-- [ ] Plugin system
-- [ ] Swagger API documentation
+**Frontend (Next.js 14):**
+- ✨ Complete migration to Next.js 14 with App Router
+- ✨ TypeScript for type safety and better DX
+- ✨ Material-UI (MUI) v5 for modern design system
+- ✨ React Query for efficient data fetching and caching
+- ✨ React Hook Form + Zod for robust form validation
+- ✨ next-intl for internationalization (8 languages: en, vi, fr, es, de, ja, ko, zh-CN)
+- ✨ next-themes for dark/light mode support
+- ✨ Global toast notification system (SnackbarProvider)
+- ✨ Loading skeleton components
+- ✨ Empty state components
+- ✨ Error state components
+- ✨ Access Denied page for RBAC violations
 
-### 🚧 In Development
-- Development environment setup (/opt/server-monitor-dev/)
-- Test framework structure
-- Dev ports configuration (9081, 9083)
+**Security Enhancements:**
+- 🔐 HttpOnly cookies for token storage (XSS protection)
+- 🔐 Role-Based Access Control (RBAC) with middleware
+- 🔐 SSRF protection in BFF proxy (path validation)
+- 🔐 Path traversal prevention
+- 🔐 Cookie TTL synchronized with JWT expiry
+- 🔐 Secure cookie attributes (HttpOnly, SameSite=Lax, Secure)
+- 🔐 Set-cookie header filtering in proxy
+- 🔐 No cookie leakage to backend
+- 🔐 Token expiry validation for WebSocket auth
+
+**Backend-for-Frontend (BFF):**
+- 🛡️ Auth proxy layer in Next.js
+- 🛡️ Cookie-to-Bearer token translation
+- 🛡️ /api/auth/* endpoints (login, logout, session, token)
+- 🛡️ /api/proxy/* for secure backend proxying
+
+**DevOps:**
+- 🚀 Separate CI workflow for frontend (.github/workflows/frontend-ci.yml)
+- 🚀 Systemd service for Next.js (services/server-monitor-frontend.service)
+- 🚀 Smoke test checklist (SMOKE_TEST_CHECKLIST.md)
+
+**Documentation:**
+- 📚 Comprehensive deployment guide updates (DEPLOYMENT.md)
+- 📚 Updated architecture documentation (ARCHITECTURE.md)
+- 📚 Enhanced security documentation (SECURITY.md)
+- 📚 Updated README with v2.0 features
+- 📚 Troubleshooting guides for frontend, WebSocket, auth
+
+### Changed
+
+- 🔄 Frontend now runs on Next.js instead of static HTML
+- 🔄 Authentication uses HttpOnly cookies instead of localStorage
+- 🔄 All API calls go through BFF proxy (/api/proxy/*)
+- 🔄 Middleware handles auth and RBAC checks
+- 🔄 WebSocket cleanup improved (no memory leaks)
+- 🔄 Terminal resize event listeners properly cleaned up
+
+### Fixed
+
+- 🐛 WebSocket event listener memory leaks
+- 🐛 Terminal resize event not being cleaned up
+- 🐛 Multiple resize listeners on window object
+- 🐛 Cookie not synced with JWT expiration
+- 🐛 CSRF vulnerability with SameSite cookie protection
+- 🐛 Potential SSRF in proxy route
+
+### Security
+
+- ✅ XSS protection via HttpOnly cookies
+- ✅ CSRF protection via SameSite cookies
+- ✅ SSRF protection via path validation
+- ✅ Path traversal prevention
+- ✅ Role-based access control
+- ✅ Admin-only route protection
+- ✅ Token leakage prevention
+
+### Breaking Changes
+
+⚠️ **Frontend Migration:**
+- Old HTML frontend (frontend/) is now deprecated
+- All users must use new Next.js frontend on port 9081
+- Local storage auth tokens will not work (uses HttpOnly cookies now)
+- Need to re-login after upgrade
+
+⚠️ **API Changes:**
+- Frontend now calls `/api/proxy/api/*` instead of `/api/*` directly
+- Auth endpoints moved to Next.js BFF: `/api/auth/*`
+- WebSocket token endpoint: `/api/auth/token` (replaces direct backend call)
+
+### Migration Guide
+
+**From v1.x to v2.0:**
+
+1. **Backup existing data:**
+   ```bash
+   cp data/servers.db data/servers.db.backup
+   ```
+
+2. **Install frontend dependencies:**
+   ```bash
+   cd frontend-next
+   npm ci
+   ```
+
+3. **Configure frontend environment:**
+   ```bash
+   cd frontend-next
+   cat > .env.local << EOF
+   API_PROXY_TARGET=http://localhost:9083
+   NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+   NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+   EOF
+   ```
+
+4. **Build frontend:**
+   ```bash
+   npm run build
+   ```
+
+5. **Update systemd services** (if using):
+   ```bash
+   sudo cp services/server-monitor-frontend.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable server-monitor-frontend.service
+   sudo systemctl start server-monitor-frontend.service
+   ```
+
+6. **Update nginx config** (if using reverse proxy):
+   - Update frontend proxy to point to port 9081
+   - Ensure `/api/auth/*` and `/api/proxy/*` go to Next.js
+   - See DEPLOYMENT.md for full nginx config
+
+7. **Clear browser data:**
+   - Users need to clear cookies and local storage
+   - Re-login required after upgrade
 
 ---
 
-## [v1.0] - 2026-01-05
+## [1.1.0] - 2026-01-06
+
+### Added
+- Form helper system with loading states
+- Real-time form validation
+- Toast notifications for user actions
+
+### Fixed
+- Database path issues (removed hardcoded `/opt` paths)
+- Enhanced input validation (IP, hostname, port)
+- Frontend cleanup (removed 11 duplicate files)
+
+### Changed
+- Improved UX with consistent error handling
+- Loading indicators across all forms
+- User-friendly error messages
+
+### Documentation
+- Added PROJECT_ASSESSMENT.md
+- Added TODO-IMPROVEMENTS.md
+- Enhanced form guides
+
+---
+
+## [1.0.0] - 2026-01-06
 
 ### Initial Release
-- Basic CPU/RAM monitoring
-- Process list
-- Simple HTML interface (20KB)
-- No charts, no Docker, no security features
+
+#### Added
+- 🌐 Multi-server monitoring dashboard
+- 📊 Real-time updates via WebSocket
+- 🖥️ Web terminal emulator (xterm.js + SSH)
+- 📧 Email alerts system with SMTP
+- 📤 Export data (CSV/JSON)
+- 🔑 SSH key management
+- 🔐 JWT authentication system
+- 🛡️ Advanced security (rate limiting, CORS, validation)
+- 🧪 Comprehensive testing suite (23 tests)
+- 🚀 Production-ready deployment scripts
+- 📚 Complete documentation
+
+#### Technical Details
+- **Backend:** Python 3.8+ with Flask-like HTTP server
+- **Frontend:** Static HTML/CSS/JavaScript
+- **Database:** SQLite
+- **WebSocket:** Custom Python WebSocket server
+- **Terminal:** WebSocket-based SSH proxy
 
 ---
 
-## Version History
+## Version Comparison
 
-| Version | Date | Status | Features | Size |
-|---------|------|--------|----------|------|
-| v1.0 | 2026-01-05 | Deprecated | 3 | 20KB |
-| v2.0 | 2026-01-06 | **Production** | 14 | 58KB |
-| v2.1-dev | 2026-01-06 | Development | TBD | TBD |
-
----
-
-## Breaking Changes
-
-### v2.0 (from v1.0)
-- Complete rewrite
-- API structure changed
-- New port numbers
-- In-memory database (no persistence from v1.0)
-
-### v2.1-dev (from v2.0)
-- Will add database (breaking change in data structure)
-- Authentication required (breaking change in API access)
-- WebSocket replaces polling (breaking change in frontend)
-
----
-
-## Migration Guide
-
-### From v1.0 to v2.0
-1. Backup v1.0: `cp /var/www/html/index.html /var/www/html/index-v1.html`
-2. Stop old services (if any)
-3. Deploy v2.0 files
-4. Start new services
-5. Update bookmarks to new URL
-
-### From v2.0 to v2.1 (Future)
-1. Export data if needed (no persistence in v2.0)
-2. Create database: `python3 migrate.py`
-3. Update config files
-4. Restart services
-5. Login with default credentials
-
----
-
-## Development Notes
-
-### v2.0 Production
-- Location: `/root/`, `/var/www/html/`
-- Backup: Available (full backup created)
-- Stable: Yes
-- Support: Active
-
-### v2.1 Development
-- Location: `/opt/server-monitor-dev/`
-- Ports: 9081, 9083 (dev), 9091, 9093 (test)
-- Status: Active development
-- ETA: TBD
+| Version | Release Date | Frontend | Auth Method | Security Score | Status |
+|---------|--------------|----------|-------------|----------------|--------|
+| 1.0.0 | 2026-01-06 | HTML/JS | localStorage | 8.5/10 | Deprecated |
+| 1.1.0 | 2026-01-06 | HTML/JS | localStorage | 8.5/10 | Deprecated |
+| 2.0.0 | 2026-01-07 | Next.js | HttpOnly cookies | 9/10 | **Current** |
 
 ---
 
 ## Contributors
 
-- OpenCode AI Assistant (Initial development)
-- (Add your name here when contributing)
+- **Minh Tuấn** ([@minhtuancn](https://github.com/minhtuancn)) - Project maintainer
+- GitHub Copilot - Development assistance
 
 ---
 
 ## License
 
-MIT License (or specify your license)
+MIT License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Last Updated**: 2026-01-06
+**Last Updated:** 2026-01-07
