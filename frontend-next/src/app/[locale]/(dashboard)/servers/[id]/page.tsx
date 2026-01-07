@@ -76,8 +76,8 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={\`server-tabpanel-\${index}\`}
-      aria-labelledby={\`server-tab-\${index}\`}
+      id={`server-tabpanel-${index}`}
+      aria-labelledby={`server-tab-${index}`}
       {...other}
     >
       {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
@@ -99,7 +99,7 @@ function formatUptime(seconds?: number): string {
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  return \`\${days}d \${hours}h \${minutes}m\`;
+  return `${days}d ${hours}h ${minutes}m`;
 }
 
 export default function ServerWorkspacePage() {
@@ -112,13 +112,13 @@ export default function ServerWorkspacePage() {
 
   const { data: server, isLoading: serverLoading } = useQuery<Server>({
     queryKey: ["server", serverId],
-    queryFn: () => apiFetch<Server>(\`/api/servers/\${serverId}\`),
+    queryFn: () => apiFetch<Server>(`/api/servers/${serverId}`),
     enabled: !!serverId,
   });
 
   const { data: notes, isLoading: notesLoading } = useQuery<ServerNote[]>({
     queryKey: ["server-notes", serverId],
-    queryFn: () => apiFetch<ServerNote[]>(\`/api/servers/\${serverId}/notes\`),
+    queryFn: () => apiFetch<ServerNote[]>(`/api/servers/${serverId}/notes`),
     enabled: !!serverId,
   });
 
@@ -129,7 +129,7 @@ export default function ServerWorkspacePage() {
   } = useQuery<ServerInventory>({
     queryKey: ["server-inventory", serverId],
     queryFn: () =>
-      apiFetch<ServerInventory>(\`/api/servers/\${serverId}/inventory/latest\`),
+      apiFetch<ServerInventory>(`/api/servers/${serverId}/inventory/latest`),
     enabled: !!serverId && tabValue === 1,
     retry: false,
   });
@@ -157,10 +157,10 @@ export default function ServerWorkspacePage() {
     queryFn: () =>
       apiFetch<{ tasks: Task[] }>(`/api/tasks?server_id=${serverId}`),
     enabled: !!serverId && tabValue === 2,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Poll if any tasks are running or queued
-      const hasActiveTasks = data?.tasks?.some(
-        (t) => t.status === "running" || t.status === "queued"
+      const hasActiveTasks = query.state.data?.tasks?.some(
+        (t: Task) => t.status === "running" || t.status === "queued"
       );
       return hasActiveTasks ? 3000 : false; // Poll every 3s if active
     },
@@ -279,7 +279,7 @@ export default function ServerWorkspacePage() {
         </Typography>
         <Button
           component={Link}
-          href={\`../../terminal?server=\${server.id}\`}
+          href={`../../terminal?server=${server.id}`}
           startIcon={<TerminalIcon />}
           variant="outlined"
           size="small"
@@ -457,7 +457,7 @@ export default function ServerWorkspacePage() {
                           </Typography>
                           <Typography>
                             {inventory.inventory.os.pretty_name ||
-                              \`\${inventory.inventory.os.name} \${inventory.inventory.os.version}\`}
+                              `${inventory.inventory.os.name} ${inventory.inventory.os.version}`}
                           </Typography>
                         </Box>
                         <Box>
@@ -870,7 +870,7 @@ export default function ServerWorkspacePage() {
             </Typography>
             <Button
               component={Link}
-              href={\`../../terminal?server=\${server.id}\`}
+              href={`../../terminal?server=${server.id}`}
               startIcon={<TerminalIcon />}
               variant="contained"
             >

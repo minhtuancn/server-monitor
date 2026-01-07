@@ -103,7 +103,9 @@ export type AuditLog = {
   target_type: string;
   target_id: string;
   meta?: Record<string, unknown>;
+  meta_json?: string;
   ip?: string;
+  user_agent?: string;
   created_at: string;
   username?: string;
   server_name?: string;
