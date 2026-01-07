@@ -48,7 +48,9 @@ Before deploying to production, ensure:
 
 ## 🔧 Environment Configuration
 
-### Create .env File
+### Backend Configuration
+
+Create `.env` file in project root:
 
 ```bash
 # Copy example file
@@ -63,7 +65,7 @@ sed -i "s/REPLACE_WITH_SECURE_RANDOM_VALUE/$JWT_SECRET/1" .env
 sed -i "s/REPLACE_WITH_SECURE_RANDOM_VALUE/$ENCRYPTION_KEY/" .env
 ```
 
-### Essential Variables
+### Essential Backend Variables
 
 ```bash
 # Required for production
@@ -77,6 +79,44 @@ FRONTEND_PORT=9081
 WEBSOCKET_PORT=9085
 TERMINAL_PORT=9084
 ```
+
+### Frontend Configuration
+
+Create `.env.local` file in `frontend-next/` directory:
+
+```bash
+cd frontend-next
+cat > .env.local << EOF
+# Backend API base URL (used by BFF proxy)
+API_PROXY_TARGET=http://localhost:9083
+
+# WebSocket URLs (public - exposed to browser)
+NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+EOF
+```
+
+**For production with domain:**
+```bash
+# In frontend-next/.env.local
+API_PROXY_TARGET=http://localhost:9083
+NEXT_PUBLIC_MONITORING_WS_URL=wss://monitor.example.com/ws
+NEXT_PUBLIC_TERMINAL_WS_URL=wss://monitor.example.com/terminal
+```
+
+### Environment Variable Reference
+
+| Variable | Location | Description | Required | Default |
+|----------|----------|-------------|----------|---------|
+| `JWT_SECRET` | Backend | JWT token secret | Yes | - |
+| `ENCRYPTION_KEY` | Backend | SSH password encryption key | Yes | - |
+| `JWT_EXPIRATION` | Backend | Token expiry (seconds) | No | 86400 |
+| `API_PORT` | Backend | API server port | No | 9083 |
+| `WEBSOCKET_PORT` | Backend | WebSocket server port | No | 9085 |
+| `TERMINAL_PORT` | Backend | Terminal server port | No | 9084 |
+| `API_PROXY_TARGET` | Frontend | Backend API URL for BFF | No | http://localhost:9083 |
+| `NEXT_PUBLIC_MONITORING_WS_URL` | Frontend | Monitoring WebSocket URL | No | ws://localhost:9085 |
+| `NEXT_PUBLIC_TERMINAL_WS_URL` | Frontend | Terminal WebSocket URL | No | ws://localhost:9084 |
 
 ---
 
@@ -108,34 +148,66 @@ cd ..
 cd frontend-next
 npm install
 npm run build
-npm run start
+npm run start  # Production mode on port 9081
+```
+
+**Frontend Development Mode:**
+```bash
+cd frontend-next
+npm run dev  # Development mode with hot reload
 ```
 
 ### Option 2: Systemd Services
 
-For production servers, use systemd for service management:
+For production servers, use systemd for automatic service management and restart on failure:
+
+#### Backend Services
 
 ```bash
-# Copy service files
-sudo cp services/*.service /etc/systemd/system/
+# Copy backend service files
+sudo cp services/server-dashboard-api-v2.service /etc/systemd/system/
 
-# Edit paths in service files
+# Edit paths in service file to match your installation
 sudo nano /etc/systemd/system/server-dashboard-api-v2.service
-# Update WorkingDirectory and ExecStart paths
+# Update WorkingDirectory to your installation path (e.g., /opt/server-monitor/backend)
 
-# Reload systemd
+# Enable and start backend services
 sudo systemctl daemon-reload
-
-# Enable services
 sudo systemctl enable server-dashboard-api-v2.service
-sudo systemctl enable opencode-dashboard.service
-
-# Start services
 sudo systemctl start server-dashboard-api-v2.service
-sudo systemctl start opencode-dashboard.service
+```
+
+#### Next.js Frontend Service
+
+```bash
+# Copy frontend service file
+sudo cp services/server-monitor-frontend.service /etc/systemd/system/
+
+# Edit paths and environment in service file
+sudo nano /etc/systemd/system/server-monitor-frontend.service
+# Update:
+# - WorkingDirectory=/your/path/to/frontend-next
+# - Environment variables if needed
+
+# Create log directory
+sudo mkdir -p /var/log/server-monitor
+sudo chown www-data:www-data /var/log/server-monitor
+
+# Enable and start frontend service
+sudo systemctl daemon-reload
+sudo systemctl enable server-monitor-frontend.service
+sudo systemctl start server-monitor-frontend.service
 
 # Check status
-sudo systemctl status server-dashboard-api-v2.service
+sudo systemctl status server-monitor-frontend.service
+sudo journalctl -u server-monitor-frontend.service -f
+```
+
+**Note:** Make sure to build the Next.js app before starting the service:
+```bash
+cd frontend-next
+npm ci  # Install exact versions from package-lock.json
+npm run build  # Build for production
 ```
 
 ### Option 3: Docker (Future)
@@ -424,6 +496,52 @@ kill <PID>
 tail -f logs/*.log
 ```
 
+### Next.js Frontend Issues
+
+#### Build Fails
+
+```bash
+cd frontend-next
+
+# Clear build cache and node_modules
+rm -rf .next node_modules
+
+# Reinstall dependencies
+npm install
+
+# Try building again
+npm run build
+```
+
+#### Frontend Won't Start
+
+```bash
+# Check if port 9081 is available
+lsof -i :9081
+
+# Check environment variables
+printenv | grep -E "API_PROXY|MONITORING_WS|TERMINAL_WS"
+
+# Check logs
+npm run start 2>&1 | tee frontend.log
+```
+
+#### Cookie/Authentication Issues
+
+1. **Cookies not being set:**
+   - Check DevTools → Application → Cookies
+   - Verify `auth_token` cookie exists
+   - Check `HttpOnly`, `SameSite=Lax`, `Secure` (in production) attributes
+
+2. **Login redirects in a loop:**
+   - Clear browser cookies for localhost:9081
+   - Check `/api/auth/session` endpoint returns proper response
+   - Verify JWT_SECRET in backend matches
+
+3. **"Access Denied" on all pages:**
+   - Check user role in `/api/auth/session` response
+   - Verify middleware is not blocking legitimate routes
+
 ### Database Errors
 
 ```bash
@@ -448,10 +566,91 @@ curl -X POST http://localhost:9083/api/auth/login \
 
 ### WebSocket Not Connecting
 
-1. Check WebSocket server is running
-2. Verify firewall allows WebSocket ports
-3. Check browser console for errors
-4. Ensure reverse proxy WebSocket configuration is correct
+#### Monitoring WebSocket (port 9085)
+
+```bash
+# Check if WebSocket server is running
+pgrep -f websocket_server.py
+
+# Check logs
+tail -f logs/websocket.log
+
+# Test WebSocket connection
+wscat -c ws://localhost:9085
+```
+
+#### Terminal WebSocket (port 9084)
+
+```bash
+# Check if terminal server is running
+pgrep -f terminal.py
+
+# Check logs
+tail -f logs/terminal.log
+
+# Verify port is listening
+netstat -tlnp | grep 9084
+```
+
+#### Common WebSocket Issues
+
+1. **Connection refused:**
+   - Verify WebSocket server is running
+   - Check firewall rules: `sudo ufw status`
+   - Ensure ports 9084 and 9085 are open
+
+2. **Connection drops immediately:**
+   - Check authentication token is valid
+   - Verify token is being sent in WebSocket handshake
+   - Check backend logs for auth errors
+
+3. **Nginx WebSocket proxy not working:**
+   - Ensure Upgrade headers are set:
+     ```nginx
+     proxy_http_version 1.1;
+     proxy_set_header Upgrade $http_upgrade;
+     proxy_set_header Connection "upgrade";
+     ```
+
+4. **Multiple connections/memory leaks:**
+   - Check browser console for unclosed connections
+   - Verify cleanup in useEffect hooks
+   - Clear browser cache and reload
+
+### Proxy/API Issues
+
+#### BFF Proxy Not Working
+
+```bash
+# Test proxy endpoint directly
+curl -v http://localhost:9081/api/proxy/api/servers \
+  -H "Cookie: auth_token=YOUR_TOKEN"
+
+# Check Next.js logs
+cd frontend-next
+npm run start  # Watch for proxy errors
+```
+
+#### CORS Errors
+
+1. Check backend `security.py` ALLOWED_ORIGINS
+2. Verify Origin header in requests
+3. For development, ensure `http://localhost:9081` is allowed
+
+### Performance Issues
+
+#### Slow Page Loads
+
+1. Check network tab in DevTools for slow API calls
+2. Verify backend server is not overloaded
+3. Check database query performance
+4. Enable React Query DevTools to inspect cache
+
+#### WebSocket Lag
+
+1. Check network latency to backend
+2. Verify WebSocket update interval (default: 3 seconds)
+3. Check if too many servers are being monitored simultaneously
 
 ---
 

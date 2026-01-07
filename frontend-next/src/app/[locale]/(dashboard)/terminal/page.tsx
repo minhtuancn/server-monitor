@@ -101,13 +101,19 @@ export default function TerminalPage() {
         setStatus("disconnected");
       };
 
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setStatus("error");
+      };
+
       term.onData((data) => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: "input", data }));
         }
       });
 
-      window.addEventListener("resize", () => {
+      // Resize handler with cleanup
+      const handleResize = () => {
         if (fitAddonRef.current) {
           fitAddonRef.current.fit();
           if (ws.readyState === WebSocket.OPEN) {
@@ -119,14 +125,24 @@ export default function TerminalPage() {
             }
           }
         }
-      });
+      };
+
+      window.addEventListener("resize", handleResize);
+
+      // Cleanup function
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
     };
 
-    setupTerminal();
+    const cleanup = setupTerminal();
 
     return () => {
+      cleanup?.then((fn) => fn?.());
       wsRef.current?.close();
       termInstance.current?.dispose();
+      termInstance.current = null;
+      fitAddonRef.current = null;
     };
   }, [serverId, token]);
 
