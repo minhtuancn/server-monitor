@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] - Phase 4
+
+### 🚀 Phase 4 Module 1: SSH Key Vault
+
+**Secure SSH Private Key Management with AES-256-GCM Encryption**
+
+### Added
+
+**Backend:**
+- ✨ `backend/crypto_vault.py` - AES-256-GCM encryption module
+  - PBKDF2-HMAC-SHA256 key derivation (100k iterations)
+  - Random 12-byte IV per encryption
+  - 16-byte authentication tag for integrity
+  - Comprehensive error handling
+- ✨ `backend/ssh_key_manager.py` - SSH key CRUD operations
+  - Create encrypted keys
+  - List keys (metadata only)
+  - Get key metadata
+  - Soft delete keys
+  - Decrypt keys for internal use only
+- ✨ `tests/test_crypto_vault.py` - 9 comprehensive unit tests
+  - Encrypt/decrypt roundtrip
+  - Wrong key rejection
+  - Tampered data detection
+  - Base64 encoding/decoding
+  - Unique IV generation
+- ✨ API endpoints for SSH key management
+  - `POST /api/ssh-keys` - Create encrypted key (admin/operator)
+  - `GET /api/ssh-keys` - List keys (admin/operator)
+  - `GET /api/ssh-keys/{id}` - Get key metadata (admin/operator)
+  - `DELETE /api/ssh-keys/{id}` - Soft delete (admin only)
+- ✨ New dependency: `cryptography>=41.0.0` for AES-256-GCM
+
+**Frontend:**
+- ✨ `/settings/ssh-keys` page - Professional SSH key management UI
+  - Table view with key type badges, fingerprints, metadata
+  - Add key dialog with validation and security warnings
+  - Delete confirmation dialog
+  - Empty state for first-time users
+  - Monospace font for private key input
+  - Form validation and error handling
+  - Success/error toast notifications
+- ✨ Updated `SSHKey` type definition for key vault schema
+
+**Security:**
+- 🔐 Military-grade AES-256-GCM encryption
+- 🔐 Database compromise protection (keys unreadable without master key)
+- 🔐 No plaintext storage of private keys
+- 🔐 Private keys never exposed via API
+- 🔐 Role-based access control (admin/operator only)
+- 🔐 Soft delete prevents accidental data loss
+- 🔐 Comprehensive unit test coverage
+
+**Documentation:**
+- 📚 `docs/modules/SSH_KEY_VAULT.md` - Technical specification
+- 📚 Updated `SECURITY.md` with SSH Key Vault section
+- 📚 Updated `.env.example` with `KEY_VAULT_MASTER_KEY`
+
+**Configuration:**
+- ⚙️ New environment variable: `KEY_VAULT_MASTER_KEY`
+  - Required for SSH Key Vault functionality
+  - Used for AES-256-GCM key derivation
+  - Generate with: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+
+### Changed
+- 🔄 Replaced old SSH key management with encrypted key vault
+- 🔄 SSH keys now use UUIDs instead of integer IDs
+- 🔄 Keys are immutable (create new key instead of updating)
+
+### Security Notes
+- ⚠️ The `KEY_VAULT_MASTER_KEY` must be kept secure and backed up
+- ⚠️ If master key is lost, encrypted keys cannot be recovered
+- ⚠️ Rotate SSH keys regularly (every 90-180 days)
+- ✅ ED25519 keys recommended for better security and performance
+
+---
+
 ## [2.0.0] - 2026-01-07
 
 ### 🎉 Major Release - Next.js Migration

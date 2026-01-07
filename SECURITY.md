@@ -329,6 +329,119 @@ SSH passwords are encrypted before storage:
 - Base64 encoded for storage
 - Decrypted only when needed for connection
 
+### SSH Key Vault (Phase 4) 🆕
+
+**Encrypted SSH Private Key Storage with AES-256-GCM**
+
+The SSH Key Vault provides military-grade encryption for storing SSH private keys:
+
+#### Encryption Specification
+
+- **Algorithm:** AES-256-GCM (Galois/Counter Mode)
+- **Key Size:** 256 bits (32 bytes)
+- **IV Size:** 12 bytes (96 bits) - random per encryption
+- **Authentication Tag:** 16 bytes (128 bits)
+- **Key Derivation:** PBKDF2-HMAC-SHA256 with 100,000 iterations
+- **Master Key:** From environment variable `KEY_VAULT_MASTER_KEY`
+
+#### Security Properties
+
+✅ **Confidentiality:** AES-256 encryption protects key content
+✅ **Integrity:** GCM authentication tag prevents tampering
+✅ **Freshness:** Random IV per encryption prevents replay attacks
+✅ **No Plaintext Storage:** Keys only decrypted in RAM when needed
+✅ **Database Compromise Protection:** Encrypted keys unreadable without master key
+✅ **No Logging:** Private keys never logged or exposed in API responses
+
+#### Key Vault Setup
+
+```bash
+# Generate secure master key (32 bytes minimum)
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Add to .env
+KEY_VAULT_MASTER_KEY=<generated_key_here>
+```
+
+**⚠️ Important:** The `KEY_VAULT_MASTER_KEY` must be kept secure and backed up. 
+If lost, encrypted keys cannot be recovered.
+
+#### Database Schema
+
+```sql
+CREATE TABLE ssh_keys (
+    id TEXT PRIMARY KEY,              -- UUID v4
+    name TEXT NOT NULL UNIQUE,        -- User-friendly name
+    description TEXT,                 -- Optional description
+    private_key_enc BLOB NOT NULL,    -- Encrypted private key
+    iv BLOB NOT NULL,                 -- Initialization vector (12 bytes)
+    auth_tag BLOB NOT NULL,           -- Authentication tag (16 bytes)
+    key_type TEXT DEFAULT 'rsa',      -- rsa, ed25519, ecdsa, etc.
+    fingerprint TEXT,                 -- SHA256 fingerprint
+    created_by_user_id INTEGER,       -- Creator
+    created_at TEXT NOT NULL,         -- Created timestamp
+    updated_at TEXT NOT NULL,         -- Updated timestamp
+    deleted_at TEXT                   -- Soft delete timestamp
+);
+```
+
+#### Access Control
+
+- **Admin:** Full access to create, view, and delete keys
+- **Operator:** Can create and view keys (cannot delete)
+- **User/Viewer:** No access to key vault
+
+#### API Security
+
+**Protected Endpoints:**
+- `POST /api/ssh-keys` - Create encrypted key (admin/operator)
+- `GET /api/ssh-keys` - List keys metadata (admin/operator)
+- `GET /api/ssh-keys/{id}` - Get key metadata (admin/operator)
+- `DELETE /api/ssh-keys/{id}` - Soft delete key (admin only)
+
+**Security Measures:**
+- Private keys never exposed via API (metadata only)
+- Decryption only happens server-side for SSH connections
+- All operations logged for audit trail
+- Soft delete prevents accidental data loss
+
+#### Testing
+
+The crypto vault includes comprehensive unit tests:
+
+```bash
+cd /home/runner/work/server-monitor/server-monitor
+python3 tests/test_crypto_vault.py
+```
+
+**Tests cover:**
+- ✅ Encrypt/decrypt roundtrip
+- ✅ Wrong key rejection
+- ✅ Tampered ciphertext detection
+- ✅ Tampered auth tag detection
+- ✅ Tampered IV detection
+- ✅ Empty input handling
+- ✅ Base64 encoding/decoding
+- ✅ Deterministic key derivation
+- ✅ Unique IV per encryption
+
+#### Key Rotation
+
+**Best Practices:**
+1. Rotate SSH keys regularly (every 90-180 days)
+2. Use ED25519 keys (modern, secure, fast)
+3. Minimum RSA 2048 bits (prefer 4096)
+4. Soft delete old keys (keep audit trail)
+5. Back up `KEY_VAULT_MASTER_KEY` securely
+
+**Rotation Procedure:**
+1. Generate new SSH key pair
+2. Add new private key to vault
+3. Deploy public key to target servers
+4. Test connections with new key
+5. Soft delete old key from vault
+6. Remove old public key from servers
+
 ⚠️ **Note:** XOR encryption is basic. For production with sensitive data, consider:
 - Using AES encryption
 - Storing passwords in a secrets manager (HashiCorp Vault, AWS Secrets Manager)
