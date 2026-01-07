@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useSearchParams, useRouter, useParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -25,7 +25,6 @@ type LoginForm = z.infer<typeof LoginSchema>;
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { locale } = useParams();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -50,7 +49,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
       const redirectTo = searchParams.get("redirect") || `/${locale}/dashboard`;
-      router.replace(redirectTo);
+      window.location.href = redirectTo;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(message);

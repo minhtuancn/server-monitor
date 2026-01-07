@@ -89,7 +89,7 @@ export default function TerminalPage() {
 
       ws.onopen = () => {
         setStatus("connected");
-        const payload: any = {
+        const payload: Record<string, string | number> = {
           token,
           server_id: Number(serverId),
         };
@@ -186,7 +186,7 @@ export default function TerminalPage() {
       wsRef.current?.close();
       setStatus("disconnected");
       setSessionId(null);
-    } catch (error) {
+    } catch {
       showSnackbar("Failed to stop session", "error");
     }
   };

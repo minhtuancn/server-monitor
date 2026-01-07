@@ -14,7 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 
 export default function ServerNotesIndex() {
   const { data, isLoading, error } = useQuery<Server[]>({
@@ -33,8 +32,8 @@ export default function ServerNotesIndex() {
       <Grid container spacing={2}>
         {data?.map((server) => (
           <Grid item xs={12} md={6} key={server.id}>
-            <Card>
-              <CardActionArea component={Link} href={`../servers/${server.id}`}>
+            <Card onClick={() => window.location.href = `/servers/${server.id}`} style={{ cursor: 'pointer' }}>
+              <CardActionArea>
                 <CardContent>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <DescriptionIcon />
