@@ -1,228 +1,513 @@
-# Server Monitor Dashboard v4.0 - Architecture
+# Server Monitor Dashboard v2.0 - Architecture
 
-## 📱 Giao Diện Chính (Main UI Hierarchy)
+**Last Updated:** 2026-01-07
 
-### Level 0: Public Access
-- **index.html** → Auto redirect đến multi-server-dashboard.html
-- **login.html** → Trang đăng nhập (bắt buộc)
+This document describes the technical architecture of the Server Monitor Dashboard v2.0, including the new Next.js frontend, Backend-for-Frontend (BFF) layer, and security model.
 
-### Level 1: Authenticated Dashboard (Main Interface)
-**🏠 multi-server-dashboard.html** - GIAO DIỆN CHÍNH
-- Overview tất cả servers
-- Quick actions
-- Statistics cards
-- Server grid với search/filter
-- Navigation menu đầy đủ
+---
 
-### Level 2: Sub Pages (Accessible from Main Dashboard)
-1. **server-detail.html?id=X** - Chi tiết 1 server
-   - Real-time monitoring
-   - Charts (CPU, Memory, Network)
-   - Tabs: Overview, Processes, Network, Logs
-   - Quick actions
-
-2. **ssh-keys.html** - Quản lý SSH Keys
-   - List/Add/Edit/Delete SSH keys
-   - Test connection
-   - Notes for each key
-
-3. **email-settings.html** - Cấu hình Email Alerts
-   - SMTP settings
-   - Test email
-   - Enable/Disable alerts
-
-4. **terminal.html?server=X** - Web Terminal
-   - SSH terminal emulator
-   - Command execution
-   - Real-time output
-
-5. **dashboard-v2.html** - Dark Theme Dashboard (Alternative)
-   - Modern dark UI
-   - Advanced charts
-   - Tab-based navigation
-
-## 🔐 Authentication Flow
+## 🏗️ System Overview
 
 ```
-User → index.html 
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Browser                             │
+│  Next.js Frontend (React + TypeScript + MUI)                    │
+│  Port: 9081                                                      │
+└──────────────────┬──────────────────────────────────────────────┘
+                   │
+          ┌────────┴────────┐
+          │                 │
+    ┌─────▼─────┐     ┌─────▼────────────┐
+    │ WebSocket │     │   HTTP Requests  │
+    │ (Direct)  │     │   (via BFF)      │
+    └─────┬─────┘     └─────┬────────────┘
+          │                 │
+  ┌───────▼────────┐  ┌─────▼─────────────────┐
+  │  Monitoring WS │  │   Next.js BFF Layer   │
+  │  Port: 9085    │  │   (Auth + Proxy)      │
+  │                │  │   /api/auth/*         │
+  │  Terminal WS   │  │   /api/proxy/*        │
+  │  Port: 9084    │  └─────┬─────────────────┘
+  └───────┬────────┘        │
+          │                 │
+          │          ┌──────▼──────────────────┐
+          │          │  Python Backend API     │
+          │          │  Port: 9083             │
+          │          │  - central_api.py       │
+          └──────────┤  - user_management.py   │
+                     │  - security.py          │
+                     │  - database.py          │
+                     └──────┬──────────────────┘
+                            │
+                     ┌──────▼──────────┐
+                     │  SQLite Database │
+                     │  data/servers.db │
+                     └──────────────────┘
+```
+
+---
+
+## 🎨 Frontend Architecture (Next.js 14)
+
+### Tech Stack
+
+- **Framework:** Next.js 14 with App Router
+- **Language:** TypeScript
+- **UI Library:** Material-UI (MUI) v5
+- **Data Fetching:** TanStack React Query
+- **Forms:** React Hook Form + Zod validation
+- **i18n:** next-intl (8 languages)
+- **Theming:** next-themes (dark/light mode)
+- **Terminal:** xterm.js + xterm-addon-fit
+
+### Directory Structure
+
+```
+frontend-next/src/
+├── app/                        # Next.js App Router
+│   ├── api/                    # BFF API routes
+│   │   ├── auth/               # Authentication endpoints
+│   │   │   ├── login/          # POST /api/auth/login
+│   │   │   ├── logout/         # POST /api/auth/logout
+│   │   │   ├── session/        # GET /api/auth/session
+│   │   │   └── token/          # GET /api/auth/token (WebSocket auth)
+│   │   └── proxy/[...path]/    # Proxy to backend API
+│   │
+│   └── [locale]/               # Internationalized pages
+│       ├── (auth)/
+│       │   └── login/          # Login page
+│       └── (dashboard)/        # Protected dashboard pages
+│           ├── dashboard/      # Main dashboard
+│           ├── servers/[id]/   # Server detail
+│           ├── terminal/       # Web terminal
+│           ├── settings/       # Settings pages
+│           │   ├── domain/     # Domain settings (admin)
+│           │   ├── email/      # Email settings (admin)
+│           │   └── ssh-keys/   # SSH key management
+│           ├── users/          # User management (admin)
+│           ├── notifications/  # Alerts/notifications
+│           ├── access-denied/  # RBAC denial page
+│           └── ...
+│
+├── components/                 # React components
+│   ├── layout/
+│   │   ├── AppShell.tsx        # Main app layout with sidebar
+│   │   └── Shell.tsx           # Layout wrapper
+│   ├── providers/
+│   │   └── AppProviders.tsx    # Theme, Query, i18n providers
+│   ├── SnackbarProvider.tsx    # Global toast notifications
+│   ├── LoadingSkeletons.tsx    # Loading states
+│   └── EmptyStates.tsx         # Empty/error states
+│
+├── hooks/
+│   └── useSession.ts           # Session/user data hook
+│
+├── lib/
+│   ├── api-client.ts           # API fetch wrapper
+│   ├── config.ts               # Configuration
+│   ├── jwt.ts                  # JWT utilities
+│   └── websocket.ts            # WebSocket utilities
+│
+├── types/
+│   └── index.ts                # TypeScript types
+│
+└── locales/                    # i18n translations
+    ├── en.json
+    ├── vi.json
+    └── ...
+
+middleware.ts                   # Auth + RBAC middleware
+```
+
+---
+## 🔐 Authentication & Authorization Flow
+
+### Authentication Flow (v2.0)
+
+```
+┌─────────────┐
+│   Browser   │
+└──────┬──────┘
+       │
+       │ 1. GET /{locale}/dashboard (no cookie)
+       ▼
+┌──────────────────────┐
+│ Next.js Middleware   │  ◄─── Auth check
+│ middleware.ts        │
+└──────┬───────────────┘
+       │
+       │ 2. Redirect to /{locale}/login
+       ▼
+┌──────────────────────┐
+│  Login Page          │
+│  Enter credentials   │
+└──────┬───────────────┘
+       │
+       │ 3. POST /api/auth/login {username, password}
+       ▼
+┌──────────────────────┐
+│  BFF Login Route     │  ◄─── Validates credentials
+│  /api/auth/login     │       with backend
+└──────┬───────────────┘
+       │
+       │ 4. POST http://localhost:9083/api/auth/login
+       ▼
+┌──────────────────────┐
+│  Backend API         │
+│  central_api.py      │  ◄─── Returns JWT token
+└──────┬───────────────┘
+       │
+       │ 5. JWT token
+       ▼
+┌──────────────────────┐
+│  BFF Login Route     │  ◄─── Sets HttpOnly cookie
+│  Set-Cookie:         │       with JWT
+│  auth_token=...      │
+└──────┬───────────────┘
+       │
+       │ 6. Redirect to dashboard
+       ▼
+┌──────────────────────┐
+│  Dashboard Page      │  ◄─── Cookie sent automatically
+│  /{locale}/dashboard │
+└──────────────────────┘
+```
+
+### RBAC Middleware Protection
+
+```typescript
+// middleware.ts checks:
+1. Is user authenticated? (cookie exists & valid)
+2. Is route admin-only? (/users, /settings/domain, /settings/email)
+3. If admin-only, verify user role via /api/auth/session
+4. If not admin → redirect to /access-denied
+5. If admin → allow access
+```
+
+**Admin-Only Routes:**
+- `/users` - User management
+- `/settings/domain` - Domain & SSL settings
+- `/settings/email` - Email configuration
+
+**Authenticated Routes (any role):**
+- `/dashboard` - Main dashboard
+- `/servers/*` - Server management
+- `/terminal` - Web terminal
+- `/settings` - General settings
+- `/settings/ssh-keys` - SSH key management
+- `/notifications` - Alerts
+
+---
+
+## 🔄 Data Flow Patterns
+
+### 1. API Request Flow (via BFF Proxy)
+
+```
+Frontend Component
   ↓
-Check authToken in localStorage
+apiFetch("/api/servers")  ←  React Query
   ↓
-  NO → login.html → Enter credentials → API /auth/login → Get token → Save to localStorage
+Fetch: /api/proxy/api/servers
   ↓
-  YES → multi-server-dashboard.html (MAIN)
-    ↓
-    Navigation Menu:
-    - Servers (main view)
-    - SSH Keys
-    - Email Settings
-    - Export Data
-    - Logout
+Next.js Proxy Route
+  ├─ Get auth_token from cookie
+  ├─ Validate path (SSRF protection)
+  ├─ Forward to: http://localhost:9083/api/servers
+  ├─ Add header: Authorization: Bearer {token}
+  └─ Remove Set-Cookie from response
+  ↓
+Backend API (central_api.py)
+  ├─ Verify JWT token
+  ├─ Check permissions
+  ├─ Query database
+  └─ Return JSON
+  ↓
+BFF Proxy filters response
+  ↓
+Frontend receives data
+  ↓
+React Query caches result
 ```
 
-## 🎨 Navigation Menu Structure
+### 2. WebSocket Connection Flow
 
-### Main Dashboard Header
+**Monitoring WebSocket (Real-time metrics):**
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ 🏠 Server Monitor v4.0     [🔑SSH][📧Email][🔄Refresh][👤User]│
-└─────────────────────────────────────────────────────────────┘
-│ Search... [🔍]  [Filter ▼]  [+ Add Server]                  │
-└─────────────────────────────────────────────────────────────┘
-│                                                               │
-│  Statistics Cards: Total | Online | Offline | Alerts         │
-│                                                               │
-│  Server Grid (Cards with actions)                            │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐                        │
-│  │ Server1 │ │ Server2 │ │ Server3 │                        │
-│  │ 🟢 UP   │ │ 🔴 DOWN │ │ 🟢 UP   │                        │
-│  └─────────┘ └─────────┘ └─────────┘                        │
-└─────────────────────────────────────────────────────────────┘
+Dashboard Component
+  ↓
+createReconnectingWebSocket(MONITORING_WS_URL)
+  ↓
+ws://localhost:9085
+  ↓
+websocket_server.py
+  ├─ Broadcast stats every 3 seconds
+  └─ Send to all connected clients
+  ↓
+Frontend receives: {type: "stats_update", data: {...}}
+  ↓
+Update React state → UI re-renders
 ```
 
-### Server Actions (Dropdown Menu)
-- 👁️ View Details → server-detail.html
-- ✏️ Edit Server → Modal
-- 🖥️ Open Terminal → terminal.html
-- 🔄 Refresh Stats
-- 🗑️ Delete Server
+**Terminal WebSocket (SSH session):**
 
-## 📊 API Endpoints Structure
+```
+Terminal Component
+  ↓
+1. GET /api/auth/token  ←  Fetch token for WS auth
+  ↓
+2. Connect ws://localhost:9084
+  ↓
+3. Send: {token, server_id}
+  ↓
+terminal.py
+  ├─ Verify token
+  ├─ Establish SSH connection
+  └─ Proxy stdin/stdout
+  ↓
+4. Receive: {type: "output", data: "..."}
+  ↓
+xterm.js writes to terminal
+```
 
-### Authentication
-- POST /api/auth/login
-- POST /api/auth/logout
-- GET /api/auth/verify
+---
 
-### Servers
-- GET /api/servers - List all
-- POST /api/servers - Add new
-- GET /api/servers/{id} - Get details
-- PUT /api/servers/{id} - Update
-- DELETE /api/servers/{id} - Delete
-- POST /api/servers/test - Test connection
+## 📊 Backend API Structure
 
-### Monitoring
-- GET /api/remote/stats/{id} - Get server stats
-- GET /api/remote/stats/all - Get all servers stats
-- POST /api/remote/agent/deploy/{id} - Deploy agent
-- POST /api/remote/agent/start/{id} - Start agent
-- GET /api/remote/agent/status/{id} - Check agent status
+### Core Services
 
-### SSH Keys (NEW)
-- GET /api/ssh-keys - List all keys
-- POST /api/ssh-keys - Add key
-- GET /api/ssh-keys/{id} - Get key
-- PUT /api/ssh-keys/{id} - Update key
-- DELETE /api/ssh-keys/{id} - Delete key
-- POST /api/ssh-keys/{id}/test - Test key
+```python
+# central_api.py - Main REST API
+- Authentication (/api/auth/*)
+- Server CRUD (/api/servers/*)
+- Stats & Monitoring (/api/stats/*, /api/remote/stats/*)
+- Settings (/api/settings/*)
+- Email (/api/email/*)
+- SSH Keys (/api/ssh-keys/*)
+- Users (/api/users/*)
+- Exports (/api/export/*)
+- Notifications (/api/alerts)
 
-### Email Alerts
-- GET /api/email/config - Get email config
-- POST /api/email/config - Save config
-- POST /api/email/test - Test email
-- POST /api/email/send-alert - Send alert
+# websocket_server.py - Real-time updates
+- Broadcast server stats every 3 seconds
+- Connection management
+- Auto-cleanup
 
-### Export
-- GET /api/export/servers?format=csv|json
-- GET /api/export/history?format=csv|json
-- GET /api/export/alerts/csv
+# terminal.py - SSH terminal WebSocket
+- WebSocket ←→ SSH proxy
+- PTY management
+- Resize handling
+```
 
-### Statistics
-- GET /api/stats/overview - Dashboard stats
-- GET /api/alerts - Get alerts
+### API Endpoints
 
-## 🔒 Security Layers
+**Authentication:**
+```
+POST   /api/auth/login
+POST   /api/auth/logout
+GET    /api/auth/verify
+```
 
-1. **Frontend Security**
-   - Check authToken before rendering
-   - Redirect to login if no token
-   - Store token in localStorage (httpOnly not available in SPA)
+**Servers:**
+```
+GET    /api/servers
+POST   /api/servers
+GET    /api/servers/:id
+PUT    /api/servers/:id
+DELETE /api/servers/:id
+POST   /api/servers/:id/test
+```
 
-2. **Backend Security**
-   - Verify token on every request (except public endpoints)
-   - Token expires after 7 days
-   - Password hashing (SHA256)
-   - SSH password encryption (XOR + base64)
+**Monitoring:**
+```
+GET    /api/stats/overview
+GET    /api/remote/stats/:id
+GET    /api/remote/stats/all
+```
 
-3. **API Security**
-   - CORS enabled
-   - Authorization header required
-   - Role-based access (admin/public)
-   - Session cleanup (expired tokens)
+**Settings:**
+```
+GET    /api/settings
+POST   /api/settings
+GET    /api/domain/settings
+POST   /api/domain/settings
+GET    /api/email/config
+POST   /api/email/config
+POST   /api/email/test
+```
+
+**SSH Keys:**
+```
+GET    /api/ssh-keys
+POST   /api/ssh-keys
+GET    /api/ssh-keys/:id
+PUT    /api/ssh-keys/:id
+DELETE /api/ssh-keys/:id
+```
+
+**Users (Admin):**
+```
+GET    /api/users
+POST   /api/users
+GET    /api/users/:id
+PUT    /api/users/:id
+DELETE /api/users/:id
+```
+
+**Exports:**
+```
+GET    /api/export/servers/csv
+GET    /api/export/servers/json
+GET    /api/export/alerts/csv
+```
+
+---
+
+## 🔒 Security Architecture
+
+### Multi-Layer Security Model
+
+**Layer 1: Frontend (Next.js)**
+- Middleware auth guard (cookie-based)
+- RBAC route protection
+- CSRF protection (SameSite cookies)
+- XSS protection (HttpOnly cookies)
+
+**Layer 2: BFF (Backend-for-Frontend)**
+- Cookie to Bearer token translation
+- SSRF protection (path validation)
+- Path traversal prevention
+- Cookie leakage prevention
+- Set-cookie header filtering
+
+**Layer 3: Backend API (Python)**
+- JWT token verification
+- Role-based access control
+- Rate limiting (100 req/min, 5 login/5min)
+- Input validation & sanitization
+- SQL injection prevention (parameterized queries)
+- Security headers (CSP, X-Frame-Options, etc.)
+
+**Layer 4: Database**
+- Parameterized queries only
+- No raw SQL execution
+- Password hashing (SHA256 with salt)
+- SSH password encryption
+
+### Security Headers
+
+```
+Content-Security-Policy: default-src 'self'; ...
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Strict-Transport-Security: max-age=31536000
+Referrer-Policy: strict-origin-when-cross-origin
+```
+
+---
 
 ## 📁 File Structure
 
 ```
-/opt/server-monitor-dev/
-├── backend/
-│   ├── central_api.py         # Main API server (35+ endpoints)
-│   ├── database.py            # SQLite + CRUD functions
-│   ├── ssh_manager.py         # SSH connection pool
+server-monitor/
+├── backend/                    # Python backend
+│   ├── central_api.py         # Main REST API (port 9083)
+│   ├── websocket_server.py    # Monitoring WS (port 9085)
+│   ├── terminal.py            # Terminal WS (port 9084)
+│   ├── database.py            # SQLite ORM
+│   ├── user_management.py     # User CRUD
+│   ├── security.py            # Security middleware
+│   ├── ssh_manager.py         # SSH connections
 │   ├── email_alerts.py        # Email system
-│   ├── terminal.py            # WebSocket terminal
-│   └── agent.py               # Monitoring agent
-├── frontend/
-│   ├── index.html             # Landing page (redirect)
-│   ├── login.html             # Authentication
-│   ├── multi-server-dashboard.html  # 🏠 MAIN DASHBOARD
-│   ├── server-detail.html     # Server details
-│   ├── ssh-keys.html          # SSH key management
-│   ├── email-settings.html    # Email config
-│   ├── terminal.html          # Web terminal
-│   └── dashboard-v2.html      # Alternative dark theme
-├── data/
-│   └── servers.db             # SQLite database
-└── logs/
-    ├── api.log
-    ├── terminal.log
-    └── web.log
+│   ├── alert_manager.py       # Alert dispatcher
+│   ├── settings_manager.py    # Settings API
+│   └── agent.py               # Remote monitoring agent
+│
+├── frontend-next/              # Next.js frontend
+│   ├── src/                   # Source code
+│   │   ├── app/               # App Router
+│   │   ├── components/        # React components
+│   │   ├── hooks/             # Custom hooks
+│   │   ├── lib/               # Utilities
+│   │   ├── types/             # TypeScript types
+│   │   └── locales/           # i18n translations
+│   ├── middleware.ts          # Auth + RBAC
+│   ├── next.config.mjs        # Next.js config
+│   └── package.json
+│
+├── frontend/                   # Legacy HTML frontend (deprecated)
+│
+├── data/                       # Runtime data
+│   ├── servers.db             # SQLite database
+│   └── *.json                 # Config files
+│
+├── logs/                       # Application logs
+│   ├── api.log
+│   ├── websocket.log
+│   └── terminal.log
+│
+├── services/                   # Systemd services
+│   ├── server-dashboard-api-v2.service
+│   └── server-monitor-frontend.service
+│
+└── .github/workflows/          # CI/CD
+    ├── ci.yml                 # Backend CI
+    └── frontend-ci.yml        # Frontend CI
 ```
 
-## 🚀 Deployment Ports
+---
+
+## 🚀 Deployment Architecture
 
 ### Development
-- Frontend: http://172.22.0.103:9081
-- API: http://172.22.0.103:9083
-- Terminal WS: ws://172.22.0.103:9084
-
-### Production
-- Frontend: http://172.22.0.103:8081
-- API: http://172.22.0.103:8083
-- Terminal WS: ws://172.22.0.103:8084
-
-## 🎯 User Journey
-
-1. **First Visit**
-   ```
-   User → index.html → login.html → multi-server-dashboard.html
-   ```
-
-2. **Regular User**
-   ```
-   User → index.html (auto redirect) → multi-server-dashboard.html (if token valid)
-   ```
-
-3. **View Server Details**
-   ```
-   Dashboard → Click "View Details" → server-detail.html?id=X
-   ```
-
-4. **Manage SSH Keys**
-   ```
-   Dashboard → Click "SSH Keys" button → ssh-keys.html
-   ```
-
-5. **Open Terminal**
-   ```
-   Dashboard → Server card → Actions → Terminal → terminal.html?server=X
-   ```
-
-## 🔑 Default Credentials
 
 ```
-Username: admin
-Password: admin123
+Terminal 1: ./start-all.sh      # Backend services
+Terminal 2: cd frontend-next && npm run dev
 ```
 
-⚠️ **IMPORTANT**: Change default password in production!
+### Production (Systemd)
+
+```
+systemd
+  ├─ server-dashboard-api-v2.service
+  │   ├─ central_api.py (9083)
+  │   ├─ websocket_server.py (9085)
+  │   └─ terminal.py (9084)
+  │
+  └─ server-monitor-frontend.service
+      └─ Next.js (9081)
+          └─ npm start
+```
+
+### Production (Nginx Reverse Proxy)
+
+```
+Internet
+  ↓
+HTTPS (443)
+  ↓
+Nginx
+  ├─ / → Next.js (9081)
+  ├─ /api/auth/* → Next.js BFF (9081)
+  ├─ /api/proxy/* → Next.js BFF (9081)
+  ├─ /ws/* → WebSocket (9085)
+  └─ /terminal/* → Terminal WS (9084)
+```
+
+---
+
+## 📈 Performance Characteristics
+
+- **API Response Time:** < 100ms average
+- **WebSocket Update Interval:** 3 seconds
+- **Concurrent Connections:** 100+ supported
+- **Database:** SQLite (suitable for < 100 servers)
+- **Frontend Build:** Static + SSR hybrid
+- **Bundle Size:** < 1MB (optimized)
+
+---
+
+**Last Updated:** 2026-01-07
