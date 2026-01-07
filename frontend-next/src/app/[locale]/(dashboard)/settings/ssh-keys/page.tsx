@@ -80,7 +80,7 @@ export default function SSHKeysPage() {
         }),
       });
     },
-    onSuccess: (data: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ssh-keys"] });
       setNewKey({ name: "", description: "", private_key: "" });
       setFormError(null);
@@ -96,7 +96,7 @@ export default function SSHKeysPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiFetch(\`/api/ssh-keys/\${id}\`, { method: "DELETE" });
+      await apiFetch(`/api/ssh-keys/${id}`, { method: "DELETE" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ssh-keys"] });

@@ -18,6 +18,8 @@ import PeopleIcon from "@mui/icons-material/People";
 import HealthAndSafetyIcon from "@mui/icons-material/HealthAndSafety";
 import PolicyIcon from "@mui/icons-material/Policy";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import HistoryIcon from "@mui/icons-material/History";
 import {
   AppBar,
   Avatar,
@@ -71,6 +73,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/terminal",
         icon: <TerminalIcon />,
       },
+      {
+        label: "Terminal Sessions",
+        href: "/terminal/sessions",
+        icon: <AssignmentIcon />,
+        roles: ["admin", "operator"],
+      },
     ],
   },
   {
@@ -105,6 +113,12 @@ const NAV_SECTIONS: NavSection[] = [
         icon: <NotificationsIcon />,
       },
       { label: "Users", href: "/users", icon: <PeopleIcon />, roles: ["admin"] },
+      {
+        label: "Audit Logs",
+        href: "/audit-logs",
+        icon: <HistoryIcon />,
+        roles: ["admin"],
+      },
       {
         label: "System Check",
         href: "/system-check",
@@ -162,10 +176,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const href = `/${locale}${item.href}`;
               const active = pathname === href || pathname.startsWith(`${href}/`);
               return (
+                /* eslint-disable @typescript-eslint/no-explicit-any */
                 <ListItemButton
                   key={item.label}
-                  component={Link}
-                  href={href}
+                  component={Link as any}
+                  href={href as any}
                   selected={!!active}
                   onClick={() => isMobile && setMobileOpen(false)}
                   sx={{
@@ -174,6 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     my: 0.5,
                   }}
                 >
+                  {/* eslint-enable @typescript-eslint/no-explicit-any */}
                   <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
                   <ListItemText primary={item.label} />
                 </ListItemButton>

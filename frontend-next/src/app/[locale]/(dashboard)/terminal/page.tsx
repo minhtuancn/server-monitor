@@ -2,15 +2,18 @@
 
 import { apiFetch } from "@/lib/api-client";
 import { TERMINAL_WS_URL } from "@/lib/config";
-import { Server } from "@/types";
+import { Server, SSHKey } from "@/types";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StopIcon from "@mui/icons-material/Stop";
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   FormControl,
+  FormHelperText,
   InputLabel,
   MenuItem,
   Select,
@@ -20,13 +23,18 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSnackbar } from "@/components/SnackbarProvider";
 
 export default function TerminalPage() {
   const searchParams = useSearchParams();
   const serverParam = searchParams.get("server");
+  const { showSnackbar } = useSnackbar();
+  
   const [serverId, setServerId] = useState<string | null>(serverParam);
+  const [sshKeyId, setSshKeyId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("disconnected");
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const termInstance = useRef<import("@xterm/xterm").Terminal | null>(null);
@@ -36,6 +44,13 @@ export default function TerminalPage() {
     queryKey: ["servers"],
     queryFn: () => apiFetch<Server[]>("/api/servers"),
   });
+
+  const { data: keysData } = useQuery<{ keys: SSHKey[] }>({
+    queryKey: ["ssh-keys"],
+    queryFn: () => apiFetch<{ keys: SSHKey[] }>("/api/ssh-keys"),
+  });
+
+  const keys = keysData?.keys || [];
 
   useEffect(() => {
     fetch("/api/auth/token")
@@ -74,12 +89,17 @@ export default function TerminalPage() {
 
       ws.onopen = () => {
         setStatus("connected");
-        ws.send(
-          JSON.stringify({
-            token,
-            server_id: Number(serverId),
-          }),
-        );
+        const payload: Record<string, string | number> = {
+          token,
+          server_id: Number(serverId),
+        };
+        
+        // Include SSH key ID if selected
+        if (sshKeyId) {
+          payload.ssh_key_id = sshKeyId;
+        }
+        
+        ws.send(JSON.stringify(payload));
       };
 
       ws.onmessage = (event) => {
@@ -89,8 +109,14 @@ export default function TerminalPage() {
             term.write(payload.data);
           } else if (payload.type === "error") {
             term.writeln(`\r\nError: ${payload.message}`);
+            setStatus("error");
+            showSnackbar(payload.message || "Connection error", "error");
           } else if (payload.type === "connected") {
             term.writeln(payload.message || "Connected");
+            // Extract session ID if provided
+            if (payload.session_id) {
+              setSessionId(payload.session_id);
+            }
           }
         } catch {
           term.write(event.data);
@@ -99,11 +125,13 @@ export default function TerminalPage() {
 
       ws.onclose = () => {
         setStatus("disconnected");
+        setSessionId(null);
       };
 
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
         setStatus("error");
+        showSnackbar("WebSocket connection error", "error");
       };
 
       term.onData((data) => {
@@ -143,16 +171,69 @@ export default function TerminalPage() {
       termInstance.current?.dispose();
       termInstance.current = null;
       fitAddonRef.current = null;
+      setSessionId(null);
     };
-  }, [serverId, token]);
+  }, [serverId, token, sshKeyId, showSnackbar]);
+
+  const handleStopSession = async () => {
+    if (!sessionId) return;
+    
+    try {
+      await apiFetch(`/api/terminal/sessions/${sessionId}/stop`, {
+        method: "POST",
+      });
+      showSnackbar("Session stopped", "success");
+      wsRef.current?.close();
+      setStatus("disconnected");
+      setSessionId(null);
+    } catch {
+      showSnackbar("Failed to stop session", "error");
+    }
+  };
+
+  const handleConnect = () => {
+    // Force reconnect by updating serverId
+    setServerId(serverId);
+  };
+
+  const getStatusColor = () => {
+    switch (status) {
+      case "connected":
+        return "success";
+      case "connecting":
+        return "warning";
+      case "error":
+        return "error";
+      default:
+        return "default";
+    }
+  };
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5" fontWeight={700}>
-        Web Terminal
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Box>
+          <Typography variant="h4" fontWeight={700}>
+            Web Terminal
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Connect to servers via SSH with secure key vault
+          </Typography>
+        </Box>
+        <Chip 
+          label={status.toUpperCase()} 
+          color={getStatusColor()}
+          size="small"
+        />
+      </Box>
 
       {!token && <Alert severity="warning">Login to start terminal session.</Alert>}
+      
+      {keys.length === 0 && token && (
+        <Alert severity="info">
+          No SSH keys found. Add SSH keys in Settings to enable terminal connections.
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
@@ -164,6 +245,7 @@ export default function TerminalPage() {
                 label="Server"
                 value={serverId || ""}
                 onChange={(e) => setServerId(e.target.value)}
+                disabled={status === "connected" || status === "connecting"}
               >
                 {servers?.map((server) => (
                   <MenuItem key={server.id} value={server.id.toString()}>
@@ -172,23 +254,68 @@ export default function TerminalPage() {
                 ))}
               </Select>
             </FormControl>
-            <Button
-              variant="contained"
-              startIcon={<PlayArrowIcon />}
-              disabled={!serverId || !token}
-              onClick={() => setServerId(serverId)}
-            >
-              {status === "connected" ? "Reconnect" : "Connect"}
-            </Button>
+            
+            <FormControl fullWidth>
+              <InputLabel id="ssh-key-select">SSH Key (Optional)</InputLabel>
+              <Select
+                labelId="ssh-key-select"
+                label="SSH Key (Optional)"
+                value={sshKeyId || ""}
+                onChange={(e) => setSshKeyId(e.target.value || null)}
+                disabled={status === "connected" || status === "connecting"}
+              >
+                <MenuItem value="">
+                  <em>Use server default credentials</em>
+                </MenuItem>
+                {keys.map((key) => (
+                  <MenuItem key={key.id} value={key.id}>
+                    {key.name} ({key.key_type?.toUpperCase() || "RSA"})
+                  </MenuItem>
+                ))}
+              </Select>
+              <FormHelperText>
+                Select an SSH key from the vault or use default credentials
+              </FormHelperText>
+            </FormControl>
+            
+            <Box display="flex" gap={1}>
+              <Button
+                variant="contained"
+                startIcon={<PlayArrowIcon />}
+                disabled={!serverId || !token || status === "connecting"}
+                onClick={handleConnect}
+                fullWidth
+              >
+                {status === "connected" ? "Reconnect" : "Connect"}
+              </Button>
+              
+              {sessionId && status === "connected" && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<StopIcon />}
+                  onClick={handleStopSession}
+                >
+                  Stop
+                </Button>
+              )}
+            </Box>
           </Stack>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            Status: {status}
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography variant="body2" color="text.secondary">
+              Terminal Output
+            </Typography>
+            {sessionId && (
+              <Typography variant="caption" color="text.secondary" fontFamily="monospace">
+                Session: {sessionId.substring(0, 8)}...
+              </Typography>
+            )}
+          </Box>
           <Box
             ref={terminalRef}
             sx={{
