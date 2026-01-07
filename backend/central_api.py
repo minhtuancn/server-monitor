@@ -35,12 +35,16 @@ from observability import (
     get_metrics_collector
 )
 import startup_validation
+from task_policy import get_task_policy, TaskPolicyViolation
 
 PORT = 9083  # Different port for central server
 
 # Initialize structured logger
 logger = StructuredLogger('central_api')
 metrics = get_metrics_collector()
+
+# Initialize task policy
+task_policy = get_task_policy()
 
 # Constants for task validation
 TASK_COMMAND_MAX_LENGTH = int(os.environ.get('TASK_COMMAND_MAX_LENGTH', '10000'))
@@ -1603,13 +1607,38 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if not command:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': 'Command is required'}).encode())
+                    self._finish_request(400, user_id=str(auth_result.get('user_id')))
                     return
                 
                 # Security: Basic command validation
                 if len(command) > TASK_COMMAND_MAX_LENGTH:
                     self._set_headers(400)
                     self.wfile.write(json.dumps({'error': f'Command too long (max {TASK_COMMAND_MAX_LENGTH} characters)'}).encode())
+                    self._finish_request(400, user_id=str(auth_result.get('user_id')))
                     return
+                
+                # Security: Validate command against safety policy
+                is_valid, policy_reason = task_policy.validate_command(command)
+                if not is_valid:
+                    logger.warning('Task command blocked by policy',
+                                  user_id=auth_result.get('user_id'),
+                                  server_id=server_id,
+                                  command_preview=command[:100],
+                                  policy_reason=policy_reason)
+                    
+                    self._set_headers(403)
+                    self.wfile.write(json.dumps({
+                        'error': 'Command violates safety policy',
+                        'reason': policy_reason,
+                        'policy_mode': task_policy.mode
+                    }).encode())
+                    self._finish_request(403, user_id=str(auth_result.get('user_id')))
+                    return
+                
+                logger.info('Task command passed policy check',
+                           user_id=auth_result.get('user_id'),
+                           server_id=server_id,
+                           command_preview=command[:100])
                 
                 # Get optional parameters
                 timeout_seconds = data.get('timeout_seconds', 60)
