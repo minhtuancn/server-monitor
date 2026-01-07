@@ -194,7 +194,7 @@ def init_database():
         )
     ''')
     
-    # Server notes table (Markdown)
+    # Server notes table (Markdown) - Phase 4 Module 5 Enhanced
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS server_notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,11 +202,53 @@ def init_database():
             title TEXT NOT NULL,
             content TEXT,
             created_by INTEGER,
+            updated_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            deleted_at TIMESTAMP,
             FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
+            FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    # Tags table (Phase 4 Module 5)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT DEFAULT '#3f51b5',
+            description TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
         )
+    ''')
+    
+    # Server-Tag mapping table (Phase 4 Module 5)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS server_tag_map (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            server_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
+            UNIQUE(server_id, tag_id)
+        )
+    ''')
+    
+    # Create indexes for tags
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_server_tag_map_server_id 
+        ON server_tag_map(server_id)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_server_tag_map_tag_id 
+        ON server_tag_map(tag_id)
     ''')
     
     # Domain settings table
@@ -1251,15 +1293,15 @@ def export_alerts_csv(server_id=None, is_read=None):
 # ==================== SERVER NOTES ====================
 
 def add_server_note(server_id, title, content='', created_by=None):
-    """Add a note to a server"""
+    """Add a note to a server (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute('''
-            INSERT INTO server_notes (server_id, title, content, created_by)
-            VALUES (?, ?, ?, ?)
-        ''', (server_id, title, content, created_by))
+            INSERT INTO server_notes (server_id, title, content, created_by, updated_by)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (server_id, title, content, created_by, created_by))
         
         conn.commit()
         note_id = cursor.lastrowid
@@ -1269,17 +1311,24 @@ def add_server_note(server_id, title, content='', created_by=None):
         conn.close()
         return {'success': False, 'error': str(e)}
 
-def get_server_notes(server_id):
-    """Get all notes for a server"""
+def get_server_notes(server_id, include_deleted=False):
+    """Get all notes for a server (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT * FROM server_notes 
-        WHERE server_id = ?
-        ORDER BY updated_at DESC
-    ''', (server_id,))
+    if include_deleted:
+        cursor.execute('''
+            SELECT * FROM server_notes 
+            WHERE server_id = ?
+            ORDER BY updated_at DESC
+        ''', (server_id,))
+    else:
+        cursor.execute('''
+            SELECT * FROM server_notes 
+            WHERE server_id = ? AND deleted_at IS NULL
+            ORDER BY updated_at DESC
+        ''', (server_id,))
     
     notes = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -1296,8 +1345,8 @@ def get_server_note(note_id):
     conn.close()
     return dict(note) if note else None
 
-def update_server_note(note_id, title=None, content=None):
-    """Update a server note"""
+def update_server_note(note_id, title=None, content=None, updated_by=None):
+    """Update a server note (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
@@ -1311,6 +1360,10 @@ def update_server_note(note_id, title=None, content=None):
     if content is not None:
         updates.append('content = ?')
         values.append(content)
+    
+    if updated_by is not None:
+        updates.append('updated_by = ?')
+        values.append(updated_by)
     
     if not updates:
         conn.close()
@@ -1333,13 +1386,20 @@ def update_server_note(note_id, title=None, content=None):
         conn.close()
         return {'success': False, 'error': str(e)}
 
-def delete_server_note(note_id):
-    """Delete a server note"""
+def delete_server_note(note_id, soft_delete=True):
+    """Delete a server note (soft delete by default, Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
     
     try:
-        cursor.execute('DELETE FROM server_notes WHERE id = ?', (note_id,))
+        if soft_delete:
+            cursor.execute('''
+                UPDATE server_notes 
+                SET deleted_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            ''', (note_id,))
+        else:
+            cursor.execute('DELETE FROM server_notes WHERE id = ?', (note_id,))
         conn.commit()
         conn.close()
         return {'success': True, 'message': 'Note deleted successfully'}
@@ -1962,6 +2022,278 @@ def delete_old_tasks(days=30):
     conn.close()
     
     return {'deleted': deleted, 'message': f'Deleted {deleted} old tasks'}
+
+# ==================== TAGS MANAGEMENT (PHASE 4 MODULE 5) ====================
+
+def create_tag(name, color='#3f51b5', description='', created_by=None):
+    """
+    Create a new tag
+    
+    Args:
+        name: Tag name
+        color: Tag color (hex)
+        description: Tag description
+        created_by: User ID
+    
+    Returns:
+        Dict with success status and tag_id
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO tags (name, color, description, created_by)
+            VALUES (?, ?, ?, ?)
+        ''', (name, color, description, created_by))
+        
+        conn.commit()
+        tag_id = cursor.lastrowid
+        conn.close()
+        return {'success': True, 'tag_id': tag_id}
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': f'Tag "{name}" already exists'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_tags():
+    """
+    Get all tags
+    
+    Returns:
+        List of tag dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tags ORDER BY name')
+    
+    columns = [desc[0] for desc in cursor.description]
+    tags = []
+    
+    for row in cursor.fetchall():
+        tag = dict(zip(columns, row))
+        tags.append(tag)
+    
+    conn.close()
+    return tags
+
+def get_tag(tag_id):
+    """
+    Get tag by ID
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        Tag dict or None
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM tags WHERE id = ?', (tag_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    tag = dict(zip(columns, row))
+    
+    conn.close()
+    return tag
+
+def update_tag(tag_id, **kwargs):
+    """
+    Update tag
+    
+    Args:
+        tag_id: Tag ID
+        **kwargs: Fields to update (name, color, description)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    allowed_fields = ['name', 'color', 'description']
+    
+    updates = []
+    values = []
+    
+    for key, value in kwargs.items():
+        if key in allowed_fields:
+            updates.append(f'{key} = ?')
+            values.append(value)
+    
+    if not updates:
+        conn.close()
+        return {'success': False, 'error': 'No valid fields to update'}
+    
+    values.append(tag_id)
+    
+    query = f"UPDATE tags SET {', '.join(updates)} WHERE id = ?"
+    
+    try:
+        cursor.execute(query, values)
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Tag {tag_id} updated'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def delete_tag(tag_id):
+    """
+    Delete a tag (also removes all server-tag mappings)
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Tag not found'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True, 'message': f'Tag {tag_id} deleted'}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def add_server_tag(server_id, tag_id, created_by=None):
+    """
+    Add a tag to a server
+    
+    Args:
+        server_id: Server ID
+        tag_id: Tag ID
+        created_by: User ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            INSERT INTO server_tag_map (server_id, tag_id, created_by)
+            VALUES (?, ?, ?)
+        ''', (server_id, tag_id, created_by))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except sqlite3.IntegrityError:
+        conn.close()
+        return {'success': False, 'error': 'Tag already added to server'}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def remove_server_tag(server_id, tag_id):
+    """
+    Remove a tag from a server
+    
+    Args:
+        server_id: Server ID
+        tag_id: Tag ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            DELETE FROM server_tag_map 
+            WHERE server_id = ? AND tag_id = ?
+        ''', (server_id, tag_id))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Tag not found on server'}
+        
+        conn.commit()
+        conn.close()
+        
+        return {'success': True}
+    
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+def get_server_tags(server_id):
+    """
+    Get all tags for a server
+    
+    Args:
+        server_id: Server ID
+    
+    Returns:
+        List of tag dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT t.* FROM tags t
+        INNER JOIN server_tag_map stm ON t.id = stm.tag_id
+        WHERE stm.server_id = ?
+        ORDER BY t.name
+    ''', (server_id,))
+    
+    columns = [desc[0] for desc in cursor.description]
+    tags = []
+    
+    for row in cursor.fetchall():
+        tag = dict(zip(columns, row))
+        tags.append(tag)
+    
+    conn.close()
+    return tags
+
+def get_servers_by_tag(tag_id):
+    """
+    Get all servers with a specific tag
+    
+    Args:
+        tag_id: Tag ID
+    
+    Returns:
+        List of server IDs
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT server_id FROM server_tag_map
+        WHERE tag_id = ?
+    ''', (tag_id,))
+    
+    server_ids = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    return server_ids
 
 if __name__ == '__main__':
     # Initialize database
