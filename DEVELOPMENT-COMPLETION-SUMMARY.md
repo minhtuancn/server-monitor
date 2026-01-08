@@ -259,9 +259,8 @@ VALUES (5, 'cpu_threshold', 'critical', 'CPU > 95%', datetime('now'));
 
 ### Running the Application
 ```bash
-# Start API server
-cd backend
-python3 central_api.py
+# Start API server (from project root)
+python3 backend/central_api.py
 
 # Server runs on http://localhost:9083
 # Frontend accessible at /dashboard.html
@@ -410,9 +409,8 @@ pip install -r backend/requirements.txt
 # 3. Initialize database
 python3 -c "from backend.database import init_database; init_database()"
 
-# 4. Start the API server
-cd backend
-python3 central_api.py
+# 4. Start the API server (from project root)
+python3 backend/central_api.py
 # Server runs on http://localhost:9083
 
 # 5. Access the dashboard

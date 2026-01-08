@@ -432,15 +432,15 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 # Edit .env và set secure values
 
-# 4. Initialize database
-cd backend && python3 -c "import database; database.init_database()"
+# 4. Initialize database (from project root)
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 
 # 5. Đổi admin password (QUAN TRỌNG!)
 # Login vào http://localhost:9081 với admin/admin123
 # Vào user settings và đổi password
 
 # 6. Start services
-cd .. && ./start-all.sh
+./start-all.sh
 
 # 7. Set up nginx reverse proxy
 # Follow HTTPS-SETUP.md

@@ -244,12 +244,10 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 # Edit .env with secure values
 
-# 5. Initialize database
-cd backend
-python3 -c "import database; database.init_database()"
+# 5. Initialize database (from project root)
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 
 # 6. Start services
-cd ..
 ./start-all.sh  # backend + websocket + terminal
 
 # 7. Start Next.js frontend (port 9081)
@@ -354,8 +352,8 @@ docker-compose up -d
 ### Initialize Database
 
 ```bash
-cd backend
-python3 -c "import database; database.init_database()"
+# From project root
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
 ### Default Admin User
@@ -677,8 +675,7 @@ npm run start 2>&1 | tee frontend.log
 ```bash
 # Reinitialize database (WARNING: loses data)
 rm data/servers.db
-cd backend
-python3 -c "import database; database.init_database()"
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
 ### Authentication Issues

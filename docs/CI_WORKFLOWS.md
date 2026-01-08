@@ -45,8 +45,8 @@ pip install -r tests/requirements.txt
 export DB_PATH=/tmp/server-monitor-data/servers.db
 export JWT_SECRET=test-secret-key
 export ENCRYPTION_KEY=test-encryption-key
-cd backend && python -c "import database; database.init_database()"
-cd ../tests
+python -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
+cd tests
 pytest --tb=short -v test_crypto_vault.py test_plugin_system.py test_plugin_integration.py test_security.py test_observability.py test_webhooks.py
 ```
 

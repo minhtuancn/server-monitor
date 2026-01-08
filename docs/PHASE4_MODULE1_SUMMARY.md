@@ -347,9 +347,8 @@ git fetch origin
 git checkout copilot/expand-server-management-platform
 git pull
 
-# 2. Install new dependency
-cd backend
-pip3 install -r requirements.txt
+# 2. Install new dependency (from project root)
+pip3 install -r backend/requirements.txt
 
 # 3. Generate master key
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
