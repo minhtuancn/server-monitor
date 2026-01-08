@@ -21,10 +21,14 @@ try:
 except ImportError:
     pass
 
+# Check if running in CI environment
+IS_CI_ENVIRONMENT = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
+
 # Rate limiting configuration
-RATE_LIMIT_REQUESTS = 100  # requests per window
+# Disable rate limiting in CI to avoid blocking test IPs
+RATE_LIMIT_REQUESTS = 100000 if IS_CI_ENVIRONMENT else 100  # requests per window
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_LOGIN = 5  # login attempts per window
+RATE_LIMIT_LOGIN = 100000 if IS_CI_ENVIRONMENT else 5  # login attempts per window
 RATE_LIMIT_LOGIN_WINDOW = 300  # 5 minutes
 
 # CORS configuration
@@ -313,6 +317,13 @@ def cleanup_old_entries():
                  if current_time > until_time]
     for ip in unblocked:
         del blocked_ips[ip]
+
+
+def clear_rate_limit_state():
+    """Clear all rate limiting state (useful for testing)"""
+    request_counts.clear()
+    login_attempts.clear()
+    blocked_ips.clear()
 
 
 # Statistics
