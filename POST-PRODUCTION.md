@@ -839,8 +839,10 @@ echo "Full backup completed: server-monitor-full-$(date +%Y%m%d).tar.gz"
 The system auto-cleans expired sessions on startup. Manual cleanup:
 
 ```bash
-cd backend
+# From project root
 python3 -c "
+import sys
+sys.path.insert(0, 'backend')
 import database
 result = database.cleanup_expired_sessions(days=7)
 print(f'Cleaned up {result[\"deleted\"]} expired sessions')
