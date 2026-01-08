@@ -41,6 +41,7 @@ from audit_cleanup import get_audit_cleanup_scheduler
 from task_recovery import run_startup_recovery
 from plugin_system import get_plugin_manager
 from event_model import Event, EventTypes, create_event, EventSeverity
+import webhook_dispatcher
 
 PORT = 9083  # Different port for central server
 
@@ -103,6 +104,15 @@ def dispatch_audit_event(user_id, action, target_type, target_id, meta=None, ip=
     
     # Dispatch to plugin system
     plugin_manager.dispatch_event(event)
+    
+    # Dispatch to managed webhooks (DB-backed)
+    # This is fail-safe - errors won't break the main request
+    try:
+        webhook_dispatcher.dispatch_to_webhooks(event)
+    except Exception as e:
+        logger.error('Webhook dispatcher error',
+                    event_id=event.event_id,
+                    error=str(e))
     
     return result
 
@@ -1176,6 +1186,131 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to get audit logs: {str(e)}'}).encode())
+        
+        # ==================== WEBHOOKS MANAGEMENT ====================
+        
+        elif path == '/api/webhooks':
+            # List all webhooks (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                self._finish_request(401)
+                return
+            
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                webhooks = db.get_webhooks()
+                
+                # Sanitize secrets in response (don't expose them)
+                for webhook in webhooks:
+                    if webhook.get('secret'):
+                        webhook['secret'] = '***REDACTED***'
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({'webhooks': webhooks}).encode())
+                self._finish_request(200, user_id=str(auth_result.get('user_id')))
+            except Exception as e:
+                logger.error('Failed to get webhooks', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get webhooks: {str(e)}'}).encode())
+                self._finish_request(500)
+        
+        elif path.startswith('/api/webhooks/') and '/deliveries' in path:
+            # GET /api/webhooks/{id}/deliveries - Get delivery logs for webhook
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                self._finish_request(401)
+                return
+            
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                # Extract webhook_id from path: /api/webhooks/{id}/deliveries
+                parts = path.split('/')
+                webhook_id = parts[3]  # /api/webhooks/{id}/deliveries
+                
+                # Parse query parameters
+                limit = int(query.get('limit', ['50'])[0])
+                offset = int(query.get('offset', ['0'])[0])
+                
+                # Validate webhook exists
+                webhook = db.get_webhook(webhook_id)
+                if not webhook:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Webhook not found'}).encode())
+                    self._finish_request(404)
+                    return
+                
+                # Get deliveries
+                deliveries = db.get_webhook_deliveries(
+                    webhook_id=webhook_id,
+                    limit=min(limit, 100),
+                    offset=offset
+                )
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'deliveries': deliveries,
+                    'count': len(deliveries),
+                    'limit': limit,
+                    'offset': offset
+                }).encode())
+                self._finish_request(200, user_id=str(auth_result.get('user_id')))
+            except Exception as e:
+                logger.error('Failed to get webhook deliveries', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get deliveries: {str(e)}'}).encode())
+                self._finish_request(500)
+        
+        elif path.startswith('/api/webhooks/') and path != '/api/webhooks':
+            # GET /api/webhooks/{id} - Get single webhook
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                self._finish_request(401)
+                return
+            
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                webhook_id = path.split('/')[-1]
+                webhook = db.get_webhook(webhook_id)
+                
+                if not webhook:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Webhook not found'}).encode())
+                    self._finish_request(404)
+                    return
+                
+                # Sanitize secret
+                if webhook.get('secret'):
+                    webhook['secret'] = '***REDACTED***'
+                
+                self._set_headers()
+                self.wfile.write(json.dumps(webhook).encode())
+                self._finish_request(200, user_id=str(auth_result.get('user_id')))
+            except Exception as e:
+                logger.error('Failed to get webhook', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to get webhook: {str(e)}'}).encode())
+                self._finish_request(500)
         
         elif path == '/api/export/audit/csv':
             # Export audit logs as CSV (admin only)
@@ -2701,6 +2836,156 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'success': False, 'error': str(e)}).encode())
             return
         
+        # ==================== WEBHOOKS MANAGEMENT ====================
+        
+        elif path == '/api/webhooks':
+            # POST /api/webhooks - Create webhook (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                self._finish_request(401)
+                return
+            
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                # Validate required fields
+                name = data.get('name')
+                url = data.get('url')
+                
+                if not name or not url:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'name and url are required'}).encode())
+                    self._finish_request(400)
+                    return
+                
+                # Validate URL for SSRF protection
+                is_safe, error_msg = webhook_dispatcher.is_safe_url(url)
+                if not is_safe:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': error_msg}).encode())
+                    self._finish_request(400)
+                    return
+                
+                # Create webhook
+                result = db.create_webhook(
+                    name=security.InputSanitizer.sanitize_string(name),
+                    url=url,
+                    secret=data.get('secret'),
+                    enabled=data.get('enabled', True),
+                    event_types=data.get('event_types'),
+                    retry_max=data.get('retry_max', 3),
+                    timeout=data.get('timeout', 10),
+                    created_by=auth_result.get('user_id')
+                )
+                
+                if result.get('success'):
+                    # Audit log
+                    dispatch_audit_event(
+                        user_id=auth_result.get('user_id'),
+                        action=EventTypes.WEBHOOK_CREATED,
+                        target_type='webhook',
+                        target_id=result['webhook_id'],
+                        meta={'name': name, 'url': url},
+                        ip=self.client_address[0] if self.client_address else None,
+                        username=auth_result.get('username'),
+                        severity=EventSeverity.INFO
+                    )
+                    
+                    self._set_headers(201)
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(201, user_id=str(auth_result.get('user_id')))
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(400)
+            except Exception as e:
+                logger.error('Failed to create webhook', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to create webhook: {str(e)}'}).encode())
+                self._finish_request(500)
+            return
+        
+        elif path.startswith('/api/webhooks/') and path.endswith('/test'):
+            # POST /api/webhooks/{id}/test - Test webhook (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                self._finish_request(401)
+                return
+            
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                # Extract webhook_id from path
+                webhook_id = path.split('/')[-2]  # /api/webhooks/{id}/test
+                
+                # Validate webhook exists
+                webhook = db.get_webhook(webhook_id)
+                if not webhook:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Webhook not found'}).encode())
+                    self._finish_request(404)
+                    return
+                
+                # Create test event
+                test_event = create_event(
+                    event_type='webhook.test',
+                    user_id=auth_result.get('user_id'),
+                    username=auth_result.get('username'),
+                    target_type='webhook',
+                    target_id=webhook_id,
+                    meta={
+                        'webhook_name': webhook['name'],
+                        'webhook_url': webhook['url'],
+                        'test_message': 'This is a test webhook delivery from Server Monitor'
+                    },
+                    ip=self.client_address[0] if self.client_address else None,
+                    severity=EventSeverity.INFO
+                )
+                
+                # Deliver webhook (this will log delivery)
+                webhook_dispatcher._deliver_webhook(webhook, test_event)
+                
+                # Get most recent delivery for this webhook
+                deliveries = db.get_webhook_deliveries(webhook_id=webhook_id, limit=1)
+                
+                # Audit log
+                dispatch_audit_event(
+                    user_id=auth_result.get('user_id'),
+                    action='webhook.test',
+                    target_type='webhook',
+                    target_id=webhook_id,
+                    meta={'webhook_name': webhook['name']},
+                    ip=self.client_address[0] if self.client_address else None,
+                    username=auth_result.get('username'),
+                    severity=EventSeverity.INFO
+                )
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': 'Test webhook sent',
+                    'delivery': deliveries[0] if deliveries else None
+                }).encode())
+                self._finish_request(200, user_id=str(auth_result.get('user_id')))
+            except Exception as e:
+                logger.error('Failed to test webhook', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to test webhook: {str(e)}'}).encode())
+                self._finish_request(500)
+            return
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -2864,6 +3149,70 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'success': success, 'message': message, 'failed': failed}).encode())
             self._finish_request(200 if success else 400)
         
+        # ==================== WEBHOOKS MANAGEMENT ====================
+        
+        elif path.startswith('/api/webhooks/'):
+            # PUT /api/webhooks/{id} - Update webhook (admin only)
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                webhook_id = path.split('/')[-1]
+                
+                # Validate webhook exists
+                webhook = db.get_webhook(webhook_id)
+                if not webhook:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Webhook not found'}).encode())
+                    self._finish_request(404)
+                    return
+                
+                # Validate URL if provided
+                if 'url' in data:
+                    is_safe, error_msg = webhook_dispatcher.is_safe_url(data['url'])
+                    if not is_safe:
+                        self._set_headers(400)
+                        self.wfile.write(json.dumps({'error': error_msg}).encode())
+                        self._finish_request(400)
+                        return
+                
+                # Sanitize name if provided
+                if 'name' in data:
+                    data['name'] = security.InputSanitizer.sanitize_string(data['name'])
+                
+                # Update webhook
+                result = db.update_webhook(webhook_id, **data)
+                
+                if result.get('success'):
+                    # Audit log
+                    dispatch_audit_event(
+                        user_id=auth_result.get('user_id'),
+                        action=EventTypes.WEBHOOK_UPDATED,
+                        target_type='webhook',
+                        target_id=webhook_id,
+                        meta={'updates': list(data.keys())},
+                        ip=self.client_address[0] if self.client_address else None,
+                        username=auth_result.get('username'),
+                        severity=EventSeverity.INFO
+                    )
+                    
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(200, user_id=str(auth_result.get('user_id')))
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(400)
+            except Exception as e:
+                logger.error('Failed to update webhook', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to update webhook: {str(e)}'}).encode())
+                self._finish_request(500)
+            return
+        
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({'error': 'Endpoint not found'}).encode())
@@ -2995,6 +3344,57 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to delete key: {str(e)}'}).encode())
+        
+        # ==================== WEBHOOKS MANAGEMENT ====================
+        
+        elif path.startswith('/api/webhooks/'):
+            # DELETE /api/webhooks/{id} - Delete webhook (admin only)
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                self._finish_request(403)
+                return
+            
+            try:
+                webhook_id = path.split('/')[-1]
+                
+                # Get webhook info before deletion (for audit log)
+                webhook = db.get_webhook(webhook_id)
+                if not webhook:
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Webhook not found'}).encode())
+                    self._finish_request(404)
+                    return
+                
+                # Delete webhook
+                result = db.delete_webhook(webhook_id)
+                
+                if result.get('success'):
+                    # Audit log
+                    dispatch_audit_event(
+                        user_id=auth_result.get('user_id'),
+                        action=EventTypes.WEBHOOK_DELETED,
+                        target_type='webhook',
+                        target_id=webhook_id,
+                        meta={'webhook_name': webhook['name'], 'webhook_url': webhook['url']},
+                        ip=self.client_address[0] if self.client_address else None,
+                        username=auth_result.get('username'),
+                        severity=EventSeverity.INFO
+                    )
+                    
+                    self._set_headers()
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(200, user_id=str(auth_result.get('user_id')))
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps(result).encode())
+                    self._finish_request(400)
+            except Exception as e:
+                logger.error('Failed to delete webhook', error=str(e))
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to delete webhook: {str(e)}'}).encode())
+                self._finish_request(500)
+            return
         
         else:
             self._set_headers(404)
