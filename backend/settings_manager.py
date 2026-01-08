@@ -10,6 +10,13 @@ import os
 from typing import Dict, Optional, List
 from datetime import datetime
 
+# Import DB_PATH from database module to use the same database path
+try:
+    from database import DB_PATH as _DEFAULT_DB_PATH
+except ImportError:
+    # Fallback if database module is not available
+    _DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
+
 
 # Default settings
 DEFAULT_SETTINGS = {
@@ -68,9 +75,9 @@ DATE_FORMATS = [
 
 class SettingsManager:
     def __init__(self, db_path: str = None):
-        # Use provided path or calculate relative to backend directory
+        # Use provided path or environment-configured path from database module
         if db_path is None:
-            db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'servers.db')
+            db_path = _DEFAULT_DB_PATH
         self.db_path = db_path
         self._ensure_tables()
         self._initialize_defaults()
