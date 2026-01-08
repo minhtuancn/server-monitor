@@ -320,7 +320,17 @@ def cleanup_old_entries():
 
 
 def clear_rate_limit_state():
-    """Clear all rate limiting state (useful for testing)"""
+    """
+    Clear all rate limiting state (useful for testing)
+    
+    Security: Only allowed in CI/test environments to prevent
+    accidental clearing of rate limit state in production
+    """
+    if not IS_CI_ENVIRONMENT:
+        raise RuntimeError(
+            "clear_rate_limit_state() can only be called in CI/test environments. "
+            "Set CI=true environment variable to enable this function."
+        )
     request_counts.clear()
     login_attempts.clear()
     blocked_ips.clear()
