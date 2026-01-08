@@ -633,6 +633,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == '__main__':
-    server = HTTPServer(('0.0.0.0', PORT), DashboardHandler)
+    # Security Note: This is a DEPRECATED legacy file (see legacy/README.md)
+    # Binding to 0.0.0.0 was intentional for monitoring, not recommended for production
+    server = HTTPServer(('0.0.0.0', PORT), DashboardHandler)  # nosec B104
     print(f'Advanced Server Dashboard API v2 running on port {PORT}')
     server.serve_forever()

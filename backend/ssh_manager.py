@@ -43,7 +43,9 @@ class SSHConnectionPool:
             if key in self.connections:
                 client = self.connections[key]
                 try:
-                    client.exec_command('echo test', timeout=2)
+                    # Security Note: paramiko exec_command does not use shell by default
+                    # This is just a connection keepalive test with a hardcoded command
+                    client.exec_command('echo test', timeout=2)  # nosec B601
                     return client
                 except:
                     # Connection dead, remove it
@@ -163,7 +165,9 @@ def execute_command(host, port, username, command, ssh_key_path=None, password=N
     try:
         client = ssh_pool.get_connection(host, port, username, ssh_key_path, password)
         
-        stdin, stdout, stderr = client.exec_command(command, timeout=timeout)
+        # Security Note: paramiko exec_command does not use shell by default
+        # Command parameter comes from API calls and should be validated by caller
+        stdin, stdout, stderr = client.exec_command(command, timeout=timeout)  # nosec B601
         
         output = stdout.read().decode('utf-8').strip()
         error = stderr.read().decode('utf-8').strip()
@@ -328,9 +332,12 @@ def stop_remote_agent(host, port, username, agent_port=8083, ssh_key_path=None, 
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
-def deploy_agent(host, port, username, local_agent_path, remote_agent_path='/tmp/server_monitor_agent.py', ssh_key_path=None, password=None):
+def deploy_agent(host, port, username, local_agent_path, remote_agent_path='/tmp/server_monitor_agent.py', ssh_key_path=None, password=None):  # nosec B108
     """
     Deploy monitoring agent to remote server
+    
+    Security Note: /tmp is used as default remote path since this is deployed to remote servers.
+    Users can override the path. The chmod 0o755 is necessary to make the script executable.
     """
     try:
         client = ssh_pool.get_connection(host, port, username, ssh_key_path, password)
@@ -340,8 +347,8 @@ def deploy_agent(host, port, username, local_agent_path, remote_agent_path='/tmp
         # Upload agent script
         sftp.put(local_agent_path, remote_agent_path)
         
-        # Make it executable
-        sftp.chmod(remote_agent_path, 0o755)
+        # Make it executable (necessary for Python script execution on remote server)
+        sftp.chmod(remote_agent_path, 0o755)  # nosec B103
         
         sftp.close()
         

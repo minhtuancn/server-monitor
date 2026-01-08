@@ -52,7 +52,8 @@ def is_safe_url(url: str) -> tuple[bool, Optional[str]]:
         hostname = parsed.hostname.lower()
         
         # Block localhost and loopback addresses
-        localhost_variants = [
+        # Security Note: '0.0.0.0' here is a string constant for validation, not a bind address
+        localhost_variants = [  # nosec B104
             'localhost',
             'localhost.localdomain',
             '127.0.0.1',
@@ -223,7 +224,9 @@ def _deliver_webhook(webhook: Dict[str, Any], event: Event) -> None:
     last_error = None
     for attempt in range(1, retry_max + 1):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
+            # Security Note: URL is validated by is_safe_url() at line 168 before reaching here
+            # SSRF protection ensures only http/https to public IPs
+            with urllib.request.urlopen(req, timeout=timeout) as response:  # nosec B310
                 status_code = response.getcode()
                 response_body = response.read().decode('utf-8', errors='ignore')
                 

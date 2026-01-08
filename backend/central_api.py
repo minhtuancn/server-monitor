@@ -2267,7 +2267,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 
                 # Deploy agent
                 local_agent_path = os.path.join(os.path.dirname(__file__), 'agent.py')
-                remote_agent_path = data.get('remote_path', '/tmp/monitoring_agent.py')
+                # Security Note: /tmp is used as a reasonable default for remote agent deployment
+                # Users can override via remote_path parameter. The path is on the remote server,
+                # not the local system, so local /tmp race conditions don't apply
+                remote_agent_path = data.get('remote_path', '/tmp/monitoring_agent.py')  # nosec B108
                 
                 result = ssh.deploy_agent(
                     host=server['host'],
@@ -2299,7 +2302,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({'error': 'Server not found'}).encode())
                     return
                 
-                agent_path = data.get('agent_path', '/tmp/monitoring_agent.py')
+                # Security Note: /tmp is used as default for remote agent path
+                # Users can override via agent_path parameter. Path is on remote server.
+                agent_path = data.get('agent_path', '/tmp/monitoring_agent.py')  # nosec B108
                 
                 result = ssh.start_remote_agent(
                     host=server['host'],

@@ -81,6 +81,11 @@ def test_slack_config(config=None):
 
 def send_slack_message(webhook_url, payload):
     """Send a message to Slack via webhook"""
+    # Security Note: Validate webhook_url is a proper Slack webhook
+    # Slack webhooks should start with https://hooks.slack.com/
+    if not webhook_url or not webhook_url.startswith('https://hooks.slack.com/'):
+        return {'success': False, 'error': 'Invalid Slack webhook URL. Must start with https://hooks.slack.com/'}
+    
     data = json.dumps(payload).encode('utf-8')
     req = request.Request(
         webhook_url,
@@ -89,7 +94,8 @@ def send_slack_message(webhook_url, payload):
     )
     
     try:
-        with request.urlopen(req, timeout=10) as response:
+        # Security Note: URL validated above to ensure it's a legitimate Slack webhook
+        with request.urlopen(req, timeout=10) as response:  # nosec B310
             if response.status == 200:
                 return {'success': True, 'message': 'Slack message sent successfully'}
             else:

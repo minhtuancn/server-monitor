@@ -290,7 +290,7 @@ async def main():
     #   - Use firewall rules (iptables/ufw) to restrict access to trusted IPs
     #   - Consider network segmentation to isolate the service
     #   - Set WEBSOCKET_BIND_HOST=127.0.0.1 for localhost-only access in development
-    bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')
+    bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')  # nosec B104
     async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104 - bind address is configurable for production use
         print(f"WebSocket server listening on ws://{bind_host}:{PORT}")
         print("Waiting for clients to connect...\n")
