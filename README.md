@@ -1,9 +1,9 @@
-# 🖥️ Server Monitor Dashboard v2.1
+# 🖥️ Server Monitor Dashboard v2.2
 
 **Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, and advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-2.1.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-black)]()
 [![API](https://img.shields.io/badge/API-OpenAPI%203.0-brightgreen)]()
 [![Tests](https://img.shields.io/badge/tests-passing-green)]()
@@ -45,6 +45,15 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 
 ### 🎉 What's New
 
+**v2.2 (2026-01-07) - Observability & Reliability:**
+- 📊 **Observability**: Health checks, readiness probes, Prometheus metrics
+- 🔍 **Request Tracing**: Correlation IDs for end-to-end request tracking
+- 📝 **Structured Logging**: JSON logs across all services with redaction
+- 🔒 **Enhanced Security**: Startup validation, task safety policy, audit retention
+- 🛡️ **Reliability**: Graceful shutdown, automatic task recovery, session recovery
+- 📤 **Audit Export**: CSV/JSON export with filtering and sanitization
+- 🔄 **Zero Breaking Changes**: Fully backward compatible with v2.1
+
 **v2.1 (2026-01-07) - Production Polish:**
 - 📚 **OpenAPI 3.0.3 Documentation**: Complete API specification with 70+ endpoints
 - 🔍 **Swagger UI**: Interactive API documentation at `/docs` endpoint
@@ -85,7 +94,21 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
 
 # Or install specific version
-curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.1.0
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.2.0
+```
+
+**Secure installation with checksum verification:**
+
+```bash
+# Download installer and checksum
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh -o /tmp/install.sh
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh.sha256 -o /tmp/install.sh.sha256
+
+# Verify checksum
+cd /tmp && sha256sum -c install.sh.sha256
+
+# If verification passes, run installer
+sudo bash /tmp/install.sh --ref v2.2.0
 ```
 
 **What it does:**

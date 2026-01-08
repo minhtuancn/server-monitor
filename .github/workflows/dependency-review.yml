@@ -1,0 +1,36 @@
+name: "Dependency Review"
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+# Restrict permissions for security
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    name: Review Dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Fail on high or critical severity vulnerabilities
+          fail-on-severity: high
+          # Allow licenses commonly used in open source
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Python-2.0
+          # Deny problematic licenses
+          deny-licenses: GPL-3.0, AGPL-3.0
+          # Comment on PR with results
+          comment-summary-in-pr: always
+          # Warn on moderate severity
+          warn-on-severity: moderate

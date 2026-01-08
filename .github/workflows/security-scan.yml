@@ -1,0 +1,254 @@
+name: "Security Scan"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# Restrict permissions for security
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  pip-audit:
+    name: Python Dependency Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+
+      - name: Run pip-audit on backend
+        id: pip-audit-backend
+        run: |
+          echo "# Python Backend Dependencies Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if pip-audit -r backend/requirements.txt --desc --format json > pip-audit-backend.json; then
+            echo "✅ No vulnerabilities found in backend dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Vulnerabilities found in backend dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse and display vulnerabilities
+            if [ -f pip-audit-backend.json ]; then
+              python3 << 'EOF'
+import json
+import sys
+
+try:
+    with open('pip-audit-backend.json', 'r') as f:
+        data = json.load(f)
+    
+    if 'dependencies' in data:
+        print("\n## Vulnerabilities Found:\n")
+        for dep in data['dependencies']:
+            name = dep.get('name', 'unknown')
+            version = dep.get('version', 'unknown')
+            vulns = dep.get('vulns', [])
+            
+            if vulns:
+                print(f"### {name} {version}")
+                for vuln in vulns:
+                    vuln_id = vuln.get('id', 'N/A')
+                    desc = vuln.get('description', 'No description')
+                    fix_versions = vuln.get('fix_versions', [])
+                    
+                    print(f"- **{vuln_id}**: {desc}")
+                    if fix_versions:
+                        print(f"  - Fix available in: {', '.join(fix_versions)}")
+                    print()
+except Exception as e:
+    print(f"Error parsing results: {e}", file=sys.stderr)
+EOF
+            fi
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Upload pip-audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-backend-results
+          path: pip-audit-backend.json
+          if-no-files-found: ignore
+
+  npm-audit:
+    name: Node.js Dependency Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: ./frontend-next
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        id: npm-audit
+        run: |
+          echo "# Node.js Frontend Dependencies Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run npm audit and capture exit code
+          set +e
+          npm audit --json > npm-audit.json 2>&1
+          AUDIT_EXIT_CODE=$?
+          set -e
+          
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
+            echo "✅ No vulnerabilities found in frontend dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            # npm audit returns non-zero if vulnerabilities found
+            echo "⚠️ Vulnerabilities found in frontend dependencies" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Parse and display summary if JSON is valid
+            if [ -f npm-audit.json ] && jq empty npm-audit.json 2>/dev/null; then
+              node << 'EOF'
+const fs = require('fs');
+
+try {
+  const data = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
+  
+  if (data.metadata && data.metadata.vulnerabilities) {
+    const vulns = data.metadata.vulnerabilities;
+    console.log('\n## Vulnerability Summary:\n');
+    console.log(`- **Critical**: ${vulns.critical || 0}`);
+    console.log(`- **High**: ${vulns.high || 0}`);
+    console.log(`- **Moderate**: ${vulns.moderate || 0}`);
+    console.log(`- **Low**: ${vulns.low || 0}`);
+    console.log(`- **Info**: ${vulns.info || 0}`);
+    console.log();
+    
+    if (data.vulnerabilities) {
+      console.log('## Affected Packages:\n');
+      for (const [name, vuln] of Object.entries(data.vulnerabilities)) {
+        console.log(`### ${name}`);
+        console.log(`- Severity: ${vuln.severity}`);
+        console.log(`- Via: ${vuln.via.map(v => typeof v === 'string' ? v : v.title).join(', ')}`);
+        if (vuln.fixAvailable) {
+          console.log(`- Fix: Run \`npm audit fix\``);
+        }
+        console.log();
+      }
+    }
+  }
+} catch (e) {
+  console.error('Error parsing npm audit results:', e.message);
+}
+EOF
+            fi
+            echo "status=warning" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Upload npm audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-results
+          path: frontend-next/npm-audit.json
+          if-no-files-found: ignore
+
+  bandit-scan:
+    name: Python Security Scan (Bandit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: Run bandit security scan
+        id: bandit
+        run: |
+          echo "# Python Security Scan (Bandit)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run bandit, excluding tests
+          if bandit -r backend -x tests -ll -f json -o bandit-results.json; then
+            echo "✅ No security issues found" >> $GITHUB_STEP_SUMMARY
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Security issues found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Also output text format for summary
+            bandit -r backend -x tests -ll -f txt >> $GITHUB_STEP_SUMMARY || true
+            echo "status=warning" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      - name: Upload bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-results
+          path: bandit-results.json
+          if-no-files-found: ignore
+
+  summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [pip-audit, npm-audit, bandit-scan]
+    if: always()
+    permissions:
+      contents: read
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All security scans completed. Check individual job outputs for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Python Dependency Audit (pip-audit): See above" >> $GITHUB_STEP_SUMMARY
+          echo "- Node.js Dependency Audit (npm audit): See above" >> $GITHUB_STEP_SUMMARY
+          echo "- Python Security Scan (bandit): See above" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: Some warnings may be acceptable. Review each finding and assess risk." >> $GITHUB_STEP_SUMMARY

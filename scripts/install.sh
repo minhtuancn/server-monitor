@@ -2,10 +2,11 @@
 
 ###############################################################################
 # Server Monitor Dashboard - One-Command Installer
-# Version: 2.0.0
+# Version: 2.2.0
 # Description: Automated installation script for Linux systems
 # Usage: curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash
-#        curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.0.0
+#        curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.2.0
+#        curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --dry-run
 ###############################################################################
 
 set -euo pipefail
@@ -27,6 +28,7 @@ BACKUP_DIR="$DATA_DIR/backups"
 SERVICE_USER="server-monitor"
 REPO_URL="https://github.com/minhtuancn/server-monitor.git"
 GIT_REF="main"
+DRY_RUN=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -39,11 +41,16 @@ while [[ $# -gt 0 ]]; do
             INSTALL_DIR="$2"
             shift 2
             ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo "Options:"
             echo "  --ref REF           Git reference to install (branch, tag, commit)"
             echo "  --install-dir DIR   Installation directory (default: /opt/server-monitor)"
+            echo "  --dry-run           Show what would be done without making changes"
             echo "  --help              Show this help message"
             exit 0
             ;;
@@ -61,14 +68,22 @@ done
 print_header() {
     echo ""
     echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║   Server Monitor Dashboard - Installer v2.0               ║${NC}"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${BLUE}║   Server Monitor Dashboard - Installer v2.2 (DRY RUN)     ║${NC}"
+    else
+        echo -e "${BLUE}║   Server Monitor Dashboard - Installer v2.2               ║${NC}"
+    fi
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
 
 print_step() {
     echo ""
-    echo -e "${CYAN}▶ $1${NC}"
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${CYAN}▶ [DRY RUN] $1${NC}"
+    else
+        echo -e "${CYAN}▶ $1${NC}"
+    fi
 }
 
 print_success() {
@@ -81,6 +96,15 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}✗ $1${NC}"
+}
+
+# Execute command or show what would be executed
+run_cmd() {
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}  Would run: $*${NC}"
+    else
+        "$@"
+    fi
 }
 
 check_root() {
@@ -447,6 +471,22 @@ print_completion() {
 main() {
     print_header
     
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}                    DRY RUN MODE                          ${NC}"
+        echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo -e "This is a ${YELLOW}DRY RUN${NC}. No actual changes will be made."
+        echo -e "The script will show what would be executed."
+        echo ""
+        echo -e "${CYAN}Configuration:${NC}"
+        echo -e "  Install Directory: ${GREEN}$INSTALL_DIR${NC}"
+        echo -e "  Config Directory:  ${GREEN}$CONFIG_DIR${NC}"
+        echo -e "  Data Directory:    ${GREEN}$DATA_DIR${NC}"
+        echo -e "  Git Reference:     ${GREEN}$GIT_REF${NC}"
+        echo ""
+    fi
+    
     check_root
     detect_distro
     install_system_deps
@@ -462,6 +502,16 @@ main() {
     start_services
     verify_installation
     print_completion
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo ""
+        echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}           DRY RUN COMPLETED SUCCESSFULLY                 ${NC}"
+        echo -e "${YELLOW}═══════════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo -e "To perform the actual installation, run without ${YELLOW}--dry-run${NC} flag."
+        echo ""
+    fi
 }
 
 # Run main installation
