@@ -1,7 +1,7 @@
 # Server Monitor - Security Guide
 
-**Version:** 2.0.0  
-**Last Updated:** 2026-01-07
+**Version:** 2.3.0  
+**Last Updated:** 2026-01-08
 
 ---
 
@@ -17,7 +17,8 @@ The Server Monitor Dashboard implements multiple layers of security with v2.0 en
 | Input Validation | ✅ Implemented | 9/10 |
 | Rate Limiting | ✅ Implemented | 9/10 |
 | Security Headers | ✅ Implemented | 9/10 |
-| SSRF Protection | ✅ Implemented | 10/10 |
+| SSRF Protection | ✅ Enhanced | 10/10 |
+| Webhook Security | ✅ Implemented | 10/10 |
 | Secrets Management | ⚠️ Manual | 7/10 |
 | **Overall** | **Production Ready** | **9/10** |
 
@@ -824,6 +825,142 @@ server_monitor_request_latency_ms{endpoint="/api/servers",quantile="0.95"} 45.2
 
 ---
 
+## 🔗 Webhook Security
+
+### SSRF Protection (v2.3.0)
+
+The webhook feature includes comprehensive Server-Side Request Forgery (SSRF) protection to prevent malicious webhooks from accessing internal resources:
+
+**Blocked Targets:**
+- Localhost addresses: `localhost`, `127.0.0.1`, `0.0.0.0`
+- IPv6 localhost: `::1`, `0:0:0:0:0:0:0:1`
+- Loopback addresses (detected automatically)
+- Private IP ranges:
+  - `10.0.0.0/8`
+  - `172.16.0.0/12`
+  - `192.168.0.0/16`
+- Link-local addresses (`169.254.0.0/16`, `fe80::/10`)
+- Reserved IP ranges
+- Internal domain patterns: `.local`, `.internal`, `.lan`
+- Non-HTTP schemes: `file://`, `gopher://`, `ftp://`, `data://`
+
+**Allowed Targets:**
+- Public HTTP and HTTPS URLs only
+- Valid, routable internet addresses
+
+### HMAC Signature Security
+
+Webhooks support HMAC-SHA256 signatures for payload integrity and authenticity:
+
+**Features:**
+- Optional webhook secret (recommended for production)
+- SHA256 HMAC signature in `X-SM-Signature` header
+- Format: `sha256=<hex-digest>`
+- Signature calculated over entire JSON payload
+- Constant-time comparison recommended on receiver side
+
+**Best Practices:**
+1. **Always use secrets** for production webhooks
+2. **Verify signatures** on the receiving end
+3. **Use HTTPS** for webhook URLs
+4. **Rotate secrets** periodically (update webhook configuration)
+5. **Don't log secrets** in application logs
+
+**Secret Management:**
+- Secrets stored encrypted in database
+- Never exposed in API responses (shown as `***REDACTED***`)
+- Can only be set during creation or update
+- Set to empty string to disable signing
+
+### Webhook Delivery Security
+
+**Timeout Protection:**
+- Configurable timeout per request (default: 10 seconds)
+- Prevents indefinite hangs
+- Failed requests don't block system
+
+**Retry Strategy:**
+- Exponential backoff (1s, 2s, 4s, ...)
+- Configurable max retries (default: 3)
+- No retry for 4xx errors (client errors)
+- Automatic retry for 5xx errors (server errors)
+
+**Delivery Logging:**
+- All delivery attempts logged
+- Includes status, status code, error messages
+- Logs retained for audit and debugging
+- Response bodies truncated to 1000 chars
+
+### Rate Limiting
+
+**Recommendations:**
+1. Limit webhook creation (suggested: 10 per hour per admin)
+2. Monitor delivery frequency
+3. Implement rate limiting on webhook receivers
+4. Alert on high failure rates
+
+**Implementation:**
+```python
+# In central_api.py (example)
+if not check_rate_limit(f'webhook_create:{user_id}', 10, 3600):
+    return {'error': 'Rate limit exceeded: max 10 webhooks per hour'}
+```
+
+### Security Checklist for Webhooks
+
+- [ ] All webhooks use HTTPS URLs
+- [ ] HMAC secrets configured for all production webhooks
+- [ ] Webhook receivers verify HMAC signatures
+- [ ] No webhooks pointing to internal services
+- [ ] Delivery logs monitored for anomalies
+- [ ] Failed deliveries investigated promptly
+- [ ] Webhook secrets rotated regularly (quarterly recommended)
+- [ ] Webhook receivers implement rate limiting
+- [ ] Webhook receivers respond quickly (< 1 second)
+- [ ] Test webhooks validated before production use
+
+### Common Vulnerabilities Prevented
+
+| Vulnerability | Protection |
+|--------------|-----------|
+| SSRF attacks | URL validation blocks internal addresses |
+| Payload tampering | HMAC signature verification |
+| Replay attacks | Include event_id in verification logic |
+| Timeout/DoS | Request timeout limits |
+| Secret exposure | Secrets encrypted at rest, redacted in responses |
+| Man-in-the-middle | HTTPS enforcement recommended |
+
+### Webhook URL Validation Example
+
+The system automatically validates URLs:
+
+```python
+# Safe URL
+webhook_dispatcher.is_safe_url('https://api.example.com/webhook')
+# Returns: (True, None)
+
+# Blocked URL (internal)
+webhook_dispatcher.is_safe_url('http://localhost:8080/webhook')
+# Returns: (False, 'Internal/localhost URLs are not allowed')
+
+# Blocked URL (private IP)
+webhook_dispatcher.is_safe_url('http://192.168.1.100/webhook')
+# Returns: (False, 'Private network addresses are not allowed')
+```
+
+### Incident Response
+
+If a webhook security issue is detected:
+
+1. **Immediate:** Disable the affected webhook
+2. **Investigate:** Check delivery logs for suspicious activity
+3. **Review:** Audit all webhooks for similar issues
+4. **Update:** Rotate affected webhook secrets
+5. **Monitor:** Watch for retry attempts from attacker
+6. **Document:** Log incident in audit trail
+
+---
+
 ## 📋 Security Checklist
 
 ### Before Production (Phase 6 Enhanced)
@@ -876,4 +1013,4 @@ We will respond within 48 hours and work on a fix.
 
 ---
 
-**Last Updated:** 2026-01-07 (v2.2.0 - Phase 6)
+**Last Updated:** 2026-01-08 (v2.3.0 - Webhooks)
