@@ -12,6 +12,11 @@ on:
       - 'frontend-next/**'
       - '.github/workflows/frontend-ci.yml'
 
+# Cancel previous runs on same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 # Restrict permissions for security
 permissions:
   contents: read
@@ -43,6 +48,9 @@ jobs:
       
       - name: Run ESLint
         run: npm run lint
+      
+      - name: TypeScript type check
+        run: npx tsc --noEmit
       
       - name: Build Next.js application
         run: npm run build

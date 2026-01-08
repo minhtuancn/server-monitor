@@ -2,13 +2,16 @@ name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
   schedule:
     # Run at 2 AM UTC every day
     - cron: '0 2 * * *'
   workflow_dispatch:
+
+# Cancel previous runs on same branch (for push events)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # Restrict permissions for security
 permissions:
