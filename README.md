@@ -123,6 +123,29 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 
 **CÂU TRẢ LỜI: CÓ! Dự án có thể chạy thử hoàn toàn trên local để test và phát triển.**
 
+📚 **Hướng dẫn chi tiết**: [docs/getting-started/LOCAL_DEV.md](docs/getting-started/LOCAL_DEV.md)  
+🐛 **Gặp lỗi?**: [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md)
+
+### ⚠️ QUAN TRỌNG: Thư Mục Làm Việc
+
+**Tất cả lệnh dưới đây PHẢI chạy từ thư mục gốc của dự án (project root).**
+
+Thư mục gốc là nơi chứa: `backend/`, `frontend-next/`, `start-all.sh`, `.env.example`
+
+```bash
+# Kiểm tra bạn đang ở đúng thư mục chưa?
+pwd
+ls -la
+
+# Phải thấy các thư mục/file này:
+# backend/
+# frontend-next/
+# start-all.sh
+# .env.example
+```
+
+Nếu không thấy → bạn đang ở sai thư mục! Hãy `cd` đến thư mục gốc của dự án trước.
+
 ### Yêu Cầu Hệ Thống
 
 - **Python 3.8+** (kiểm tra: `python3 --version`)
@@ -138,35 +161,34 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
-# 2. Tạo file cấu hình môi trường
+# 2. Tạo Python virtual environment (KHUYẾN NGHỊ cho Python 3.12+)
+python3 -m venv venv
+
+# 3. Kích hoạt virtual environment
+source venv/bin/activate  # Linux/macOS
+# Windows: venv\Scripts\activate
+
+# 4. Cài đặt backend dependencies (trong venv)
+pip install -r backend/requirements.txt
+
+# Optional: Cài đặt test dependencies
+pip install -r tests/requirements.txt
+
+# 5. Tạo file cấu hình môi trường
 cp .env.example .env
 
-# 3. Tạo keys bảo mật (QUAN TRỌNG!)
-# Tạo .env file mới hoặc append nếu đã có
+# 6. Tạo keys bảo mật (QUAN TRỌNG!)
 python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))" >> .env
 python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(24))" >> .env
 python3 -c "import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))" >> .env
-# Lưu ý: Nếu chạy lại script này, hãy xóa các dòng cũ trong .env trước
+# ⚠️ Lưu ý: Nếu chạy lại các lệnh trên, xóa các dòng key cũ trong .env trước
 
-# 4. Tạo Python virtual environment và cài đặt backend dependencies
-# Tạo virtual environment (khuyến nghị cho Python 3.12+)
-python3 -m venv venv
-
-# Kích hoạt virtual environment
-# Trên Linux/macOS:
-source venv/bin/activate
-# Trên Windows:
-# venv\Scripts\activate
-
-# Cài đặt dependencies trong virtual environment
-pip install -r backend/requirements.txt
-
-# 5. Cài đặt frontend dependencies (Next.js)
+# 7. Cài đặt frontend dependencies (Next.js)
 cd frontend-next
-npm install  # hoặc npm ci
+npm ci  # hoặc npm install
 cd ..
 
-# 6. Tạo file cấu hình cho frontend
+# 8. Tạo file cấu hình cho frontend
 cat > frontend-next/.env.local << 'EOF'
 API_PROXY_TARGET=http://localhost:9083
 NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
@@ -179,11 +201,14 @@ EOF
 **Cách 1: Sử dụng script tự động (Khuyến nghị)**
 
 ```bash
+# Đảm bảo bạn đang ở thư mục gốc của dự án
+pwd  # Phải thấy /path/to/server-monitor
+
 # Terminal 1: Kích hoạt virtual environment và khởi động backend services
 source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
 ./start-all.sh
 
-# Terminal 2: Khởi động frontend Next.js
+# Terminal 2: Khởi động frontend Next.js (mở terminal mới)
 cd frontend-next
 npm run dev
 ```
@@ -194,17 +219,14 @@ npm run dev
 # Đảm bảo virtual environment đã được kích hoạt
 source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
 
-# Terminal 1: Backend API
-cd backend
-python3 central_api.py
+# Terminal 1: Backend API (chạy từ project root)
+python3 backend/central_api.py
 
-# Terminal 2: WebSocket server (real-time updates)
-cd backend
-python3 websocket_server.py
+# Terminal 2: WebSocket server (chạy từ project root)
+python3 backend/websocket_server.py
 
-# Terminal 3: Terminal server (SSH terminal)
-cd backend
-python3 terminal.py
+# Terminal 3: Terminal server (chạy từ project root)
+python3 backend/terminal.py
 
 # Terminal 4: Frontend Next.js
 cd frontend-next
@@ -235,12 +257,22 @@ lsof -i :9083  # API
 lsof -i :9084  # Terminal WebSocket
 lsof -i :9085  # Monitoring WebSocket
 
-# Xem logs
+# Xem logs (nếu dùng start-all.sh)
 tail -f logs/*.log
+
+# Xem log của từng service cụ thể
+tail -f logs/central_api.log
+tail -f logs/websocket.log
+tail -f logs/terminal.log
 
 # Kiểm tra health của API
 curl http://localhost:9083/api/health
 ```
+
+**Lưu ý về logs**:
+- Nếu chạy bằng `./start-all.sh` → logs trong thư mục `logs/`
+- Nếu chạy manual (`python3 backend/...`) → logs hiện trên terminal
+- Nếu cài production (systemd) → dùng `sudo journalctl -u server-monitor-*`
 
 ### Dừng Services
 
@@ -261,40 +293,92 @@ curl http://localhost:9083/api/health
 
 ### Troubleshooting
 
-**Lỗi: Port already in use**
-```bash
-# Tìm và kill process đang dùng port (thử SIGTERM trước)
-sudo lsof -ti:9081 | xargs kill
-sudo lsof -ti:9083 | xargs kill
+📚 **Hướng dẫn đầy đủ**: [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md)
 
-# Nếu process không dừng, dùng SIGKILL
-sudo lsof -ti:9081 | xargs kill -9
-sudo lsof -ti:9083 | xargs kill -9
+**Lỗi: `source venv/bin/activate: No such file or directory`**
+```bash
+# Nguyên nhân: Bạn chưa tạo venv hoặc đang ở sai thư mục
+# Giải pháp 1: Kiểm tra thư mục
+pwd  # Phải thấy /path/to/server-monitor
+ls -la  # Phải thấy backend/ frontend-next/ start-all.sh
+
+# Giải pháp 2: Tạo venv nếu chưa có
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-**Lỗi: Module not found**
+**Lỗi: `ModuleNotFoundError: No module named 'paramiko'` hoặc `'websockets'`**
+```bash
+# Nguyên nhân: Chưa cài dependencies hoặc chưa activate venv
+# Giải pháp:
+source venv/bin/activate  # Kích hoạt venv trước!
+pip install -r backend/requirements.txt
+
+# Kiểm tra đã cài đủ chưa:
+python3 -c "import paramiko; import websockets; print('OK')"
+```
+
+**Lỗi: `cd backend: No such file or directory`**
+```bash
+# Nguyên nhân: Bạn đang ở thư mục sai hoặc đã ở trong backend/ rồi
+pwd  # Kiểm tra vị trí hiện tại
+
+# Nếu thấy /path/to/server-monitor/backend → đã ở trong backend rồi!
+# Quay về project root:
+cd ..
+
+# Nếu không thấy backend/ → đang ở sai chỗ:
+cd /path/to/server-monitor
+```
+
+**Lỗi: Port already in use**
+```bash
+# Tìm và kill process đang dùng port
+lsof -ti:9081 | xargs kill
+lsof -ti:9083 | xargs kill
+lsof -ti:9084 | xargs kill
+lsof -ti:9085 | xargs kill
+
+# Nếu process không dừng, dùng force kill
+lsof -ti:9083 | xargs kill -9
+```
+
+**Lỗi: `tail -f logs/*.log: No such file or directory`**
+```bash
+# Nguyên nhân: Thư mục logs chưa tồn tại
+# Giải pháp: start-all.sh sẽ tự tạo logs/ khi chạy
+./start-all.sh
+
+# Hoặc tạo thủ công:
+mkdir -p logs
+
+# Lưu ý: Nếu chạy manual (python3 backend/...), logs hiện trên terminal
+# Nếu cài production (systemd), dùng: sudo journalctl -u server-monitor-*
+```
+
+**Lỗi: Module not found (sau khi cài xong)**
 ```bash
 # Đảm bảo virtual environment đã được kích hoạt
 source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
 
 # Cài lại dependencies
 pip install -r backend/requirements.txt
-cd frontend-next && npm install
+cd frontend-next && npm install && cd ..
 ```
 
 **Lỗi: externally-managed-environment (Python 3.12+)**
 ```bash
-# Giải pháp: Sử dụng virtual environment
+# Giải pháp: Sử dụng virtual environment (BẮT BUỘC cho Python 3.12+)
 python3 -m venv venv
-source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
+source venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
 **Database bị lỗi**
 ```bash
-# Khởi tạo lại database
-cd backend
-python3 -c "import database; database.init_database()"
+# Khởi tạo lại database (từ project root)
+source venv/bin/activate
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
 ### Hot Reload (Development)
@@ -389,24 +473,22 @@ pip install -r tests/requirements.txt
 # Install frontend dependencies
 cd frontend-next
 npm ci
+cd ..
 
 # Configure environment
-cd ..
 cp .env.example .env
 # Edit .env and set secure values for JWT_SECRET and ENCRYPTION_KEY
 # Generate secure keys with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
 # Configure frontend environment
-cd frontend-next
-cat > .env.local << EOF
+cat > frontend-next/.env.local << EOF
 API_PROXY_TARGET=http://localhost:9083
 NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
 NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
 EOF
 
-# Initialize database (automatic on first run)
-cd ../backend
-python3 -c "import database; database.init_database()"
+# Initialize database (automatic on first run, from project root)
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
 **Note:** The system now supports relative paths and works from any directory. No need for hardcoded `/opt` paths.
@@ -429,18 +511,21 @@ npm run build && npm run start  # Production mode
 **Option 2: Start Manually**
 
 ```bash
+# All commands run from project root!
+# Activate venv first
+source venv/bin/activate
+
 # Backend API
-cd backend
-python3 central_api.py &
+python3 backend/central_api.py &
 
 # WebSocket server
-python3 websocket_server.py &
+python3 backend/websocket_server.py &
 
 # Terminal server (optional)
-python3 terminal.py &
+python3 backend/terminal.py &
 
 # Frontend Next.js
-cd ../frontend-next
+cd frontend-next
 npm run dev  # Development (http://localhost:9081)
 # OR
 npm run build && npm run start  # Production
@@ -1005,6 +1090,8 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 
 ### Getting Started
 - [README.md](README.md) - This file, overview and quick start
+- [docs/getting-started/LOCAL_DEV.md](docs/getting-started/LOCAL_DEV.md) - Detailed local development setup
+- [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md) - Common issues and solutions
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment guide
 - [HTTPS-SETUP.md](HTTPS-SETUP.md) - SSL/HTTPS configuration
 
@@ -1031,33 +1118,39 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 
 ## 🐛 Troubleshooting
 
-### Services not starting
+📚 **Complete troubleshooting guide**: [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md)
+
+### Quick Fixes
+
+**Services not starting**
 
 ```bash
 # Check if ports are in use
 netstat -tlnp | grep -E ":(9081|9083|9084|9085)"
 
-# Check logs
+# Check logs (if using start-all.sh)
 tail -f logs/*.log
 
 # Restart services
 ./stop-all.sh && ./start-all.sh
 ```
 
-### Database errors
+**Database errors**
 
 ```bash
-# Reinitialize database
-cd backend
-python3 -c "import database; database.init_database()"
+# Reinitialize database (from project root)
+source venv/bin/activate
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
-### WebSocket not connecting
+**WebSocket not connecting**
 
-1. Check firewall allows port 9085
-2. Check websocket_server.py is running
+1. Check firewall allows ports 9084 and 9085
+2. Check websocket_server.py and terminal.py are running: `lsof -i :9085` and `lsof -i :9084`
 3. Check browser console for errors
-4. Verify WebSocket URL in dashboard.html
+4. Verify WebSocket URLs in `frontend-next/.env.local`
+
+**Common errors and solutions**: See [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md)
 
 ---
 
