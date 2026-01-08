@@ -97,6 +97,20 @@ curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scri
 curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh | sudo bash -s -- --ref v2.2.0
 ```
 
+**Secure installation with checksum verification:**
+
+```bash
+# Download installer and checksum
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh -o /tmp/install.sh
+curl -fsSL https://raw.githubusercontent.com/minhtuancn/server-monitor/main/scripts/install.sh.sha256 -o /tmp/install.sh.sha256
+
+# Verify checksum
+cd /tmp && sha256sum -c install.sh.sha256
+
+# If verification passes, run installer
+sudo bash /tmp/install.sh --ref v2.2.0
+```
+
 **What it does:**
 - ✅ Installs all dependencies (Python, Node.js, system packages)
 - ✅ Creates systemd services for auto-start on boot
