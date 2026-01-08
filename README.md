@@ -29,6 +29,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🔐 **Secure Authentication**: JWT-based auth with HttpOnly cookies, RBAC
 - 🔑 **SSH Key Vault**: Encrypted SSH private key storage with AES-256-GCM (Phase 4)
 - 🛡️ **Security Hardened**: Rate limiting, CORS, input validation, CSRF protection
+- 🔔 **Webhooks Integration**: HTTP callbacks for system events with HMAC signing (Phase 8)
 - 📧 **Email Alerts**: Cảnh báo tự động qua email khi vượt ngưỡng
 - 📤 **Export Data**: Xuất dữ liệu ra CSV/JSON
 - 🌍 **Internationalization**: Multi-language support (8 languages)
@@ -726,6 +727,29 @@ Use the comprehensive smoke test checklist:
 - Current: Up to 100 servers
 - Recommended: Use PostgreSQL for > 100 servers
 - Consider: Redis for caching if > 1000 req/min
+
+---
+
+## 🔔 Integrations
+
+### Webhooks
+
+Configure HTTP callbacks to receive real-time notifications when events occur in your infrastructure. Perfect for integrating with external systems like Slack, PagerDuty, or custom automation platforms.
+
+**Features:**
+- 📡 **Event-Driven**: Subscribe to 30+ event types (servers, tasks, users, alerts, etc.)
+- 🔐 **Secure**: HMAC-SHA256 signature verification with SSRF protection
+- 🔄 **Reliable**: Automatic retry with exponential backoff
+- 📊 **Monitored**: Delivery logs with status tracking and error details
+- 🎛️ **Flexible**: Per-webhook configuration (retry count, timeout, event filters)
+
+**Quick Start:**
+1. Navigate to **Settings → Webhooks** (admin only)
+2. Click **Add Webhook**
+3. Enter webhook URL and configure event types
+4. Use **Test** to verify, **View Deliveries** to monitor
+
+**Documentation:** See [docs/modules/WEBHOOKS.md](docs/modules/WEBHOOKS.md) for complete guide with API examples and signature verification code.
 
 ---
 

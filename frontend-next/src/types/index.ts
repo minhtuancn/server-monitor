@@ -184,3 +184,30 @@ export type Task = {
   finished_at?: string;
   created_at: string;
 };
+
+export type Webhook = {
+  id: string;
+  name: string;
+  url: string;
+  secret?: string;
+  enabled: number;
+  event_types: string[] | null;
+  retry_max: number;
+  timeout: number;
+  created_at: string;
+  updated_at: string;
+  last_triggered_at?: string;
+};
+
+export type WebhookDelivery = {
+  id: string;
+  webhook_id: string;
+  event_id: string;
+  event_type: string;
+  status: "success" | "failed" | "pending";
+  status_code?: number;
+  response_body?: string;
+  error?: string;
+  attempt: number;
+  delivered_at: string;
+};

@@ -2857,6 +2857,80 @@ def get_webhook_deliveries(webhook_id=None, limit=100, offset=0):
     return deliveries
 
 
+# ==================== METRICS HELPER FUNCTIONS ====================
+
+def get_active_terminal_sessions_count():
+    """
+    Get count of active terminal sessions
+    
+    Returns:
+        int: Number of active sessions
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM terminal_sessions 
+        WHERE status = 'active'
+    """)
+    
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+
+def get_task_stats():
+    """
+    Get task statistics (queued and running)
+    
+    Returns:
+        dict: Task stats with 'queued' and 'running' keys
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued,
+            SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as running
+        FROM tasks
+    """)
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    return {
+        'queued': row[0] or 0,
+        'running': row[1] or 0
+    }
+
+
+def get_webhook_delivery_stats():
+    """
+    Get webhook delivery statistics
+    
+    Returns:
+        dict: Delivery stats with 'success' and 'failed' keys
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success,
+            SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed
+        FROM webhook_deliveries
+    """)
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    return {
+        'success': row[0] or 0,
+        'failed': row[1] or 0
+    }
+
+
 # ==================== TEST CODE ====================
 
 if __name__ == '__main__':

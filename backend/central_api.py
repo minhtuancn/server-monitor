@@ -42,6 +42,8 @@ from task_recovery import run_startup_recovery
 from plugin_system import get_plugin_manager
 from event_model import Event, EventTypes, create_event, EventSeverity
 import webhook_dispatcher
+from cache_helper import get_cache
+from rate_limiter import get_rate_limiter, check_endpoint_rate_limit
 
 PORT = 9083  # Different port for central server
 
@@ -54,6 +56,10 @@ task_policy = get_task_policy()
 
 # Initialize plugin manager
 plugin_manager = get_plugin_manager()
+
+# Initialize cache and rate limiter
+cache = get_cache()
+rate_limiter = get_rate_limiter()
 
 # Constants for task validation
 TASK_COMMAND_MAX_LENGTH = int(os.environ.get('TASK_COMMAND_MAX_LENGTH', '10000'))
@@ -305,6 +311,30 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except:
                 pass
             
+            # Add cache stats
+            try:
+                cache_stats = cache.get_stats()
+                metrics.cache_hits = cache_stats['hits']
+                metrics.cache_misses = cache_stats['misses']
+                metrics.cache_hit_rate = cache_stats['hit_rate_percent']
+                metrics.cache_entries = cache_stats['entries']
+            except:
+                pass
+            
+            # Add active terminal sessions
+            try:
+                metrics.active_terminal_sessions = db.get_active_terminal_sessions_count()
+            except:
+                pass
+            
+            # Add webhook delivery stats
+            try:
+                webhook_stats = db.get_webhook_delivery_stats()
+                metrics.webhook_deliveries_success = webhook_stats.get('success', 0)
+                metrics.webhook_deliveries_failed = webhook_stats.get('failed', 0)
+            except:
+                pass
+            
             # Return metrics in requested format
             accept_header = self.headers.get('Accept', '')
             if 'text/plain' in accept_header or 'prometheus' in accept_header:
@@ -552,15 +582,32 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== SERVER MANAGEMENT ====================
         
         if path == '/api/servers':
-            # Get all servers (public read allowed)
-            self._set_headers()
-            servers = db.get_servers()
-            # Hide sensitive data for non-authenticated users
+            # Get all servers (public read allowed) with caching (TTL: 10s)
             auth_result = verify_auth_token(self)
+            
+            # Create cache key based on auth status
+            cache_key = f"servers:list:{auth_result.get('valid', False)}"
+            
+            # Try to get from cache
+            cached_servers = cache.get(cache_key)
+            if cached_servers is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps(cached_servers).encode())
+                return
+            
+            # Fetch from database
+            servers = db.get_servers()
+            
+            # Hide sensitive data for non-authenticated users
             if not auth_result.get('valid') or auth_result.get('role') == 'public':
                 for server in servers:
                     server.pop('ssh_key_path', None)
                     server.pop('ssh_password', None)
+            
+            # Cache for 10 seconds
+            cache.set(cache_key, servers, ttl=10)
+            
+            self._set_headers()
             self.wfile.write(json.dumps(servers).encode())
         
         elif path.startswith('/api/servers/'):
@@ -627,9 +674,23 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
         
         elif path == '/api/stats/overview':
-            # Get stats overview of all servers
-            self._set_headers()
+            # Get stats overview of all servers with caching (TTL: 30s)
+            cache_key = 'stats:overview'
+            
+            # Try to get from cache
+            cached_stats = cache.get(cache_key)
+            if cached_stats is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps(cached_stats).encode())
+                return
+            
+            # Compute stats
             stats = db.get_server_stats()
+            
+            # Cache for 30 seconds
+            cache.set(cache_key, stats, ttl=30)
+            
+            self._set_headers()
             self.wfile.write(json.dumps(stats).encode())
         
         # ==================== EXPORT ENDPOINTS ====================
@@ -1471,21 +1532,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'error': f'Failed to export audit logs: {str(e)}'}).encode())
         
         elif path == '/api/activity/recent':
-            # Get recent activity for dashboard (all authenticated users)
+            # Get recent activity for dashboard (all authenticated users) with caching (TTL: 15s)
             auth_result = verify_auth_token(self)
             if not auth_result['valid'] or auth_result.get('role') == 'public':
                 self._set_headers(401)
                 self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
                 return
             
+            # Get limit from query params
+            limit = int(query.get('limit', ['20'])[0])
+            limit_capped = min(limit, 50)  # Cap at 50
+            
+            cache_key = f'activity:recent:{limit_capped}'
+            
+            # Try to get from cache
+            cached_activity = cache.get(cache_key)
+            if cached_activity is not None:
+                self._set_headers()
+                self.wfile.write(json.dumps(cached_activity).encode())
+                return
+            
             try:
-                # Get limit from query params
-                limit = int(query.get('limit', ['20'])[0])
-                
                 # Get recent audit logs
-                logs = db.get_audit_logs(
-                    limit=min(limit, 50)  # Cap at 50
-                )
+                logs = db.get_audit_logs(limit=limit_capped)
                 
                 # Enrich with user and server details
                 enriched_logs = []
@@ -1508,11 +1577,16 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     
                     enriched_logs.append(enriched)
                 
-                self._set_headers()
-                self.wfile.write(json.dumps({
+                result = {
                     'activities': enriched_logs,
                     'count': len(enriched_logs)
-                }).encode())
+                }
+                
+                # Cache for 15 seconds
+                cache.set(cache_key, result, ttl=15)
+                
+                self._set_headers()
+                self.wfile.write(json.dumps(result).encode())
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to get recent activity: {str(e)}'}).encode())
@@ -1868,6 +1942,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 tags=data.get('tags', '')
             )
             
+            # Invalidate server cache
+            cache.delete('servers:list:True')
+            cache.delete('servers:list:False')
+            cache.delete('stats:overview')
+            
             if result['success']:
                 self._set_headers(201)
             else:
@@ -1943,6 +2022,23 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if role not in ['admin', 'operator']:
                     self._set_headers(403)
                     self.wfile.write(json.dumps({'error': 'Access denied. Admin or operator role required'}).encode())
+                    return
+                
+                # Rate limit: 20 requests per minute per user
+                user_id = auth_result.get('user_id')
+                allowed, rate_info = check_endpoint_rate_limit('task_create', str(user_id))
+                if not allowed:
+                    self._set_headers(429, extra_headers={
+                        'X-RateLimit-Limit': str(rate_info['limit']),
+                        'X-RateLimit-Remaining': str(rate_info['remaining']),
+                        'X-RateLimit-Reset': str(rate_info['reset_at']),
+                        'Retry-After': str(rate_info['retry_after'])
+                    })
+                    self.wfile.write(json.dumps({
+                        'error': 'Rate limit exceeded',
+                        'retry_after': rate_info['retry_after']
+                    }).encode())
+                    self._finish_request(429, user_id=str(user_id))
                     return
                 
                 # Validate input
@@ -2075,6 +2171,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             parts = [p for p in path.split('/') if p]
             try:
                 server_id = int(parts[2])
+                
+                # Rate limit: 10 requests per minute per server
+                allowed, rate_info = check_endpoint_rate_limit('inventory_refresh', str(server_id))
+                if not allowed:
+                    self._set_headers(429, extra_headers={
+                        'X-RateLimit-Limit': str(rate_info['limit']),
+                        'X-RateLimit-Remaining': str(rate_info['remaining']),
+                        'X-RateLimit-Reset': str(rate_info['reset_at']),
+                        'Retry-After': str(rate_info['retry_after'])
+                    })
+                    self.wfile.write(json.dumps({
+                        'error': 'Rate limit exceeded',
+                        'retry_after': rate_info['retry_after']
+                    }).encode())
+                    return
+                
                 server = get_server_with_auth(server_id)
                 
                 if not server:
@@ -2924,6 +3036,23 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers(403)
                 self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
                 self._finish_request(403)
+                return
+            
+            # Rate limit: 10 requests per minute per user
+            user_id = auth_result.get('user_id')
+            allowed, rate_info = check_endpoint_rate_limit('webhook_test', str(user_id))
+            if not allowed:
+                self._set_headers(429, extra_headers={
+                    'X-RateLimit-Limit': str(rate_info['limit']),
+                    'X-RateLimit-Remaining': str(rate_info['remaining']),
+                    'X-RateLimit-Reset': str(rate_info['reset_at']),
+                    'Retry-After': str(rate_info['retry_after'])
+                })
+                self.wfile.write(json.dumps({
+                    'error': 'Rate limit exceeded',
+                    'retry_after': rate_info['retry_after']
+                }).encode())
+                self._finish_request(429, user_id=str(user_id))
                 return
             
             try:
