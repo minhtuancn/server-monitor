@@ -17,7 +17,7 @@ function loadMessages(locale: string) {
 }
 
 export default getRequestConfig(async ({ locale }) => {
-  const normalizedLocale = locales.includes(locale) ? locale : defaultLocale;
+  const normalizedLocale = locale && locales.includes(locale) ? locale : defaultLocale;
   return {
     locale: normalizedLocale,
     messages: loadMessages(normalizedLocale),

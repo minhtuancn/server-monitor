@@ -19,16 +19,19 @@ export default async function LocaleLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
+  // Await the params in Next.js 15+
+  const { locale } = await params;
+  
   // Enable static rendering for next-intl
-  setRequestLocale(params.locale);
+  setRequestLocale(locale);
   
   const messages = await getMessages();
   return (
-    <html lang={params.locale} suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className="antialiased">
-        <AppProviders locale={params.locale} messages={messages}>
+        <AppProviders locale={locale} messages={messages}>
           {children}
         </AppProviders>
       </body>

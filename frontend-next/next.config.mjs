@@ -4,9 +4,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
   async rewrites() {
     const apiBase = process.env.API_PROXY_TARGET || "http://localhost:9083";
     const monitoringWs =
