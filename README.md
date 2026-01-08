@@ -1006,7 +1006,7 @@ Copyright (c) 2026 Minh Tuấn
 For issues or questions:
 1. Check [TROUBLESHOOTING section](#-troubleshooting)
 2. Review logs in `logs/` directory
-3. Check [TODO.md](TODO.md) for known issues
+3. Check [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) for known issues
 4. Review test results: `pytest tests/ -v`
 
 ---

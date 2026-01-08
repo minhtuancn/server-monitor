@@ -62,27 +62,47 @@ check_internal_links() {
   while IFS= read -r link; do
     # Extract just the path from [text](path)
     local path=$(echo "$link" | sed -n 's/.*(\([^)]*\)).*/\1/p')
-    
-    # Skip external links, anchors, and special characters
-    if [[ "$path" =~ ^https?:// ]] || [[ "$path" =~ ^# ]] || [[ -z "$path" ]]; then
+
+    # Skip non-file links that shouldn't be validated
+    # - External URLs (http://, https://)
+    # - Email addresses (mailto:)
+    # - Internal anchors (#)
+    # - Placeholder text (...)
+    # - Empty paths
+    if [[ "$path" =~ ^https?:// ]] || \
+       [[ "$path" =~ ^mailto: ]] || \
+       [[ "$path" =~ ^# ]] || \
+       [[ "$path" == "..." ]] || \
+       [[ -z "$path" ]]; then
       continue
     fi
-    
+
     # Remove anchor from path
     local clean_path=$(echo "$path" | sed 's/#.*//')
-    
+
     # Skip if empty after removing anchor
     if [ -z "$clean_path" ]; then
       continue
     fi
-    
-    # Check if file exists (relative to current directory)
-    if [ ! -f "$clean_path" ] && [ ! -d "$clean_path" ]; then
+
+    # Resolve path relative to the file's directory
+    local file_dir=$(dirname "$file")
+    local resolved_path
+    if [[ "$clean_path" = /* ]]; then
+      # Absolute path
+      resolved_path="$clean_path"
+    else
+      # Relative path - resolve relative to the file's directory
+      resolved_path="$file_dir/$clean_path"
+    fi
+
+    # Check if file exists
+    if [ ! -f "$resolved_path" ] && [ ! -d "$resolved_path" ]; then
       echo -e "${YELLOW}⚠️${NC}  Broken link in $file: $path"
       ((broken++))
     fi
   done < <(grep -o '\[.*\]([^)]*)' "$file" 2>/dev/null || true)
-  
+
   return $broken
 }
 

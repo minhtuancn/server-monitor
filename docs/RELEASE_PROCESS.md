@@ -544,7 +544,7 @@ New environment variables (all optional, backward compatible):
 - `AUDIT_CLEANUP_INTERVAL_HOURS=24`
 - `TASK_POLICY_MODE=denylist`
 
-See [RELEASE_NOTES_v2.2.0.md](RELEASE_NOTES_v2.2.0.md) for details.
+See [RELEASE_NOTES_v2.2.0.md](../RELEASE_NOTES_v2.2.0.md) for details.
 ```
 
 ---

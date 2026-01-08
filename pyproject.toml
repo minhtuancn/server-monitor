@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "server-monitor"
-version = "1.0.0"
+version = "2.3.0"
 description = "Multi-server monitoring system with real-time updates, web terminal, and advanced security"
 readme = "README.md"
 license = {text = "MIT"}
