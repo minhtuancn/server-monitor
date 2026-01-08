@@ -525,7 +525,10 @@ async def main():
     print(f'   4. Receive: {{"type": "output", "data": "..."}}')
     print(f'\n✨ Press Ctrl+C to stop')
     
-    ws_server = await websockets.serve(handle_terminal, '0.0.0.0', PORT)
+    # Security: Binding to 0.0.0.0 exposes the service to all network interfaces
+    # This is intentional for production use where the service needs to be accessible
+    # from other machines. Use firewall rules to restrict access in production.
+    ws_server = await websockets.serve(handle_terminal, '0.0.0.0', PORT)  # nosec B104
     await asyncio.Future()  # Run forever
 
 

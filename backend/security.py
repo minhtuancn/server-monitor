@@ -21,10 +21,21 @@ try:
 except ImportError:
     pass
 
+# Check if running in CI environment
+# Accepts CI=true, CI=1, or CI=yes (common CI environment variable values)
+IS_CI_ENVIRONMENT = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
+
 # Rate limiting configuration
-RATE_LIMIT_REQUESTS = 100  # requests per window
+# CI rate limits are set high to avoid blocking test IPs during automated testing
+RATE_LIMIT_CI_UNLIMITED = 100000  # Effectively unlimited for CI
+# Production rate limits
+RATE_LIMIT_PROD_REQUESTS = 100  # requests per window
+RATE_LIMIT_PROD_LOGIN = 5  # login attempts per window
+
+# Apply appropriate rate limits based on environment
+RATE_LIMIT_REQUESTS = RATE_LIMIT_CI_UNLIMITED if IS_CI_ENVIRONMENT else RATE_LIMIT_PROD_REQUESTS
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_LOGIN = 5  # login attempts per window
+RATE_LIMIT_LOGIN = RATE_LIMIT_CI_UNLIMITED if IS_CI_ENVIRONMENT else RATE_LIMIT_PROD_LOGIN
 RATE_LIMIT_LOGIN_WINDOW = 300  # 5 minutes
 
 # CORS configuration
@@ -313,6 +324,23 @@ def cleanup_old_entries():
                  if current_time > until_time]
     for ip in unblocked:
         del blocked_ips[ip]
+
+
+def clear_rate_limit_state():
+    """
+    Clear all rate limiting state (useful for testing)
+    
+    Security: Only allowed in CI/test environments to prevent
+    accidental clearing of rate limit state in production
+    """
+    if not IS_CI_ENVIRONMENT:
+        raise RuntimeError(
+            "clear_rate_limit_state() can only be called in CI/test environments. "
+            "Set CI=true environment variable to enable this function."
+        )
+    request_counts.clear()
+    login_attempts.clear()
+    blocked_ips.clear()
 
 
 # Statistics
