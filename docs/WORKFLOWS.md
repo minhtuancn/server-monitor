@@ -223,6 +223,25 @@ Kiểm tra:
 - Check timeout của từng job
 - Có thể cần tăng timeout nếu tests chạy lâu
 
+### YAML Syntax Errors
+Nếu gặp YAML syntax errors trong workflows:
+- Đảm bảo indentation đồng nhất (dùng 2 spaces)
+- Với heredoc code blocks (Python, Node.js scripts), phải indent code đúng cách
+- Dùng `python3 -c "import yaml; yaml.safe_load(open('workflow.yml'))"` để validate
+
+## Những điểm cần lưu ý
+
+### Conditional Statements dài
+Một số jobs dùng conditional statements dài để check kết quả của nhiều jobs. Đây là thiết kế có chủ đích để đảm bảo workflow chạy đúng. Ví dụ:
+```yaml
+if: always() && (needs.job1.result != 'cancelled' || needs.job2.result != 'cancelled')
+```
+
+Mặc dù có thể extract thành composite actions, nhưng giữ inline để dễ đọc và maintain hơn.
+
+### Heredoc Script Execution
+Python và Node.js scripts trong workflows dùng heredoc syntax. Chúng giả định runtimes đã được cài bởi các steps trước (`Set up Python`, `Set up Node.js`). Nếu bạn sửa workflow, đảm bảo các setup steps chạy trước.
+
 ## Tài liệu tham khảo
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [CodeQL Documentation](https://codeql.github.com/docs/)

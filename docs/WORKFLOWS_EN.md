@@ -176,6 +176,25 @@ Check:
 - Check timeout of each job
 - May need to increase timeout if tests take long
 
+### YAML Syntax Errors
+If you encounter YAML syntax errors in workflows:
+- Ensure all indentation is consistent (use 2 spaces)
+- For heredoc code blocks (Python, Node.js scripts), indent the code properly
+- Use `python3 -c "import yaml; yaml.safe_load(open('workflow.yml'))"` to validate
+
+## Known Limitations
+
+### Long Conditional Statements
+Some jobs use long conditional statements to check multiple job results. This is by design to ensure proper execution flow. Example:
+```yaml
+if: always() && (needs.job1.result != 'cancelled' || needs.job2.result != 'cancelled')
+```
+
+While this could be extracted into composite actions, it's kept inline for clarity and maintainability.
+
+### Heredoc Script Execution
+Python and Node.js scripts in workflows use heredoc syntax. These assume the runtime is already installed by previous steps (`Set up Python`, `Set up Node.js`). If you modify the workflow, ensure these setup steps run first.
+
 ## Documentation Links
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [CodeQL Documentation](https://codeql.github.com/docs/)
