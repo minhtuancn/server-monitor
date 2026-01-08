@@ -151,6 +151,7 @@ jobs:
       - name: Wait for API readiness
         run: |
           echo "Waiting for API server to be ready..."
+          # Wait up to 60 seconds (30 attempts * 2s) for API to start
           max_attempts=30
           attempt=0
           
