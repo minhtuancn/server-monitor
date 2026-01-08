@@ -69,6 +69,8 @@ def test_telegram_config(config=None):
 
 def send_telegram_message(bot_token, chat_id, message, parse_mode='HTML'):
     """Send a message via Telegram Bot API"""
+    # Security Note: URL is constructed from bot_token with fixed Telegram API endpoint
+    # The URL will always be https://api.telegram.org/bot<token>/sendMessage
     url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     
     payload = {
@@ -85,7 +87,8 @@ def send_telegram_message(bot_token, chat_id, message, parse_mode='HTML'):
     )
     
     try:
-        with request.urlopen(req, timeout=10) as response:
+        # Security Note: URL is controlled (line 72), not from user input, always points to api.telegram.org
+        with request.urlopen(req, timeout=10) as response:  # nosec B310
             result = json.loads(response.read().decode('utf-8'))
             if result.get('ok'):
                 return {'success': True, 'message': 'Telegram message sent successfully'}

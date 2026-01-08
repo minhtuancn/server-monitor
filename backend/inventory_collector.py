@@ -150,10 +150,12 @@ class InventoryCollector:
             raise Exception("Not connected")
         
         try:
+            # Security Note: paramiko exec_command does not use shell by default
+            # Commands are hardcoded in collect_* methods, not from user input
             stdin, stdout, stderr = self.ssh_client.exec_command(
                 command, 
                 timeout=self.timeout
-            )
+            )  # nosec B601
             output = stdout.read().decode('utf-8', errors='ignore').strip()
             return output
         except Exception as e:

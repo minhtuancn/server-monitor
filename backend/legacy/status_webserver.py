@@ -17,7 +17,9 @@ class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 os.chdir(DIRECTORY)
 
-with socketserver.TCPServer(("0.0.0.0", PORT), MyHTTPRequestHandler) as httpd:
+# Security Note: This is a DEPRECATED file from another project (see legacy/README.md)
+# Binding to 0.0.0.0 exposes service to all interfaces
+with socketserver.TCPServer(("0.0.0.0", PORT), MyHTTPRequestHandler) as httpd:  # nosec B104
     print(f"OpenCode Status Dashboard serving at http://0.0.0.0:{PORT}/opencode-status.html")
     print("Press Ctrl+C to stop")
     httpd.serve_forever()

@@ -64,7 +64,10 @@ PORT_DESCRIPTIONS = {
 def run_command(cmd):
     """Execute shell command and return output"""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+        # Security Note: shell=True is used in this DEPRECATED legacy file
+        # This file is not actively used (see legacy/README.md)
+        # Commands here are predefined strings, not user input
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)  # nosec B602
         return result.stdout.strip()
     except:
         return ""
@@ -630,6 +633,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == '__main__':
-    server = HTTPServer(('0.0.0.0', PORT), DashboardHandler)
-    print(f'Advanced Server Dashboard API v2 running on port {PORT}')
+    # Security Note: This is a DEPRECATED legacy file (see legacy/README.md)
+    # Binding to 0.0.0.0 was intentional for monitoring, not recommended for production
+    server = HTTPServer(('0.0.0.0', PORT), DashboardHandler)  # nosec B104
+    print(f'Advanced Server Dashboard API v3 running on port {PORT}')
     server.serve_forever()

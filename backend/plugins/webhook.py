@@ -57,6 +57,16 @@ class WebhookPlugin(PluginInterface):
         if not self.url:
             logger.warning('Webhook plugin: No URL configured, plugin disabled')
             self.enabled = False
+        elif not self.url.startswith(('http://', 'https://')):
+            # Security Note: Only allow http/https schemes for webhook URLs
+            logger.warning('Webhook plugin: Invalid URL scheme, must be http or https',
+                          url=self.url)
+            self.enabled = False
+        elif self.url.startswith('http://'):
+            # Security Warning: HTTP allows credentials/data interception
+            # Only use for development/testing. Production should use HTTPS.
+            logger.warning('Webhook plugin: Using insecure HTTP protocol (credentials may be intercepted)',
+                          url=self.url)
         
         if self.enabled:
             logger.info('Webhook plugin initialized',
@@ -127,7 +137,8 @@ class WebhookPlugin(PluginInterface):
             last_error = None
             for attempt in range(1, self.retry_max + 1):
                 try:
-                    with urllib.request.urlopen(req, timeout=self.timeout) as response:
+                    # Security Note: URL validated in __init__ to ensure http/https only (line 59)
+                    with urllib.request.urlopen(req, timeout=self.timeout) as response:  # nosec B310
                         status_code = response.getcode()
                         logger.info('Webhook delivered',
                                    event_id=event.event_id,

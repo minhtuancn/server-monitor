@@ -19,7 +19,10 @@ VERSION = '4.0.0'
 
 # Configuration
 PORT = 8083
-HOST = '0.0.0.0'
+# Security Note: Binding to 0.0.0.0 is intentional for remote monitoring agent
+# This agent runs on monitored servers and must accept connections from central server
+# Production deployments should use firewall rules to restrict access
+HOST = '0.0.0.0'  # nosec B104
 
 # Historical data storage (in-memory, last 30 minutes)
 history_data = {

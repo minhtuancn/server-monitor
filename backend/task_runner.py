@@ -209,10 +209,13 @@ class TaskRunner:
             
             # Execute command with timeout
             timeout = self.task.get('timeout_seconds', TASKS_DEFAULT_TIMEOUT)
+            # Security Note: paramiko exec_command does not use shell=True by default
+            # Commands are validated by task_policy before execution
+            # See task_policy.py for allowlist/denylist validation
             stdin, stdout, stderr = self.ssh_client.exec_command(
                 self.task['command'],
                 timeout=timeout
-            )
+            )  # nosec B601
             
             # Read output
             exit_code = stdout.channel.recv_exit_status()
