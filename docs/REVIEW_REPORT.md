@@ -1,19 +1,19 @@
 # Project Review Report
 
-**Generated:** 2026-01-08 09:12:30 UTC  
+**Generated:** 2026-01-08 10:56:29 UTC  
 **Ref:** main  
-**Commit:** 1575452 (157545263b20c605fa7b0abe5ccd690f1abf4e10)  
+**Commit:** 87929a9 (87929a9a66878cd2d6d65d798672469bc5e1e9c8)  
 **Branch:** main  
 **Author:** Minh Tuấn <vietkeynet@gmail.com>  
-**Date:** 2026-01-08 16:06:29 +0700
+**Date:** 2026-01-08 17:49:13 +0700
 
 ---
 
 ## 🔗 Quick Links
 
-- **Workflow Run:** [#5](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
-- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
-- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
+- **Workflow Run:** [#6](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
 
 ---
 
@@ -73,33 +73,36 @@ This automated review report provides a comprehensive audit of the server-monito
 
 #### Details:
 ```
+backend/websocket_server.py:205:1: W293 blank line contains whitespace
+backend/websocket_server.py:215:1: W293 blank line contains whitespace
+backend/websocket_server.py:218:20: E128 continuation line under-indented for visual indent
+backend/websocket_server.py:222:21: E128 continuation line under-indented for visual indent
+backend/websocket_server.py:223:21: E128 continuation line under-indented for visual indent
+backend/websocket_server.py:230:1: W293 blank line contains whitespace
+backend/websocket_server.py:233:1: W293 blank line contains whitespace
 backend/websocket_server.py:235:20: E128 continuation line under-indented for visual indent
 backend/websocket_server.py:236:20: E128 continuation line under-indented for visual indent
 backend/websocket_server.py:246:1: W293 blank line contains whitespace
 backend/websocket_server.py:249:1: W293 blank line contains whitespace
 backend/websocket_server.py:250:15: F541 f-string is missing placeholders
 backend/websocket_server.py:255:15: F541 f-string is missing placeholders
-backend/websocket_server.py:262:5: F824 `global ws_server` is unused: name is never assigned in scope
-backend/websocket_server.py:263:1: W293 blank line contains whitespace
-backend/websocket_server.py:266:1: W293 blank line contains whitespace
+backend/websocket_server.py:264:1: W293 blank line contains whitespace
+backend/websocket_server.py:266:16: E128 continuation line under-indented for visual indent
+backend/websocket_server.py:267:16: E128 continuation line under-indented for visual indent
 backend/websocket_server.py:268:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:269:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:270:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:271:1: W293 blank line contains whitespace
-backend/websocket_server.py:273:11: F541 f-string is missing placeholders
+backend/websocket_server.py:269:1: W293 blank line contains whitespace
+backend/websocket_server.py:271:11: F541 f-string is missing placeholders
+backend/websocket_server.py:277:1: W293 blank line contains whitespace
 backend/websocket_server.py:279:1: W293 blank line contains whitespace
-backend/websocket_server.py:281:1: W293 blank line contains whitespace
-backend/websocket_server.py:286:1: W293 blank line contains whitespace
-backend/websocket_server.py:301:5: F824 `global ws_server` is unused: name is never assigned in scope
-backend/websocket_server.py:302:1: W293 blank line contains whitespace
-backend/websocket_server.py:304:11: F541 f-string is missing placeholders
-backend/websocket_server.py:305:1: W293 blank line contains whitespace
-backend/websocket_server.py:314:1: W293 blank line contains whitespace
-backend/websocket_server.py:316:1: W293 blank line contains whitespace
-backend/websocket_server.py:322:1: W293 blank line contains whitespace
-backend/websocket_server.py:325:1: W293 blank line contains whitespace
-backend/websocket_server.py:336:1: W293 blank line contains whitespace
-backend/websocket_server.py:339:1: W293 blank line contains whitespace
+backend/websocket_server.py:284:1: W293 blank line contains whitespace
+backend/websocket_server.py:300:11: F541 f-string is missing placeholders
+backend/websocket_server.py:301:1: W293 blank line contains whitespace
+backend/websocket_server.py:310:1: W293 blank line contains whitespace
+backend/websocket_server.py:312:1: W293 blank line contains whitespace
+backend/websocket_server.py:318:1: W293 blank line contains whitespace
+backend/websocket_server.py:321:1: W293 blank line contains whitespace
+backend/websocket_server.py:332:1: W293 blank line contains whitespace
+backend/websocket_server.py:335:1: W293 blank line contains whitespace
 8     C901 'CentralAPIHandler.do_GET' is too complex (201)
 1     E127 continuation line over-indented for visual indent
 150   E128 continuation line under-indented for visual indent
@@ -115,14 +118,11 @@ backend/websocket_server.py:339:1: W293 blank line contains whitespace
 25    F401 'datetime.datetime' imported but unused
 80    F541 f-string is missing placeholders
 2     F811 redefinition of unused 'Path' from line 15
-4     F821 undefined name 'get_db'
-1     F823 local variable 'metrics' defined in enclosing scope on line 52 referenced before assignment
-4     F824 `global http_server` is unused: name is never assigned in scope
 6     F841 local variable 'e' is assigned to but never used
 113   W291 trailing whitespace
-2384  W293 blank line contains whitespace
+2380  W293 blank line contains whitespace
 2     W391 blank line at end of file
-3045
+3032
 ```
 
 **Security Scanning (bandit):** See security scan results
@@ -135,29 +135,29 @@ backend/websocket_server.py:339:1: W293 blank line contains whitespace
    Severity: Medium   Confidence: Medium
    CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
    More Info: https://bandit.readthedocs.io/en/1.9.2/plugins/b104_hardcoded_bind_all_interfaces.html
-   Location: backend/websocket_server.py:283:47
-282	    # Start WebSocket server
-283	    async with websockets.serve(handle_client, "0.0.0.0", PORT):
-284	        print(f"WebSocket server listening on ws://0.0.0.0:{PORT}")
+   Location: backend/websocket_server.py:281:47
+280	    # Start WebSocket server
+281	    async with websockets.serve(handle_client, "0.0.0.0", PORT):
+282	        print(f"WebSocket server listening on ws://0.0.0.0:{PORT}")
 
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 12821
+	Total lines of code: 12826
 	Total lines skipped (#nosec): 0
-	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
 		Low: 33
 		Medium: 30
-		High: 8
+		High: 2
 	Total issues (by confidence):
 		Undefined: 0
 		Low: 6
-		Medium: 29
-		High: 36
+		Medium: 24
+		High: 35
 Files skipped (0):
 ```
 
@@ -235,7 +235,7 @@ ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_requires_
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_requires_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
-=================== 6 failed, 82 passed, 35 errors in 13.68s ===================
+=================== 6 failed, 82 passed, 35 errors in 13.90s ===================
 ```
 
 ### 3. Build Validation
@@ -248,6 +248,22 @@ ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_with_adm
 
 #### Smoke Test Details (Last 50 lines):
 ```
+=== Running Smoke Tests ===
+
+╔══════════════════════════════════════════════════════════╗
+║     Server Monitor Dashboard - Smoke Test Suite         ║
+╚══════════════════════════════════════════════════════════╝
+
+📋 Test Configuration:
+  Frontend URL: http://127.0.0.1:9081
+  API URL:      http://localhost:9083
+  Auth User:    admin
+  Port Checks:  enabled
+
+ℹ Authenticating as admin...
+⚠ Authentication failed
+🔧 Checking prerequisites...
+./scripts/smoke.sh: line 123: $3: unbound variable
 ```
 
 ### 5. UI Screenshots
@@ -282,7 +298,7 @@ Screenshots are available in `docs/screenshots/` directory.
 [0;32m✅[0m docs/CI_WORKFLOWS.md
 
 [0;34m2. Checking for broken internal links...[0m
-[1;33m⚠️[0m  Broken link in README.md: API-TESTING-GUIDE.txt
+[1;33m⚠️[0m  Broken link in README.md: mailto:vietkeynet@gmail.com
 ```
 
 ---
@@ -403,12 +419,12 @@ Before releasing the next version, ensure:
 
 The following artifacts were generated during this review:
 
-- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
-- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
+- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
 - Screenshots: `docs/screenshots/`
 - Review report: `docs/REVIEW_REPORT.md` (this file)
 
-**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20811479713](https://github.com/minhtuancn/server-monitor/actions/runs/20811479713)
+**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20814322503](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
 
 ---
 
