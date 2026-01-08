@@ -247,15 +247,14 @@ After upgrading, verify everything works:
 ```bash
 # 1. Test backend
 source venv/bin/activate
-cd backend
-python3 -c "import database; database.init_database()"
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 
 # 2. Test frontend build
-cd ../frontend-next
+cd frontend-next
 npm run build
+cd ..
 
 # 3. Test services
-cd ..
 ./start-all.sh
 
 # 4. Access dashboard

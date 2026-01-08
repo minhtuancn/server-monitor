@@ -162,17 +162,16 @@ cd frontend-next && npm ci && npm run build && npm start
 # Pull latest changes
 git pull origin main
 
-# Update backend dependencies
-cd backend
-pip install -r requirements.txt
+# Update backend dependencies (from project root)
+pip install -r backend/requirements.txt
 
 # Update frontend dependencies
-cd ../frontend-next
+cd frontend-next
 npm ci
 npm run build
+cd ..
 
 # Restart services
-cd ..
 ./stop-all.sh
 ./start-all.sh
 ```

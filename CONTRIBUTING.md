@@ -83,17 +83,17 @@ Areas where contributions are especially welcome:
 
 2. **Install Dependencies**
    ```bash
-   cd backend
-   pip3 install -r requirements.txt
+   # Install backend dependencies (from project root)
+   pip3 install -r backend/requirements.txt
    
-   cd ../tests
-   pip3 install -r requirements.txt
+   # Install test dependencies
+   pip3 install -r tests/requirements.txt
    ```
 
 3. **Initialize Database**
    ```bash
-   cd backend
-   python3 -c "import database; database.init_database()"
+   # From project root
+   python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
    ```
 
 4. **Start Development Servers**

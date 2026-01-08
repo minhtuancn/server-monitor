@@ -285,9 +285,8 @@ Check status at:
 
 **Issue: Database errors**
 ```bash
-# Reinitialize test database
-cd backend
-python3 -c "import database; database.init_database()"
+# Reinitialize test database (from project root)
+python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database.init_database()"
 ```
 
 **Issue: Port already in use**
@@ -300,9 +299,8 @@ pkill -f terminal.py
 
 **Issue: Import errors**
 ```bash
-# Ensure backend dependencies installed
-cd backend
-pip3 install -r requirements.txt
+# Ensure backend dependencies installed (from project root)
+pip3 install -r backend/requirements.txt
 ```
 
 ### Frontend Tests Failing
