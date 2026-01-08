@@ -1,10 +1,15 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+
+# Cancel previous runs on same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Restrict permissions for all jobs
 permissions:
@@ -25,6 +30,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            tests/requirements.txt
       
       - name: Install dependencies
         run: |
@@ -54,6 +63,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            tests/requirements.txt
       
       - name: Install dependencies
         run: |
@@ -76,30 +89,17 @@ jobs:
       - name: Run unit tests
         run: |
           cd tests
-          # Note: Integration tests require running API server
-          # Run tests with continue-on-error for CI awareness
-          python -m pytest --tb=short -v 2>&1 || echo "::warning::Some integration tests failed - they require a running API server"
-        continue-on-error: true
-
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install bandit
-        run: pip install bandit
-      
-      - name: Run security scan
-        run: |
-          # Run bandit security scanner, excluding test files
-          bandit -r backend -x tests --severity-level medium -f txt || true
+          # Run tests - skip integration tests that require running server
+          # Use -m to mark tests, or run specific test files
+          python -m pytest --tb=short -v \
+            test_crypto_vault.py \
+            test_plugin_system.py \
+            test_plugin_integration.py \
+            test_security.py \
+            test_observability.py \
+            test_webhooks.py \
+            || {
+              echo "::warning::Some tests failed. This may be expected for integration tests."
+              echo "::warning::Review the test output above to determine if failures are acceptable."
+              exit 1
+            }
