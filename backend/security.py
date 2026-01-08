@@ -25,10 +25,17 @@ except ImportError:
 IS_CI_ENVIRONMENT = os.environ.get('CI', '').lower() in ('true', '1', 'yes')
 
 # Rate limiting configuration
-# Disable rate limiting in CI to avoid blocking test IPs
-RATE_LIMIT_REQUESTS = 100000 if IS_CI_ENVIRONMENT else 100  # requests per window
+# CI rate limits are set high to avoid blocking test IPs during automated testing
+RATE_LIMIT_CI_REQUESTS = 100000  # Effectively unlimited for CI
+RATE_LIMIT_CI_LOGIN = 100000  # Effectively unlimited for CI
+# Production rate limits
+RATE_LIMIT_PROD_REQUESTS = 100  # requests per window
+RATE_LIMIT_PROD_LOGIN = 5  # login attempts per window
+
+# Apply appropriate rate limits based on environment
+RATE_LIMIT_REQUESTS = RATE_LIMIT_CI_REQUESTS if IS_CI_ENVIRONMENT else RATE_LIMIT_PROD_REQUESTS
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_LOGIN = 100000 if IS_CI_ENVIRONMENT else 5  # login attempts per window
+RATE_LIMIT_LOGIN = RATE_LIMIT_CI_LOGIN if IS_CI_ENVIRONMENT else RATE_LIMIT_PROD_LOGIN
 RATE_LIMIT_LOGIN_WINDOW = 300  # 5 minutes
 
 # CORS configuration
