@@ -9,8 +9,11 @@
 
 The Webhooks Management feature allows administrators to configure HTTP callbacks that are triggered when specific events occur in the Server Monitor system. This enables integration with external systems, notification services, and custom automation workflows.
 
+**UI Access:** Settings → Webhooks (Admin only)
+
 ### Key Features
 
+- **Web UI Management**: Full-featured admin interface for webhook configuration
 - **Managed Configuration**: Configure webhooks through UI or API (no ENV variables needed)
 - **Event Filtering**: Subscribe to specific event types or all events
 - **HMAC Signing**: Secure webhook deliveries with SHA256 HMAC signatures
@@ -18,6 +21,7 @@ The Webhooks Management feature allows administrators to configure HTTP callback
 - **Retry Logic**: Automatic retry with exponential backoff on failures
 - **SSRF Protection**: Built-in security to prevent internal network access
 - **Test Functionality**: Send test events to verify webhook configuration
+- **Real-time Status**: View delivery history and troubleshoot issues directly in the UI
 
 ---
 
@@ -182,19 +186,54 @@ curl -X GET "https://your-server:9083/api/webhooks/WEBHOOK_ID/deliveries?limit=5
 }
 ```
 
-### Via UI
+### Via UI (Recommended)
 
-1. Navigate to **Settings → Integrations → Webhooks**
-2. Click **Add Webhook**
-3. Fill in webhook details:
-   - Name: Descriptive name for the webhook
-   - URL: Target endpoint URL
-   - Secret: Optional HMAC secret for signature verification
-   - Event Types: Select specific events or leave empty for all events
-   - Retry Max: Number of retry attempts (default: 3)
-   - Timeout: Request timeout in seconds (default: 10)
-4. Click **Save**
-5. Use **Test** button to verify configuration
+**Admin-only feature:** Only administrators can access the Webhooks management interface.
+
+#### Accessing Webhooks Management
+
+1. Log in as an administrator
+2. Navigate to **Settings → Webhooks** (in the Configuration section of the sidebar)
+3. The webhooks management page will display all configured webhooks
+
+#### Creating a Webhook
+
+1. Click the **Add Webhook** button
+2. Fill in the webhook form:
+   - **Name** (required): Descriptive name for the webhook
+   - **URL** (required): Target endpoint URL
+     - Must be a public HTTP or HTTPS URL
+     - Internal/private IPs are blocked (SSRF protection)
+   - **Secret** (optional): HMAC-SHA256 signature secret
+     - Leave empty for no signature verification
+     - Secrets are never displayed after creation
+   - **Enabled**: Toggle to enable/disable the webhook
+   - **Event Types**: Multi-select dropdown
+     - Leave empty to subscribe to ALL events
+     - Select specific events to filter
+   - **Retry Max**: Number of retry attempts (1-10, default: 3)
+   - **Timeout**: Request timeout in seconds (1-60, default: 10)
+3. Click **Create** to save the webhook
+
+#### Managing Webhooks
+
+- **Test**: Click the play button to send a test `webhook.test` event
+- **View Deliveries**: Click the eye icon to see the last 50 delivery attempts with status and errors
+- **Edit**: Click the pencil icon to update webhook configuration
+  - To change secret: Enter new value
+  - To keep existing secret: Leave secret field empty
+- **Delete**: Click the trash icon and confirm to permanently remove the webhook
+
+#### Available Event Types
+
+The UI provides 30+ event types in the dropdown:
+- Server: `server.created`, `server.updated`, `server.deleted`, `server.status_changed`
+- Task: `task.created`, `task.started`, `task.finished`, `task.failed`, `task.cancelled`
+- Terminal: `terminal.connect`, `terminal.disconnect`, `terminal.command`
+- User: `user.login`, `user.logout`, `user.created`, `user.updated`, `user.deleted`
+- Webhook: `webhook.created`, `webhook.updated`, `webhook.deleted`, `webhook.test`
+- Alert: `alert.triggered`, `alert.resolved`
+- Other: `settings.updated`, `inventory.collected`, `ssh_key.created`, `ssh_key.deleted`
 
 ---
 
