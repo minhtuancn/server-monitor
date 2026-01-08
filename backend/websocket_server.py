@@ -281,11 +281,10 @@ async def main():
     print("Database initialized")
 
     # Start WebSocket server
-    # Bind to 0.0.0.0 to allow external connections in production
+    # Bind address is configurable via WEBSOCKET_BIND_HOST env var (defaults to 0.0.0.0)
     # Security: Use firewall rules to restrict access as needed
-    # TODO: Make bind address configurable via WEBSOCKET_BIND_HOST env var
     bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')
-    async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104
+    async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104 - bind address is configurable for production use
         print(f"WebSocket server listening on ws://{bind_host}:{PORT}")
         print("Waiting for clients to connect...\n")
 

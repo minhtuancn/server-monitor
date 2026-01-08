@@ -63,8 +63,17 @@ check_internal_links() {
     # Extract just the path from [text](path)
     local path=$(echo "$link" | sed -n 's/.*(\([^)]*\)).*/\1/p')
 
-    # Skip external links, anchors, mailto, placeholders, and special characters
-    if [[ "$path" =~ ^https?:// ]] || [[ "$path" =~ ^mailto: ]] || [[ "$path" =~ ^# ]] || [[ "$path" == "..." ]] || [[ -z "$path" ]]; then
+    # Skip non-file links that shouldn't be validated
+    # - External URLs (http://, https://)
+    # - Email addresses (mailto:)
+    # - Internal anchors (#)
+    # - Placeholder text (...)
+    # - Empty paths
+    if [[ "$path" =~ ^https?:// ]] || \
+       [[ "$path" =~ ^mailto: ]] || \
+       [[ "$path" =~ ^# ]] || \
+       [[ "$path" == "..." ]] || \
+       [[ -z "$path" ]]; then
       continue
     fi
 
