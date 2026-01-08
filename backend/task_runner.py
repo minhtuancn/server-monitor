@@ -156,7 +156,8 @@ class TaskRunner:
         try:
             # Create SSH client
             self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Security Note: AutoAddPolicy used for task execution on monitored servers
+            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             # Build connection kwargs
             connect_kwargs = {

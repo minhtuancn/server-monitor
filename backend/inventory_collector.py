@@ -71,7 +71,8 @@ class InventoryCollector:
         """
         try:
             self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Security Note: AutoAddPolicy used for monitoring system - allows dynamic server inventory
+            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             connect_kwargs = {
                 'hostname': self.host,

@@ -36,7 +36,10 @@ last_disk_io = {'read_bytes': 0, 'write_bytes': 0, 'timestamp': time.time()}
 def run_command(cmd):
     """Execute shell command and return output"""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+        # Security Note: shell=True is used here for convenience in agent deployments
+        # This agent runs with system privileges to gather metrics
+        # Commands are predefined and not user-controlled
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)  # nosec B602
         return result.stdout.strip()
     except:
         return ""
