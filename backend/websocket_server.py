@@ -204,6 +204,10 @@ async def handle_client(websocket, path):
                     # TODO: Implement server-specific subscriptions
                     # This will allow clients to subscribe to updates from specific servers only
                     # Expected format: {'type': 'subscribe', 'server_ids': [1, 2, 3]}
+                    # Implementation notes:
+                    #   - Store subscriptions in-memory per WebSocket connection (no persistence)
+                    #   - Filter broadcast messages based on subscribed server IDs
+                    #   - Clear subscriptions on disconnect (ephemeral, not cross-reconnection)
                     pass
 
             except json.JSONDecodeError:
@@ -282,7 +286,10 @@ async def main():
 
     # Start WebSocket server
     # Bind address is configurable via WEBSOCKET_BIND_HOST env var (defaults to 0.0.0.0)
-    # Security: Use firewall rules to restrict access as needed
+    # Security: Binding to 0.0.0.0 exposes the service to all network interfaces
+    #   - Use firewall rules (iptables/ufw) to restrict access to trusted IPs
+    #   - Consider network segmentation to isolate the service
+    #   - Set WEBSOCKET_BIND_HOST=127.0.0.1 for localhost-only access in development
     bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')
     async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104 - bind address is configurable for production use
         print(f"WebSocket server listening on ws://{bind_host}:{PORT}")
