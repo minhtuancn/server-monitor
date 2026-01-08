@@ -1,6 +1,6 @@
 name: "Dependency Review"
 
-on:
+on: 
   pull_request:
     branches: [ main, develop ]
 
@@ -11,7 +11,7 @@ concurrency:
 
 # Restrict permissions for security
 permissions:
-  contents: read
+  contents:  read
   pull-requests: write
 
 jobs:
@@ -19,16 +19,16 @@ jobs:
     name: Review Dependencies
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents:  read
       pull-requests: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses:  actions/checkout@v4
 
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
-        with:
+        with: 
           # Fail on high or critical severity vulnerabilities
           fail-on-severity: high
           # Allow licenses commonly used in open source
@@ -36,6 +36,4 @@ jobs:
           # Deny problematic licenses
           deny-licenses: GPL-3.0, AGPL-3.0
           # Comment on PR with results
-          comment-summary-in-pr: always
-          # Warn on moderate severity
-          warn-on-severity: moderate
+          comment-summary-in-pr:  always
