@@ -404,6 +404,69 @@ else
     print_test "BFF proxy endpoint" "WARN" "BFF not responding (frontend might not be running)"
 fi
 
+echo ""
+echo "🔗 Testing Phase 8 features (Webhooks & Plugins)..."
+
+# Test webhooks endpoint (requires admin auth)
+if [[ -n "$AUTH_TOKEN" ]]; then
+    # Test webhooks list endpoint
+    WEBHOOKS_RESPONSE=$(curl -s -H "Authorization: Bearer $AUTH_TOKEN" "$API_URL/api/webhooks" 2>/dev/null || echo '{"error":"request failed"}')
+    
+    if echo "$WEBHOOKS_RESPONSE" | grep -q "webhooks\|error.*Forbidden\|error.*Admin"; then
+        if echo "$WEBHOOKS_RESPONSE" | grep -q "webhooks"; then
+            print_test "Webhooks list endpoint (admin)" "PASS" "Webhooks API is accessible"
+        else
+            print_test "Webhooks list endpoint (admin)" "WARN" "Got 403/Forbidden - user may not have admin role"
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "  └─ ℹ Webhooks require admin role. Current user: ${AUTH_USER}"
+            fi
+        fi
+    else
+        print_test "Webhooks list endpoint (admin)" "FAIL" "Unexpected response from webhooks API"
+    fi
+    
+    # Check cache metrics in /api/metrics
+    CACHE_METRICS=$(curl -s "$API_URL/api/metrics" 2>/dev/null || echo "")
+    if echo "$CACHE_METRICS" | grep -q "cache_hits_total\|cache_misses_total"; then
+        print_test "Cache metrics in /api/metrics" "PASS" "Cache hit/miss metrics available"
+    else
+        print_test "Cache metrics in /api/metrics" "WARN" "Cache metrics not found in output"
+    fi
+    
+    # Check rate limit functionality (make a burst of requests)
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "  └─ ℹ Testing rate limiting (making 5 rapid requests)..."
+    fi
+    RATE_LIMIT_TRIGGERED=false
+    for i in {1..5}; do
+        RATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $AUTH_TOKEN" "$API_URL/api/stats/overview" 2>/dev/null || echo "000")
+        if [[ "$RATE_RESPONSE" == "429" ]]; then
+            RATE_LIMIT_TRIGGERED=true
+            break
+        fi
+    done
+    
+    if [[ "$RATE_LIMIT_TRIGGERED" == "true" ]]; then
+        print_test "Rate limiting (429 status)" "INFO" "Rate limiting is active (got 429 response)"
+    else
+        print_test "Rate limiting check" "INFO" "No rate limit hit in test (limits may be high or endpoint not rate-limited)"
+    fi
+else
+    print_test "Webhooks endpoint test" "INFO" "Skipped (no admin credentials provided)"
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "  └─ ℹ Use --auth-user and --auth-pass to test authenticated endpoints"
+        echo "  └─ ℹ Note: User must have 'admin' role to access webhooks"
+    fi
+fi
+
+# Test plugin system metrics (if available)
+PLUGIN_METRICS=$(curl -s "$API_URL/api/metrics" 2>/dev/null || echo "")
+if echo "$PLUGIN_METRICS" | grep -q "plugin_events_total\|webhook_deliveries_total"; then
+    print_test "Plugin/Webhook metrics" "PASS" "Plugin system metrics available"
+else
+    print_test "Plugin/Webhook metrics" "INFO" "Plugin metrics not found (plugins may be disabled)"
+fi
+
 ###############################################################################
 # Summary
 ###############################################################################

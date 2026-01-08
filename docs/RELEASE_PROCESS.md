@@ -349,8 +349,16 @@ Before starting the release process, ensure all these items are complete:
    # Generate checksums
    sha256sum scripts/install.sh > install.sh.sha256
    
-   # Generate SBOM (see PR4 for details)
-   # Attach sbom-python.json and sbom-node.json
+   # Generate SBOM (for v2.3.0+, see below for instructions)
+   # Python SBOM using pip-audit or cyclonedx-bom
+   pip-audit --format json > sbom-python.json
+   # OR
+   cyclonedx-bom -i pyproject.toml -o sbom-python.json
+   
+   # Node.js SBOM using cyclonedx-bom
+   cd frontend-next
+   npx @cyclonedx/cyclonedx-npm --output-file ../sbom-node.json
+   cd ..
    
    # Create checksums file
    cat > checksums.txt << EOF
@@ -358,6 +366,7 @@ Before starting the release process, ensure all these items are complete:
    
    $(sha256sum scripts/install.sh)
    $(sha256sum docs/openapi.yaml)
+   $(sha256sum RELEASE_NOTES_vX.Y.Z.md 2>/dev/null || echo "")
    EOF
    ```
    
@@ -365,8 +374,8 @@ Before starting the release process, ensure all these items are complete:
    - `openapi-vX.Y.Z.yaml`
    - `install.sh.sha256`
    - `checksums.txt`
-   - `sbom-python.json` (if available)
-   - `sbom-node.json` (if available)
+   - `sbom-python.json` (recommended for v2.3.0+)
+   - `sbom-node.json` (recommended for v2.3.0+)
 
 4. **Publish Release**
    - Review all information

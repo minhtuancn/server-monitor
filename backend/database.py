@@ -2931,6 +2931,40 @@ def get_webhook_delivery_stats():
     }
 
 
+def cleanup_old_webhook_deliveries(days=90):
+    """
+    Delete webhook delivery logs older than specified days
+    
+    Args:
+        days: Number of days to retain (default 90)
+    
+    Returns:
+        Dict with number of deleted delivery logs
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Calculate cutoff date
+    from datetime import datetime, timedelta
+    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat() + 'Z'
+    
+    # Delete old webhook delivery logs
+    cursor.execute("""
+        DELETE FROM webhook_deliveries 
+        WHERE delivered_at < ?
+    """, (cutoff_date,))
+    
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    
+    return {
+        'deleted': deleted, 
+        'message': f'Deleted {deleted} webhook delivery logs older than {days} days', 
+        'cutoff_date': cutoff_date
+    }
+
+
 # ==================== TEST CODE ====================
 
 if __name__ == '__main__':

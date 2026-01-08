@@ -822,14 +822,395 @@ _________________________________________________________________
 
 ---
 
+## 1️⃣3️⃣ Phase 8 / v2.3.0 Features Validation
+
+### 13.1 Plugin System
+
+**Verify Plugin Framework:**
+```bash
+# Check plugin system is loaded (via logs)
+sudo journalctl -u server-monitor-api -n 100 | grep -i plugin
+
+# Check event model in code
+cat /opt/server-monitor/backend/event_model.py | head -20
+```
+
+**Validation Checklist:**
+- [ ] Plugin system initializes on startup
+- [ ] Event model defined (Event dataclass)
+- [ ] Plugin manager loaded
+- [ ] No plugin errors in logs
+- [ ] Structured logging shows plugin events
+
+### 13.2 Webhooks UI (Admin Settings)
+
+**Access Webhooks Page:**
+```bash
+# URL: http://localhost:9081/settings/integrations
+# Login as admin user
+```
+
+**Create Webhook:**
+- [ ] Navigate to Settings → Integrations
+- [ ] Click "Add Webhook" or similar button
+- [ ] Fill in webhook details:
+  - Name: "Test Webhook"
+  - URL: https://webhook.site/<your-unique-url>
+  - Secret: "test-secret-123"
+  - Event types: Select "task.finished", "alert.triggered"
+  - Enabled: Yes
+- [ ] Save webhook
+- [ ] Webhook appears in list
+
+**Edit Webhook:**
+- [ ] Click edit on test webhook
+- [ ] Change name to "Updated Webhook"
+- [ ] Toggle enabled off
+- [ ] Save changes
+- [ ] Changes reflected in list
+
+**Test Webhook:**
+- [ ] Click "Test" button on webhook
+- [ ] Test event sent successfully
+- [ ] Check webhook.site for received request
+- [ ] Verify payload structure
+- [ ] Verify headers (X-SM-Event-Id, X-SM-Signature, etc.)
+
+**Delete Webhook:**
+- [ ] Click delete on test webhook
+- [ ] Confirm deletion dialog
+- [ ] Webhook removed from list
+
+**Internationalization:**
+- [ ] UI text appears in correct language
+- [ ] Language switcher works
+- [ ] All labels translated (8 languages)
+
+### 13.3 Webhooks API (Authenticated Tests)
+
+**Get Admin Token:**
+```bash
+TOKEN=$(curl -s -X POST http://localhost:9083/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"YOUR_PASSWORD"}' | jq -r '.token')
+
+echo "Token: $TOKEN"
+```
+
+**List Webhooks:**
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:9083/api/webhooks | jq
+```
+
+**Expected:**
+- [ ] HTTP 200 status
+- [ ] Returns JSON with "webhooks" array
+- [ ] Array may be empty or contain webhooks
+
+**Create Webhook via API:**
+```bash
+curl -X POST http://localhost:9083/api/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "API Test Webhook",
+    "url": "https://webhook.site/<your-url>",
+    "secret": "api-secret-456",
+    "enabled": true,
+    "event_types": ["task.finished"],
+    "retry_max": 3,
+    "timeout": 10
+  }' | jq
+```
+
+**Expected:**
+- [ ] HTTP 201 status
+- [ ] Returns webhook ID
+- [ ] Webhook created in database
+
+**Test Webhook Delivery:**
+```bash
+WEBHOOK_ID="<webhook-id-from-create>"
+
+curl -X POST http://localhost:9083/api/webhooks/$WEBHOOK_ID/test \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+**Expected:**
+- [ ] HTTP 200 status
+- [ ] Test event sent
+- [ ] Check webhook.site for delivery
+- [ ] Verify HMAC signature in X-SM-Signature header
+
+**Get Delivery Logs:**
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:9083/api/webhooks/$WEBHOOK_ID/deliveries?limit=10" | jq
+```
+
+**Expected:**
+- [ ] HTTP 200 status
+- [ ] Returns array of delivery attempts
+- [ ] Shows status (success/failed/retrying)
+- [ ] Includes status_code, response_body, timestamps
+
+**Delete Webhook:**
+```bash
+curl -X DELETE http://localhost:9083/api/webhooks/$WEBHOOK_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected:**
+- [ ] HTTP 200 status
+- [ ] Webhook deleted
+
+### 13.4 SSRF Protection Testing
+
+**Test Blocked URLs:**
+
+```bash
+# Test localhost (should be blocked)
+curl -X POST http://localhost:9083/api/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "SSRF Test - Localhost",
+    "url": "http://localhost/webhook",
+    "enabled": true
+  }' | jq
+```
+
+**Expected:**
+- [ ] HTTP 400 or 422 status
+- [ ] Error message: "Internal/localhost URLs are not allowed" or similar
+- [ ] Webhook not created
+
+**Test private IP (should be blocked):**
+```bash
+curl -X POST http://localhost:9083/api/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "SSRF Test - Private IP",
+    "url": "http://192.168.1.100/webhook",
+    "enabled": true
+  }' | jq
+```
+
+**Expected:**
+- [ ] HTTP 400 or 422 status
+- [ ] Error message: "Private network addresses are not allowed" or similar
+- [ ] Webhook not created
+
+**Test internal hostname (should be blocked):**
+```bash
+curl -X POST http://localhost:9083/api/webhooks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "SSRF Test - Internal Host",
+    "url": "http://server.local/webhook",
+    "enabled": true
+  }' | jq
+```
+
+**Expected:**
+- [ ] HTTP 400 or 422 status
+- [ ] Error message: "Internal hostname patterns are not allowed"
+- [ ] Webhook not created
+
+**SSRF Validation Summary:**
+- [ ] Localhost blocked (127.0.0.1, ::1, localhost)
+- [ ] Private networks blocked (10.x, 172.16.x, 192.168.x)
+- [ ] Link-local blocked (169.254.x.x)
+- [ ] Internal hostnames blocked (.local, .internal, .lan)
+- [ ] Invalid schemes blocked (file://, ftp://)
+- [ ] Valid external URLs accepted
+
+### 13.5 HMAC Signature Verification
+
+**Python Verification Script:**
+
+Save as `/tmp/verify_webhook.py`:
+```python
+#!/usr/bin/env python3
+import hmac
+import hashlib
+import json
+
+def verify_webhook(payload_str, signature_header, secret):
+    """Verify webhook HMAC signature"""
+    payload_bytes = payload_str.encode('utf-8')
+    expected = hmac.new(
+        secret.encode('utf-8'),
+        payload_bytes,
+        hashlib.sha256
+    ).hexdigest()
+    
+    received = signature_header.split('=')[1] if '=' in signature_header else signature_header
+    
+    return hmac.compare_digest(expected, received)
+
+# Example usage
+if __name__ == "__main__":
+    # Paste actual values from webhook.site
+    payload = '{"event_id":"123","event_type":"task.finished","timestamp":"2026-01-08T00:00:00Z"}'
+    signature = "sha256=abc123def456..."  # From X-SM-Signature header
+    secret = "your-webhook-secret"
+    
+    if verify_webhook(payload, signature, secret):
+        print("✅ Signature valid!")
+    else:
+        print("❌ Signature invalid!")
+```
+
+**Test HMAC:**
+```bash
+# Run verification script with actual webhook data
+python3 /tmp/verify_webhook.py
+```
+
+**Expected:**
+- [ ] Script outputs "✅ Signature valid!"
+- [ ] Signature matches expected HMAC-SHA256 value
+
+### 13.6 Rate Limiting (HTTP 429)
+
+**Test Rate Limit on Inventory Refresh:**
+```bash
+# Make rapid requests to trigger rate limit
+SERVER_ID="<existing-server-id>"
+
+for i in {1..15}; do
+  echo "Request $i:"
+  curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+    -X POST http://localhost:9083/api/servers/$SERVER_ID/inventory/refresh \
+    -H "Authorization: Bearer $TOKEN"
+  sleep 0.5
+done
+```
+
+**Expected:**
+- [ ] First 10 requests: HTTP 200 or 202
+- [ ] Subsequent requests: HTTP 429 (Too Many Requests)
+- [ ] Response includes `Retry-After` header (seconds)
+- [ ] Response includes rate limit headers:
+  - `X-RateLimit-Limit: 10`
+  - `X-RateLimit-Remaining: 0`
+  - `X-RateLimit-Reset: <timestamp>`
+
+**Rate Limit Summary:**
+- [ ] Rate limiting active on heavy endpoints
+- [ ] 429 status returned when limit exceeded
+- [ ] Retry-After header present
+- [ ] Rate resets after window expires
+
+### 13.7 Cache Performance Validation
+
+**Check Cache Metrics:**
+```bash
+curl http://localhost:9083/api/metrics | grep cache
+```
+
+**Expected metrics:**
+```
+cache_hits_total <number>
+cache_misses_total <number>
+cache_hit_rate <0.0-1.0>
+```
+
+**Test Cache Behavior:**
+```bash
+# First request (cache miss)
+time curl -s http://localhost:9083/api/stats/overview > /dev/null
+
+# Second request (cache hit, should be faster)
+time curl -s http://localhost:9083/api/stats/overview > /dev/null
+
+# Wait for TTL expiration (30+ seconds for stats/overview)
+sleep 35
+
+# Third request (cache miss again)
+time curl -s http://localhost:9083/api/stats/overview > /dev/null
+```
+
+**Expected:**
+- [ ] Second request faster than first (cache hit)
+- [ ] Third request slower again after TTL (cache miss)
+- [ ] Cache hit rate increases in metrics
+- [ ] Performance improvement visible (40-60% faster on cached)
+
+**Cache Summary:**
+- [ ] Cache hit/miss metrics available
+- [ ] Cached endpoints respond faster on hit
+- [ ] TTL expiration works correctly
+- [ ] No stale data issues
+
+### 13.8 Webhook Delivery Metrics
+
+**Check Webhook Metrics:**
+```bash
+curl http://localhost:9083/api/metrics | grep webhook
+```
+
+**Expected metrics:**
+```
+webhook_deliveries_total{status="success"} <number>
+webhook_deliveries_total{status="failed"} <number>
+webhook_deliveries_total{status="retrying"} <number>
+```
+
+**Validation:**
+- [ ] Webhook delivery counters present
+- [ ] Metrics increment on delivery
+- [ ] Success/failed/retrying tracked separately
+
+---
+
+## 1️⃣4️⃣ RBAC & Admin-Only Validation
+
+### 14.1 Non-Admin User Test
+
+**Create non-admin user:**
+```bash
+# Via UI or API (as admin)
+# Username: testuser, Role: operator or user
+```
+
+**Get non-admin token:**
+```bash
+USER_TOKEN=$(curl -s -X POST http://localhost:9083/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"password"}' | jq -r '.token')
+```
+
+**Test webhooks access (should fail):**
+```bash
+curl -H "Authorization: Bearer $USER_TOKEN" \
+  http://localhost:9083/api/webhooks
+```
+
+**Expected:**
+- [ ] HTTP 403 Forbidden
+- [ ] Error message: "Admin access required" or similar
+- [ ] Non-admin users cannot access webhooks
+
+**RBAC Summary:**
+- [ ] Admin-only endpoints enforced
+- [ ] Non-admin users get 403 on webhooks
+- [ ] Proper error messages returned
+
+---
+
 ## 📝 Post-Validation Actions
 
 After successful staging validation:
 
-1. [ ] Create Git tag `v2.2.0`
+1. [ ] Create Git tag `v2.3.0`
 2. [ ] Create GitHub Release with notes
 3. [ ] Attach OpenAPI spec to release
-4. [ ] Generate and attach checksums
+4. [ ] Generate and attach checksums (install.sh, SBOM files)
 5. [ ] Update README badges
 6. [ ] Announce release (if applicable)
 7. [ ] Schedule production deployment
