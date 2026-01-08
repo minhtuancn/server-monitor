@@ -795,6 +795,8 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 ### Operations
 - [POST-PRODUCTION.md](POST-PRODUCTION.md) - Monitoring, logging, maintenance
 - [TEST_GUIDE.md](TEST_GUIDE.md) - Testing instructions
+- [docs/WORKFLOWS.md](docs/WORKFLOWS.md) - GitHub Actions workflows guide (Vietnamese)
+- [docs/WORKFLOWS_EN.md](docs/WORKFLOWS_EN.md) - GitHub Actions workflows guide (English)
 
 ### Security
 - [SECURITY.md](SECURITY.md) - Security guide and audit findings
