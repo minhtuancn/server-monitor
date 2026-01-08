@@ -168,11 +168,12 @@ check_http() {
     local url="$1"
     local expected_code="$2"
     local test_name="$3"
-    local extra_args="${4:-}"
+    shift 3  # Remove first 3 arguments
     
     local response_code
-    if [[ -n "$extra_args" ]]; then
-        response_code=$(curl -s -o /dev/null -w "%{http_code}" $extra_args "$url" 2>/dev/null || echo "000")
+    if [[ $# -gt 0 ]]; then
+        # Pass remaining arguments as-is (already properly quoted by caller)
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" "$@" "$url" 2>/dev/null || echo "000")
     else
         response_code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
     fi
@@ -191,11 +192,12 @@ check_json_response() {
     local url="$1"
     local expected_key="$2"
     local test_name="$3"
-    local extra_args="${4:-}"
+    shift 3  # Remove first 3 arguments
     
     local response
-    if [[ -n "$extra_args" ]]; then
-        response=$(curl -s $extra_args "$url" 2>/dev/null || echo "{}")
+    if [[ $# -gt 0 ]]; then
+        # Pass remaining arguments as-is
+        response=$(curl -s "$@" "$url" 2>/dev/null || echo "{}")
     else
         response=$(curl -s "$url" 2>/dev/null || echo "{}")
     fi
@@ -359,12 +361,11 @@ if [[ -n "$AUTH_TOKEN" ]]; then
     echo "🔑 Testing authenticated endpoints..."
     
     # Test auth verify with token
-    AUTH_HEADER="-H \"Authorization: Bearer $AUTH_TOKEN\""
-    check_http "$API_URL/api/auth/verify" "200" "Auth verify endpoint (with token)" "$AUTH_HEADER"
+    check_http "$API_URL/api/auth/verify" "200" "Auth verify endpoint (with token)" -H "Authorization: Bearer $AUTH_TOKEN"
     
     # Test audit export endpoints (admin only)
-    check_http "$API_URL/api/export/audit/csv" "200" "Audit CSV export endpoint" "$AUTH_HEADER"
-    check_http "$API_URL/api/export/audit/json" "200" "Audit JSON export endpoint" "$AUTH_HEADER"
+    check_http "$API_URL/api/export/audit/csv" "200" "Audit CSV export endpoint" -H "Authorization: Bearer $AUTH_TOKEN"
+    check_http "$API_URL/api/export/audit/json" "200" "Audit JSON export endpoint" -H "Authorization: Bearer $AUTH_TOKEN"
 fi
 
 echo ""

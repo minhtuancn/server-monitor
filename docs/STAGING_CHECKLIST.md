@@ -726,8 +726,15 @@ sudo -u server-monitor ./scripts/smoke.sh --verbose
 ### 11.3 Run Authenticated Smoke Test
 
 ```bash
+# Set credentials as environment variables (safer than command-line args)
+export SMOKE_USER="admin"
+export SMOKE_PASS="YOUR_PASSWORD"
+
 # Test with admin credentials
-./scripts/smoke.sh --auth-user admin --auth-pass YOUR_PASSWORD --verbose
+./scripts/smoke.sh --auth-user "$SMOKE_USER" --auth-pass "$SMOKE_PASS" --verbose
+
+# Clear credentials from environment
+unset SMOKE_USER SMOKE_PASS
 ```
 
 **Expected:**

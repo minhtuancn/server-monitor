@@ -124,8 +124,13 @@ EOF
           echo "# Node.js Frontend Dependencies Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Run npm audit and capture output
-          if npm audit --json > npm-audit.json 2>&1; then
+          # Run npm audit and capture exit code
+          set +e
+          npm audit --json > npm-audit.json 2>&1
+          AUDIT_EXIT_CODE=$?
+          set -e
+          
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
             echo "✅ No vulnerabilities found in frontend dependencies" >> $GITHUB_STEP_SUMMARY
             echo "status=success" >> $GITHUB_OUTPUT
           else
@@ -133,8 +138,8 @@ EOF
             echo "⚠️ Vulnerabilities found in frontend dependencies" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             
-            # Parse and display summary
-            if [ -f npm-audit.json ]; then
+            # Parse and display summary if JSON is valid
+            if [ -f npm-audit.json ] && jq empty npm-audit.json 2>/dev/null; then
               node << 'EOF'
 const fs = require('fs');
 
