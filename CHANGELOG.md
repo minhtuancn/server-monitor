@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-01-07 - Phase 6: Observability & Reliability
+
+### 🚀 Production Observability & Enhanced Reliability
+
+This release brings comprehensive observability, enhanced security, and system reliability features with zero breaking changes.
+
+### Added
+
+**Observability & Monitoring**
+- ✨ Health check endpoint (`GET /api/health`) for liveness probes
+- ✨ Readiness check endpoint (`GET /api/ready`) with validation
+  - Database connectivity check
+  - Configuration validation
+  - Detailed check results
+- ✨ Metrics endpoint (`GET /api/metrics`) supporting:
+  - Prometheus text format (default)
+  - JSON format (`?format=json`)
+  - Uptime, request counts, latency percentiles
+  - WebSocket connections, terminal sessions, tasks
+- ✨ Request correlation via `X-Request-Id` header
+  - Auto-generated if not provided
+  - Propagated across services
+  - Included in structured logs
+- ✨ Structured JSON logging across all services
+  - Consistent format (timestamp, level, service, message)
+  - Sensitive data redaction
+  - Request tracking
+
+**Security Enhancements**
+- ✨ Startup secret validation for production
+  - Validates JWT_SECRET, ENCRYPTION_KEY, KEY_VAULT_MASTER_KEY
+  - Rejects placeholder values
+  - Exits with code 1 on validation failure
+- ✨ Task safety policy engine
+  - Denylist mode (29 dangerous patterns) - default
+  - Allowlist mode (explicit command approval)
+  - Configurable patterns
+  - Blocks: rm -rf /, shutdown, chmod 777, package removal, fork bombs, etc.
+- ✨ Audit log retention & cleanup
+  - Auto-cleanup old logs (default: 90 days)
+  - Configurable retention period
+  - Runs on startup + periodic intervals
+  - Audit logging for cleanup operations
+- ✨ Audit log export endpoints (admin-only)
+  - CSV export with injection prevention
+  - JSON export with sanitization
+  - Filtering by date, user, action, target
+  - Export actions audited
+
+**Reliability & Recovery**
+- ✨ Graceful shutdown for all services
+  - SIGTERM/SIGINT handlers
+  - Marks running tasks as interrupted
+  - Marks active sessions as interrupted
+  - Closes SSH connections cleanly
+  - Flushes logs
+- ✨ Task recovery on startup
+  - Detects stale running tasks (>60 min)
+  - Marks as interrupted
+  - Recovers terminal sessions
+  - Creates audit log entries
+
+**Testing**
+- ✨ Observability test suite (`tests/test_observability.py`)
+  - Health/ready endpoint tests
+  - Metrics format validation
+  - Request-ID propagation tests
+  - Task policy tests
+  - Audit export tests
+
+### Changed
+- All services now output structured JSON logs
+- Enhanced startup with recovery statistics
+- Improved shutdown behavior (no orphaned processes)
+- Metrics collector tracks more system state
+
+### Fixed
+- Tasks stuck in 'running' state after service restart
+- Terminal sessions not marked closed on crash
+- No graceful cleanup on SIGTERM
+- Audit logs growing indefinitely
+
+### Configuration
+```bash
+# New environment variables (all optional, backward compatible)
+AUDIT_RETENTION_DAYS=90
+AUDIT_CLEANUP_ENABLED=true
+AUDIT_CLEANUP_INTERVAL_HOURS=24
+TASK_POLICY_MODE=denylist
+TASK_DENY_PATTERNS=pattern1,pattern2
+TASK_ALLOW_PATTERNS=^ls\b,^cat\b
+TASK_STALE_THRESHOLD_MINUTES=60
+ENVIRONMENT=production  # Enables secret validation
+```
+
+### Migration
+- **No breaking changes** - Fully backward compatible
+- New environment variables optional but recommended
+- See RELEASE_NOTES_v2.2.0.md for detailed migration guide
+
+---
+
 ## [2.1.0] - 2026-01-07 - Phase 5: Production Polish
 
 ### 🚀 Production-Ready Release with OpenAPI Documentation

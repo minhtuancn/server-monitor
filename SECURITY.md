@@ -550,26 +550,313 @@ ENCRYPTION_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(24))")
 
 ---
 
+## 🔧 Production Deployment Security (Phase 6)
+
+### Startup Secret Validation
+
+**Version 2.2.0** introduces mandatory secret validation on startup for production deployments.
+
+#### Required Environment Variables
+
+```bash
+# REQUIRED in production mode (ENVIRONMENT=production)
+JWT_SECRET=<min 32 chars>
+ENCRYPTION_KEY=<min 24 chars>
+KEY_VAULT_MASTER_KEY=<min 32 chars>
+```
+
+#### Validation Behavior
+
+- **Development Mode:** Secrets are optional, warnings logged
+- **Production Mode:** Missing/weak secrets cause startup failure
+- **Generation Command:**
+  ```bash
+  python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+  ```
+
+#### Validation Checks
+
+✅ Secrets are present and non-empty  
+✅ Minimum length requirements met  
+✅ No placeholder values (e.g., "REPLACE_WITH_SECURE_RANDOM_VALUE")  
+✅ Sufficient entropy for cryptographic operations  
+
+**Exit Code:** Service exits with code 1 if validation fails in production.
+
+---
+
+### Task Safety Policy
+
+Prevents execution of dangerous commands that could harm the system.
+
+#### Policy Modes
+
+**1. Denylist Mode (Default)**
+- Blocks known dangerous patterns
+- Allows everything else
+- Recommended for most deployments
+
+**2. Allowlist Mode**
+- Only permits explicitly allowed commands
+- Blocks everything else
+- Recommended for high-security environments
+
+#### Configuration
+
+```bash
+# Set policy mode
+TASK_POLICY_MODE=denylist  # or 'allowlist'
+
+# Add custom dangerous patterns (denylist mode)
+TASK_DENY_PATTERNS="pattern1,pattern2,pattern3"
+
+# Add allowed patterns (allowlist mode)
+TASK_ALLOW_PATTERNS="^ls\b,^cat\b,^grep\b"
+```
+
+#### Default Blocked Patterns (29 patterns)
+
+**Filesystem Destruction:**
+- `rm -rf /` and variants
+- `mkfs` (format partition)
+- `dd if=/dev/zero of=/dev/`
+
+**System Control:**
+- `shutdown`, `reboot`, `halt`, `poweroff`
+- `init 0`, `init 6`
+
+**User/Permission Manipulation:**
+- `usermod`, `passwd`
+- `chmod 777`
+- `chown` on root
+- `visudo`
+
+**Package Management:**
+- `apt-get remove/purge`
+- `yum remove/erase`
+- `dnf remove/erase`
+
+**Kernel/Boot:**
+- `grub-*`, `update-grub`
+- `modprobe`, `insmod`, `rmmod`
+
+**Network Disruption:**
+- `ifconfig * down`
+- `ip link set * down`
+- `iptables -F`
+
+**Resource Exhaustion:**
+- Fork bombs
+- Infinite loops with fork
+
+#### Override Process
+
+If you need to execute a blocked command:
+
+1. Review the command for safety
+2. Add to custom allowlist in `.env`
+3. Restart services
+4. Monitor execution logs
+
+#### Audit Logging
+
+All task policy violations are logged with:
+- Command that was blocked
+- User who attempted
+- Timestamp
+- Reason for blocking
+
+---
+
+### Audit Log Security
+
+#### Retention Policy
+
+```bash
+# Auto-cleanup configuration
+AUDIT_RETENTION_DAYS=90        # Keep logs for 90 days
+AUDIT_CLEANUP_ENABLED=true     # Enable auto-cleanup
+AUDIT_CLEANUP_INTERVAL_HOURS=24 # Run daily
+```
+
+#### Export Security
+
+**CSV Export Sanitization:**
+- Prevents CSV injection attacks
+- Prefixes dangerous characters (`=`, `+`, `-`, `@`) with `'`
+- Limits exported field size
+- Excludes sensitive metadata
+
+**JSON Export Sanitization:**
+- Truncates large meta_json fields (>1000 chars)
+- Removes user_agent if too large
+- Limits export size (max 50,000 records)
+
+**Access Control:**
+- Both CSV and JSON export require admin role
+- Exports are audited (action: `audit.export`)
+- Export filters logged in audit metadata
+
+#### Audit Log Fields
+
+**Included in Export:**
+- `id`, `user_id`, `action`, `target_type`, `target_id`
+- `ip`, `created_at`
+
+**Excluded from Export:**
+- `user_agent` (may contain PII)
+- Large `meta_json` (truncated in JSON, excluded in CSV)
+
+---
+
+## 🛡️ System Reliability & Recovery
+
+### Graceful Shutdown
+
+All services support graceful shutdown on `SIGTERM`/`SIGINT`:
+
+**Central API (`central_api.py`):**
+- Stops audit cleanup scheduler
+- Marks running tasks as interrupted
+- Marks active terminal sessions as interrupted
+- Closes all SSH connections
+- Shuts down HTTP server cleanly
+
+**Terminal Server (`terminal.py`):**
+- Closes all active SSH sessions
+- Updates session status to 'interrupted'
+- Closes WebSocket server
+
+**WebSocket Server (`websocket_server.py`):**
+- Closes all WebSocket connections
+- Closes SSH connections
+- Flushes logs
+
+### Task Recovery on Startup
+
+Automatically recovers from crashes and unclean shutdowns:
+
+**Stale Task Detection:**
+- Tasks stuck in 'running' state
+- Running longer than threshold (default: 60 minutes)
+- No heartbeat/activity
+
+**Recovery Actions:**
+- Mark tasks as 'interrupted'
+- Set finish timestamp
+- Add error message
+- Create audit log entry
+
+**Configuration:**
+```bash
+TASK_STALE_THRESHOLD_MINUTES=60  # Stale task threshold
+```
+
+**Logged Metrics:**
+- Number of tasks recovered
+- Number of sessions recovered
+- Recovery timestamp
+- Audit log entry created
+
+---
+
+## 📊 Security Monitoring
+
+### Health & Readiness Checks
+
+**Liveness Check (`/api/health`):**
+- Public endpoint
+- Returns basic service status
+- No sensitive data exposed
+
+**Readiness Check (`/api/ready`):**
+- Public endpoint
+- Validates:
+  - Database connectivity
+  - Database writability
+  - Table initialization
+  - Vault master key presence
+  - JWT secret configuration
+  - Encryption key configuration
+
+**Status Responses:**
+- `ready`: All checks passed
+- `not_ready`: One or more checks failed
+- Individual check status in response
+
+### Request Correlation
+
+All requests get a unique `X-Request-Id`:
+- Auto-generated if not provided
+- Preserved across service calls
+- Included in structured logs
+- Returned in response headers
+
+Use for:
+- Tracing requests through logs
+- Debugging issues
+- Performance analysis
+
+### Metrics Endpoint
+
+**Prometheus format (`/api/metrics`):**
+```
+server_monitor_uptime_seconds 123456
+server_monitor_requests_total{endpoint="/api/servers"} 42
+server_monitor_request_latency_ms{endpoint="/api/servers",quantile="0.95"} 45.2
+```
+
+**JSON format (`/api/metrics?format=json`):**
+```json
+{
+  "timestamp": "2026-01-07T...",
+  "uptime_seconds": 123456,
+  "requests": {"total": 42, "by_endpoint": {...}},
+  "latency": {...},
+  "tasks": {"running": 2, "queued": 1}
+}
+```
+
+**Access Control:**
+- Requires admin role OR localhost access
+- Sensitive metrics sanitized
+- No PII exposed
+
+---
+
 ## 📋 Security Checklist
 
-### Before Production
+### Before Production (Phase 6 Enhanced)
 
 - [ ] Changed default admin password
 - [ ] Set secure JWT_SECRET (min 32 chars)
 - [ ] Set secure ENCRYPTION_KEY (min 24 chars)
+- [ ] Set secure KEY_VAULT_MASTER_KEY (min 32 chars)
+- [ ] Configured ENVIRONMENT=production
+- [ ] Verified startup secret validation passes
+- [ ] Configured task safety policy (denylist/allowlist)
+- [ ] Set audit log retention policy (AUDIT_RETENTION_DAYS)
 - [ ] Updated CORS allowed origins
 - [ ] Enabled HTTPS
 - [ ] Configured firewall
 - [ ] Reviewed all user accounts
 - [ ] Set up monitoring and alerting
+- [ ] Configured metrics scraping (Prometheus)
+- [ ] Tested graceful shutdown (SIGTERM)
+- [ ] Verified task recovery on restart
 
 ### Ongoing
 
 - [ ] Regular security updates
 - [ ] Monitor failed login attempts
-- [ ] Review access logs
+- [ ] Review access logs and audit logs
+- [ ] Monitor audit log cleanup (verify retention policy)
+- [ ] Review blocked task commands
+- [ ] Check system metrics regularly
 - [ ] Test backup restoration
 - [ ] Periodic security audits
+- [ ] Review request correlation logs (X-Request-Id)
+- [ ] Monitor readiness check failures
 
 ---
 
@@ -589,4 +876,4 @@ We will respond within 48 hours and work on a fix.
 
 ---
 
-**Last Updated:** 2026-01-07
+**Last Updated:** 2026-01-07 (v2.2.0 - Phase 6)

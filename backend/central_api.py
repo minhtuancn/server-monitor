@@ -11,6 +11,7 @@ import json
 import sys
 import os
 import time
+import signal
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
@@ -36,6 +37,8 @@ from observability import (
 )
 import startup_validation
 from task_policy import get_task_policy, TaskPolicyViolation
+from audit_cleanup import get_audit_cleanup_scheduler
+from task_recovery import run_startup_recovery
 
 PORT = 9083  # Different port for central server
 
@@ -53,6 +56,9 @@ TASK_COMMAND_PREVIEW_LENGTH = 100
 # Initialize managers
 user_mgr = get_user_manager()
 settings_mgr = get_settings_manager()
+
+# Global server instance for graceful shutdown
+http_server = None
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -1126,6 +1132,162 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({'error': f'Failed to get audit logs: {str(e)}'}).encode())
+        
+        elif path == '/api/export/audit/csv':
+            # Export audit logs as CSV (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin can export audit logs
+            role = auth_result.get('role', 'user')
+            if role != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin role required'}).encode())
+                return
+            
+            try:
+                # Parse query parameters (same as /api/audit-logs)
+                user_id = query.get('user_id', [None])[0]
+                action = query.get('action', [None])[0]
+                target_type = query.get('target_type', [None])[0]
+                from_date = query.get('from', [None])[0]
+                to_date = query.get('to', [None])[0]
+                limit = int(query.get('limit', ['10000'])[0])
+                
+                # Export to CSV with sanitization
+                csv_data = db.export_audit_logs_csv(
+                    user_id=int(user_id) if user_id else None,
+                    action=action,
+                    target_type=target_type,
+                    start_date=from_date,
+                    end_date=to_date,
+                    limit=min(limit, 50000)  # Cap at 50k records for safety
+                )
+                
+                # Add audit log for the export action
+                user_id_val = auth_result.get('user_id')
+                if user_id_val:
+                    db.add_audit_log(
+                        user_id=user_id_val,
+                        action='audit.export',
+                        target_type='audit_logs',
+                        target_id='csv',
+                        meta={
+                            'format': 'csv',
+                            'filters': {
+                                'user_id': user_id,
+                                'action': action,
+                                'target_type': target_type,
+                                'from': from_date,
+                                'to': to_date,
+                                'limit': limit
+                            }
+                        },
+                        ip=self.client_address[0] if self.client_address else None
+                    )
+                
+                # Set CSV headers
+                self._set_headers(200, extra_headers={
+                    'Content-Type': 'text/csv',
+                    'Content-Disposition': 'attachment; filename="audit_logs.csv"'
+                })
+                self.wfile.write(csv_data.encode('utf-8'))
+                
+                logger.info(
+                    'Audit logs exported',
+                    format='csv',
+                    user_id=user_id_val,
+                    request_id=self.request_id
+                )
+            except Exception as e:
+                logger.error(
+                    'Failed to export audit logs',
+                    error=str(e),
+                    request_id=self.request_id
+                )
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to export audit logs: {str(e)}'}).encode())
+        
+        elif path == '/api/export/audit/json':
+            # Export audit logs as JSON (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result['valid'] or auth_result.get('role') == 'public':
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            # Only admin can export audit logs
+            role = auth_result.get('role', 'user')
+            if role != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Access denied. Admin role required'}).encode())
+                return
+            
+            try:
+                # Parse query parameters (same as /api/audit-logs)
+                user_id = query.get('user_id', [None])[0]
+                action = query.get('action', [None])[0]
+                target_type = query.get('target_type', [None])[0]
+                from_date = query.get('from', [None])[0]
+                to_date = query.get('to', [None])[0]
+                limit = int(query.get('limit', ['10000'])[0])
+                
+                # Export to JSON with sanitization
+                json_data = db.export_audit_logs_json(
+                    user_id=int(user_id) if user_id else None,
+                    action=action,
+                    target_type=target_type,
+                    start_date=from_date,
+                    end_date=to_date,
+                    limit=min(limit, 50000)  # Cap at 50k records for safety
+                )
+                
+                # Add audit log for the export action
+                user_id_val = auth_result.get('user_id')
+                if user_id_val:
+                    db.add_audit_log(
+                        user_id=user_id_val,
+                        action='audit.export',
+                        target_type='audit_logs',
+                        target_id='json',
+                        meta={
+                            'format': 'json',
+                            'filters': {
+                                'user_id': user_id,
+                                'action': action,
+                                'target_type': target_type,
+                                'from': from_date,
+                                'to': to_date,
+                                'limit': limit
+                            }
+                        },
+                        ip=self.client_address[0] if self.client_address else None
+                    )
+                
+                # Set JSON headers
+                self._set_headers(200, extra_headers={
+                    'Content-Type': 'application/json',
+                    'Content-Disposition': 'attachment; filename="audit_logs.json"'
+                })
+                self.wfile.write(json_data.encode('utf-8'))
+                
+                logger.info(
+                    'Audit logs exported',
+                    format='json',
+                    user_id=user_id_val,
+                    request_id=self.request_id
+                )
+            except Exception as e:
+                logger.error(
+                    'Failed to export audit logs',
+                    error=str(e),
+                    request_id=self.request_id
+                )
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Failed to export audit logs: {str(e)}'}).encode())
         
         elif path == '/api/activity/recent':
             # Get recent activity for dashboard (all authenticated users)
@@ -2797,29 +2959,112 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # Suppress default HTTP logging (we use structured logging)
         pass
 
+
+def graceful_shutdown(signum, frame):
+    """
+    Handle graceful shutdown on SIGTERM/SIGINT
+    - Stop audit cleanup scheduler
+    - Close all SSH connections
+    - Mark running tasks as interrupted
+    - Mark active terminal sessions as interrupted
+    - Flush logs
+    - Shutdown HTTP server
+    """
+    global http_server
+    
+    logger.info('Received shutdown signal', signal=signum)
+    print(f'\n\n🛑 Received shutdown signal {signum}, shutting down gracefully...')
+    
+    try:
+        # Stop audit cleanup scheduler
+        logger.info('Stopping audit cleanup scheduler')
+        audit_scheduler = get_audit_cleanup_scheduler()
+        audit_scheduler.stop()
+        
+        # Mark active terminal sessions as interrupted
+        logger.info('Marking active terminal sessions as interrupted')
+        try:
+            sessions = db.get_terminal_sessions(status='active')
+            for session in sessions:
+                db.end_terminal_session(session['id'], status='interrupted')
+            logger.info(f'Marked {len(sessions)} terminal sessions as interrupted')
+        except Exception as e:
+            logger.error('Failed to mark terminal sessions as interrupted', error=str(e))
+        
+        # Mark running tasks as interrupted
+        logger.info('Marking running tasks as interrupted')
+        try:
+            tasks = db.get_tasks(status='running')
+            for task in tasks:
+                db.update_task_status(
+                    task_id=task['id'],
+                    status='interrupted',
+                    finished_at=datetime.utcnow().isoformat() + 'Z'
+                )
+            logger.info(f'Marked {len(tasks)} tasks as interrupted')
+        except Exception as e:
+            logger.error('Failed to mark tasks as interrupted', error=str(e))
+        
+        # Close all SSH connections
+        logger.info('Closing all SSH connections')
+        try:
+            ssh.ssh_pool.close_all()
+        except Exception as e:
+            logger.error('Failed to close SSH connections', error=str(e))
+        
+        # Shutdown HTTP server
+        if http_server:
+            logger.info('Shutting down HTTP server')
+            http_server.shutdown()
+        
+        logger.info('Graceful shutdown complete')
+        print('✓ Graceful shutdown complete')
+        
+    except Exception as e:
+        logger.error('Error during graceful shutdown', error=str(e))
+        print(f'⚠️  Error during shutdown: {e}')
+
+
 if __name__ == '__main__':
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, graceful_shutdown)
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    
     # Validate configuration and secrets
     startup_validation.validate_configuration()
     
     # Initialize database
     db.init_database()
     
+    # Run startup recovery for tasks and terminal sessions
+    recovery_result = run_startup_recovery()
+    
     # Cleanup expired sessions (older than 7 days)
     cleanup_result = db.cleanup_expired_sessions()
+    
+    # Start audit cleanup scheduler
+    audit_scheduler = get_audit_cleanup_scheduler()
+    audit_scheduler.start()
     
     # Log startup
     logger.info('Starting Central API Server', 
                 port=PORT, 
                 sessions_cleaned=cleanup_result["deleted"],
+                tasks_recovered=recovery_result['tasks']['recovered'],
+                terminal_sessions_recovered=recovery_result['terminal_sessions']['recovered'],
+                audit_cleanup_enabled=audit_scheduler.enabled,
+                audit_retention_days=audit_scheduler.retention_days,
                 version='v4')
     
-    server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)
+    http_server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)
     print(f'╔══════════════════════════════════════════════════════════╗')
     print(f'║  Central Multi-Server Monitoring API v4                  ║')
     print(f'╚══════════════════════════════════════════════════════════╝')
     print(f'\n🚀 Server running on http://0.0.0.0:{PORT}')
     print(f'🔒 Authentication: Enabled (sessions expire after 7 days)')
     print(f'🧹 Cleaned up {cleanup_result["deleted"]} expired sessions')
+    if recovery_result['total_recovered'] > 0:
+        print(f'🔄 Recovered {recovery_result["total_recovered"]} interrupted tasks/sessions')
     print(f'\n📡 API Endpoints:')
     print(f'   Observability (Phase 6):')
     print(f'   • GET  /api/health                 - Liveness check (public)')
@@ -2865,6 +3110,8 @@ if __name__ == '__main__':
     print(f'   • POST /api/terminal/sessions/<id>/stop - Stop terminal session (auth)')
     print(f'\n   Audit Logs (Phase 4 Module 6):')
     print(f'   • GET  /api/audit-logs             - Get audit logs (admin only)')
+    print(f'   • GET  /api/export/audit/csv       - Export audit logs as CSV (admin only)')
+    print(f'   • GET  /api/export/audit/json      - Export audit logs as JSON (admin only)')
     print(f'\n   Documentation:')
     print(f'   • GET  /docs                       - Swagger UI (API documentation)')
     print(f'   • GET  /api/openapi.yaml           - OpenAPI specification')
@@ -2875,8 +3122,7 @@ if __name__ == '__main__':
     print(f'\n✨ Press Ctrl+C to stop')
     
     try:
-        server.serve_forever()
+        http_server.serve_forever()
     except KeyboardInterrupt:
         print('\n\n👋 Shutting down server...')
-        ssh.ssh_pool.close_all()
-        server.shutdown()
+        graceful_shutdown(signal.SIGINT, None)
