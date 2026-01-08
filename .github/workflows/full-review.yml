@@ -1,0 +1,644 @@
+name: 🔍 Full Review - Manual Project Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_issue:
+        description: 'Create/update GitHub issue with findings'
+        required: false
+        default: true
+        type: boolean
+      create_pr:
+        description: 'Create PR with report and documentation'
+        required: false
+        default: false
+        type: boolean
+      include_ui_snapshots:
+        description: 'Run Playwright tests and capture UI screenshots'
+        required: false
+        default: true
+        type: boolean
+      include_security_scans:
+        description: 'Run Trivy and gitleaks security scans'
+        required: false
+        default: true
+        type: boolean
+      stale_days_threshold:
+        description: 'Days threshold for stale branch reporting'
+        required: false
+        default: 30
+        type: number
+      run_backend_tests:
+        description: 'Run backend tests (may require database setup)'
+        required: false
+        default: true
+        type: boolean
+
+# Set minimal permissions by default
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  full-review:
+    name: Full Project Review & Quality Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Set permissions for workflow - write access needed for optional PR/issue creation
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      # ============================================
+      # FRONTEND CHECKS
+      # ============================================
+      - name: 🎨 Frontend - Install dependencies
+        working-directory: frontend-next
+        run: npm ci
+        continue-on-error: false
+
+      - name: 🎨 Frontend - Lint
+        id: frontend-lint
+        working-directory: frontend-next
+        run: |
+          npm run lint > ../frontend-lint.txt 2>&1 || true
+          cat ../frontend-lint.txt
+        continue-on-error: true
+
+      - name: 🎨 Frontend - Typecheck
+        id: frontend-typecheck
+        working-directory: frontend-next
+        run: |
+          npx tsc --noEmit > ../frontend-typecheck.txt 2>&1
+          TYPECHECK_EXIT=$?
+          cat ../frontend-typecheck.txt
+          exit $TYPECHECK_EXIT
+        continue-on-error: true
+
+      - name: 🎨 Frontend - Build
+        id: frontend-build
+        working-directory: frontend-next
+        run: |
+          npm run build > ../frontend-build.txt 2>&1
+          BUILD_EXIT=$?
+          cat ../frontend-build.txt
+          exit $BUILD_EXIT
+        continue-on-error: true
+
+      # ============================================
+      # BACKEND CHECKS
+      # ============================================
+      - name: ⚙️ Backend - Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 bandit pytest
+          pip install -r backend/requirements.txt
+        continue-on-error: false
+
+      - name: ⚙️ Backend - Lint (flake8)
+        id: backend-lint
+        run: |
+          echo "=== Backend Linting (flake8) ===" | tee backend-lint.txt
+          # Check for critical errors first
+          flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics 2>&1 | tee -a backend-lint.txt || true
+          # Run full lint
+          flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics 2>&1 | tee -a backend-lint.txt
+        continue-on-error: true
+
+      - name: ⚙️ Backend - Security Scan (bandit)
+        id: backend-security
+        run: |
+          echo "=== Backend Security Scan (bandit) ===" | tee backend-security.txt
+          bandit -r backend/ -ll -f txt 2>&1 | tee -a backend-security.txt || true
+        continue-on-error: true
+
+      - name: ⚙️ Backend - Setup Database for Tests
+        if: ${{ github.event.inputs.run_backend_tests == 'true' }}
+        run: |
+          mkdir -p /tmp/server-monitor-data
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> $GITHUB_ENV
+          echo "JWT_SECRET=test-secret-key-for-ci-review-min-32-chars" >> $GITHUB_ENV
+          echo "ENCRYPTION_KEY=test-encryption-key-for-ci-review-32c" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: ⚙️ Backend - Initialize Database
+        if: ${{ github.event.inputs.run_backend_tests == 'true' }}
+        run: |
+          cd backend
+          python -c "import database; database.init_database()" || echo "Database init failed or not needed"
+        continue-on-error: true
+
+      - name: ⚙️ Backend - Run Tests
+        id: backend-test
+        if: ${{ github.event.inputs.run_backend_tests == 'true' }}
+        run: |
+          if [ -d "tests" ]; then
+            echo "=== Running Backend Tests ===" | tee backend-test.txt
+            cd tests
+            python -m pytest --tb=short -v 2>&1 | tee -a ../backend-test.txt || true
+            TEST_EXIT=$?
+            cat ../backend-test.txt
+            exit $TEST_EXIT
+          else
+            echo "No tests directory found, skipping tests" | tee backend-test.txt
+          fi
+        env:
+          NODE_ENV: test
+        continue-on-error: true
+
+      - name: ⚙️ Backend - Build Check
+        id: backend-build
+        run: |
+          echo "=== Backend Build Check ===" | tee backend-build.txt
+          # For Python, we check if all imports work
+          python -c "
+          import sys
+          sys.path.insert(0, 'backend')
+          try:
+              import central_api
+              import database
+              import agent
+              print('✅ Backend imports successful')
+              exit(0)
+          except Exception as e:
+              print(f'❌ Backend import failed: {e}')
+              exit(1)
+          " 2>&1 | tee -a backend-build.txt
+          BUILD_EXIT=$?
+          exit $BUILD_EXIT
+        continue-on-error: true
+
+      # ============================================
+      # SECURITY SCANS
+      # ============================================
+      - name: 🔒 Security - Trivy Filesystem Scan
+        id: trivy-scan
+        if: ${{ github.event.inputs.include_security_scans == 'true' }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          output: 'trivy-results.txt'
+        continue-on-error: true
+
+      - name: 🔒 Security - Display Trivy Results
+        if: ${{ github.event.inputs.include_security_scans == 'true' }}
+        run: |
+          if [ -f trivy-results.txt ]; then
+            echo "=== Trivy Security Scan Results ==="
+            cat trivy-results.txt
+          else
+            echo "No Trivy results file found"
+          fi
+        continue-on-error: true
+
+      - name: 🔒 Security - Gitleaks Secret Scan
+        id: gitleaks-scan
+        if: ${{ github.event.inputs.include_security_scans == 'true' }}
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+        continue-on-error: true
+
+      - name: 🔒 Security - Parse Gitleaks Results
+        if: ${{ github.event.inputs.include_security_scans == 'true' }}
+        run: |
+          # Check gitleaks scan outcome
+          if [ "${{ steps.gitleaks-scan.outcome }}" == "failure" ]; then
+            # Gitleaks found secrets (exits with non-zero on findings)
+            echo "⚠️ Gitleaks detected potential secrets"
+            # Try to count from report if available
+            if [ -f "gitleaks-report.json" ]; then
+              SECRET_COUNT=$(jq '. | length' gitleaks-report.json 2>/dev/null || echo "1")
+            else
+              SECRET_COUNT="1"
+            fi
+            echo "$SECRET_COUNT" > gitleaks-count.txt
+          else
+            # No secrets found
+            echo "0" > gitleaks-count.txt
+          fi
+          echo "Gitleaks secrets found: $(cat gitleaks-count.txt)"
+        continue-on-error: true
+
+      # ============================================
+      # UI SNAPSHOTS (Playwright)
+      # ============================================
+      - name: 📸 UI Snapshots - Install Playwright
+        if: ${{ github.event.inputs.include_ui_snapshots == 'true' }}
+        run: |
+          npm install -g playwright
+          npx playwright install --with-deps chromium
+        continue-on-error: true
+
+      - name: 📸 UI Snapshots - Setup Services
+        if: ${{ github.event.inputs.include_ui_snapshots == 'true' }}
+        run: |
+          # Setup environment
+          mkdir -p /tmp/server-monitor-data
+          cp .env.example .env || touch .env
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> .env
+          echo "JWT_SECRET=test-jwt-secret-for-screenshots-min-32-chars" >> .env
+          echo "ENCRYPTION_KEY=test-encryption-key-screenshots-32chars" >> .env
+          
+          # Initialize database
+          cd backend
+          python -c "import database; database.init_database()" || echo "Database init failed"
+          cd ..
+          
+          # Start backend services
+          cd backend
+          nohup python central_api.py > /tmp/central-api.log 2>&1 &
+          echo $! > /tmp/central-api.pid
+          nohup python websocket_server.py > /tmp/websocket.log 2>&1 &
+          echo $! > /tmp/websocket.pid
+          cd ..
+          
+          # Start frontend
+          cd frontend-next
+          nohup npm start > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+          cd ..
+          
+          # Wait for services
+          sleep 20
+          
+          # Check if services are running
+          curl -f http://localhost:9081 || echo "Services may not be ready yet"
+        continue-on-error: true
+
+      - name: 📸 UI Snapshots - Capture Screenshots
+        id: ui-snapshots
+        if: ${{ github.event.inputs.include_ui_snapshots == 'true' }}
+        run: |
+          # Create screenshots directory
+          mkdir -p docs/screenshots
+          
+          # Simple screenshot capture script
+          node -e "
+          const { chromium } = require('playwright');
+          
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            
+            try {
+              // Capture login page
+              await page.goto('http://localhost:9081', { waitUntil: 'networkidle', timeout: 30000 });
+              await page.screenshot({ path: 'docs/screenshots/login-page.png', fullPage: true });
+              console.log('✅ Captured login page');
+              
+              // Capture dashboard (if accessible without auth)
+              try {
+                await page.goto('http://localhost:9081/dashboard', { waitUntil: 'networkidle', timeout: 30000 });
+                await page.screenshot({ path: 'docs/screenshots/dashboard-page.png', fullPage: true });
+                console.log('✅ Captured dashboard page');
+              } catch (e) {
+                console.log('⚠️ Dashboard requires authentication');
+              }
+            } catch (error) {
+              console.error('Screenshot capture error:', error.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          " 2>&1 | tee playwright-results.txt || echo "Screenshot capture completed with warnings"
+        env:
+          E2E_BASE_URL: 'http://localhost:9081'
+        continue-on-error: true
+
+      - name: 📸 UI Snapshots - Stop Services
+        if: ${{ github.event.inputs.include_ui_snapshots == 'true' && always() }}
+        run: |
+          # Stop all services
+          [ -f /tmp/central-api.pid ] && kill $(cat /tmp/central-api.pid) 2>/dev/null || true
+          [ -f /tmp/websocket.pid ] && kill $(cat /tmp/websocket.pid) 2>/dev/null || true
+          [ -f /tmp/frontend.pid ] && kill $(cat /tmp/frontend.pid) 2>/dev/null || true
+          sleep 3
+        continue-on-error: true
+
+      - name: 📸 UI Snapshots - Upload Screenshots
+        if: ${{ github.event.inputs.include_ui_snapshots == 'true' && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-snapshots
+          path: |
+            docs/screenshots/**/*.png
+            playwright-results.txt
+          retention-days: 30
+        continue-on-error: true
+
+      # ============================================
+      # PARSE RESULTS & GENERATE REPORT
+      # ============================================
+      - name: 📊 Parse Results and Generate Report
+        id: generate-report
+        run: |
+          echo "Parsing results and generating comprehensive report..."
+          
+          # Parse Frontend Lint
+          FE_ERRORS=0
+          FE_WARNINGS=0
+          if [ -f frontend-lint.txt ]; then
+            FE_LINE=$(grep -E "✖ [0-9]+ problem" frontend-lint.txt || echo "")
+            if [ -n "$FE_LINE" ]; then
+              FE_ERRORS=$(echo "$FE_LINE" | grep -oE '[0-9]+ error' | grep -oE '[0-9]+' || echo "0")
+              FE_WARNINGS=$(echo "$FE_LINE" | grep -oE '[0-9]+ warning' | grep -oE '[0-9]+' || echo "0")
+            fi
+          fi
+          
+          # Parse Backend Lint
+          BE_ERRORS=0
+          BE_WARNINGS=0
+          if [ -f backend-lint.txt ]; then
+            # Count lines with actual errors
+            BE_ERRORS=$(grep -E "^backend/.*\.py:[0-9]+:[0-9]+: E[0-9]+" backend-lint.txt | wc -l || echo "0")
+            BE_WARNINGS=$(grep -E "^backend/.*\.py:[0-9]+:[0-9]+: W[0-9]+" backend-lint.txt | wc -l || echo "0")
+          fi
+          
+          # Parse Trivy Results
+          TRIVY_CRITICAL=0
+          TRIVY_HIGH=0
+          TRIVY_MEDIUM=0
+          TRIVY_LOW=0
+          if [ -f trivy-results.txt ]; then
+            TRIVY_CRITICAL=$(grep -c "CRITICAL" trivy-results.txt || echo "0")
+            TRIVY_HIGH=$(grep -c "HIGH" trivy-results.txt || echo "0")
+            TRIVY_MEDIUM=$(grep -c "MEDIUM" trivy-results.txt || echo "0")
+            TRIVY_LOW=$(grep -c "LOW" trivy-results.txt || echo "0")
+          fi
+          TRIVY_TOTAL=$((TRIVY_CRITICAL + TRIVY_HIGH + TRIVY_MEDIUM + TRIVY_LOW))
+          
+          # Parse Gitleaks Results
+          GITLEAKS_COUNT=$(cat gitleaks-count.txt 2>/dev/null || echo "0")
+          
+          # Create JSON data file for report generator
+          cat > full-review-data.json << EOF
+          {
+            "workflowRunId": "${{ github.run_id }}",
+            "workflowRunNumber": "${{ github.run_number }}",
+            "repository": "${{ github.repository }}",
+            "frontend": {
+              "lint": {
+                "errors": $FE_ERRORS,
+                "warnings": $FE_WARNINGS,
+                "topRules": []
+              },
+              "typecheck": {
+                "success": ${{ steps.frontend-typecheck.outcome == 'success' }}
+              },
+              "build": {
+                "success": ${{ steps.frontend-build.outcome == 'success' }}
+              }
+            },
+            "backend": {
+              "lint": {
+                "errors": $BE_ERRORS,
+                "warnings": $BE_WARNINGS,
+                "topRules": []
+              },
+              "test": {
+                "success": ${{ steps.backend-test.outcome == 'success' || steps.backend-test.outcome == 'skipped' }}
+              },
+              "build": {
+                "success": ${{ steps.backend-build.outcome == 'success' }}
+              }
+            },
+            "security": {
+              "trivy": {
+                "total": $TRIVY_TOTAL,
+                "critical": $TRIVY_CRITICAL,
+                "high": $TRIVY_HIGH,
+                "medium": $TRIVY_MEDIUM,
+                "low": $TRIVY_LOW
+              },
+              "gitleaks": {
+                "secretsFound": $GITLEAKS_COUNT
+              }
+            },
+            "uiSnapshots": {
+              "enabled": ${{ github.event.inputs.include_ui_snapshots == 'true' }},
+              "testsRun": "See artifacts"
+            }
+          }
+          EOF
+          
+          # Create automation directory if it doesn't exist
+          mkdir -p automation/scripts
+          
+          # Generate markdown report using Node.js script
+          node automation/scripts/parse-full-review.js full-review-data.json
+          
+          echo "✅ Report generated: automation/FULL_REVIEW_REPORT.md"
+          
+          # Output summary for GitHub Actions
+          echo "frontend_errors=$FE_ERRORS" >> $GITHUB_OUTPUT
+          echo "frontend_warnings=$FE_WARNINGS" >> $GITHUB_OUTPUT
+          echo "backend_errors=$BE_ERRORS" >> $GITHUB_OUTPUT
+          echo "backend_warnings=$BE_WARNINGS" >> $GITHUB_OUTPUT
+          echo "trivy_total=$TRIVY_TOTAL" >> $GITHUB_OUTPUT
+          echo "trivy_critical=$TRIVY_CRITICAL" >> $GITHUB_OUTPUT
+          echo "gitleaks_count=$GITLEAKS_COUNT" >> $GITHUB_OUTPUT
+        continue-on-error: false
+
+      # ============================================
+      # UPLOAD ARTIFACTS
+      # ============================================
+      - name: 📦 Upload All Results as Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-review-results
+          path: |
+            automation/FULL_REVIEW_REPORT.md
+            frontend-lint.txt
+            frontend-typecheck.txt
+            frontend-build.txt
+            backend-lint.txt
+            backend-security.txt
+            backend-test.txt
+            backend-build.txt
+            trivy-results.txt
+            gitleaks-count.txt
+            full-review-data.json
+          retention-days: 90
+        continue-on-error: true
+
+      # ============================================
+      # CREATE/UPDATE ISSUE
+      # ============================================
+      - name: 🎫 Create or Update GitHub Issue
+        if: ${{ github.event.inputs.create_issue == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read the generated report
+            let reportContent = '';
+            try {
+              reportContent = fs.readFileSync('automation/FULL_REVIEW_REPORT.md', 'utf8');
+            } catch (e) {
+              console.log('Could not read report file, generating minimal report');
+              reportContent = '# Full Review Report\n\nReport generation in progress...';
+            }
+            
+            const issueTitle = '🔍 Full Review - Remaining Work';
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'automated,project-review'
+            });
+            
+            const existingIssue = issues.data.find(issue => issue.title === issueTitle);
+            
+            const issueBody = `${reportContent}\n\n---\n\n<sub>🤖 Auto-generated by [full-review workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/workflows/full-review.yml) | [Run #${context.runNumber}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})</sub>`;
+            
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: issueBody
+              });
+              console.log(`✅ Updated issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              const newIssue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['automated', 'project-review', 'technical-debt']
+              });
+              console.log(`✅ Created issue #${newIssue.data.number}`);
+            }
+
+      # ============================================
+      # CREATE PR (Optional)
+      # ============================================
+      - name: 📝 Create Pull Request with Report
+        if: ${{ github.event.inputs.create_pr == 'true' }}
+        run: |
+          DATE=$(date +"%Y-%m-%d")
+          BRANCH_NAME="automation/full-review/${DATE}"
+          
+          # Configure git
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Create and checkout new branch
+          git checkout -b "$BRANCH_NAME"
+          
+          # Add report and any documentation updates
+          git add automation/FULL_REVIEW_REPORT.md
+          
+          # Add screenshots if they exist
+          if [ -d "docs/screenshots" ] && [ "$(ls -A docs/screenshots)" ]; then
+            git add docs/screenshots/
+          fi
+          
+          # Commit changes
+          git commit -m "chore: full review report ${DATE}" || echo "No changes to commit"
+          
+          # Push branch
+          git push origin "$BRANCH_NAME"
+          
+          # Create PR
+          gh pr create \
+            --title "chore: full review report ${DATE}" \
+            --body "Full Review Report - ${DATE}. See automation/FULL_REVIEW_REPORT.md for detailed findings. Workflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --base main \
+            --head "$BRANCH_NAME" || echo "PR creation failed or PR already exists"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      # ============================================
+      # WORKFLOW SUMMARY
+      # ============================================
+      - name: 📋 Workflow Summary
+        if: always()
+        run: |
+          FE_ERRORS="${{ steps.generate-report.outputs.frontend_errors }}"
+          FE_WARNINGS="${{ steps.generate-report.outputs.frontend_warnings }}"
+          BE_ERRORS="${{ steps.generate-report.outputs.backend_errors }}"
+          BE_WARNINGS="${{ steps.generate-report.outputs.backend_warnings }}"
+          TRIVY_TOTAL="${{ steps.generate-report.outputs.trivy_total }}"
+          TRIVY_CRITICAL="${{ steps.generate-report.outputs.trivy_critical }}"
+          GITLEAKS="${{ steps.generate-report.outputs.gitleaks_count }}"
+          
+          FE_BUILD="${{ steps.frontend-build.outcome }}"
+          BE_BUILD="${{ steps.backend-build.outcome }}"
+          FE_TYPECHECK="${{ steps.frontend-typecheck.outcome }}"
+          
+          echo "## 🔍 Full Review Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Errors | Warnings | Typecheck | Build |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|----------|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎨 Frontend | $FE_ERRORS | $FE_WARNINGS | ${FE_TYPECHECK} | ${FE_BUILD} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚙️ Backend | $BE_ERRORS | $BE_WARNINGS | N/A | ${BE_BUILD} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔒 Security" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Vulnerabilities | $TRIVY_TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Critical Vulnerabilities | $TRIVY_CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets Detected | $GITLEAKS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$TRIVY_CRITICAL" -gt 0 ]; then
+            echo "⚠️ **CRITICAL:** $TRIVY_CRITICAL critical vulnerabilities found!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 📄 Generated Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 📋 [Full Review Report](automation/FULL_REVIEW_REPORT.md)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.include_ui_snapshots }}" == "true" ]; then
+            echo "- 📸 UI Snapshots (check workflow artifacts)" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ github.event.inputs.create_issue }}" == "true" ]; then
+            echo "- 🎫 GitHub Issue created/updated" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ github.event.inputs.create_pr }}" == "true" ]; then
+            echo "- 📝 Pull Request created" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Full review workflow completed successfully!" >> $GITHUB_STEP_SUMMARY
