@@ -39,6 +39,8 @@ import startup_validation
 from task_policy import get_task_policy, TaskPolicyViolation
 from audit_cleanup import get_audit_cleanup_scheduler
 from task_recovery import run_startup_recovery
+from plugin_system import get_plugin_manager
+from event_model import Event, EventTypes, create_event, EventSeverity
 
 PORT = 9083  # Different port for central server
 
@@ -48,6 +50,9 @@ metrics = get_metrics_collector()
 
 # Initialize task policy
 task_policy = get_task_policy()
+
+# Initialize plugin manager
+plugin_manager = get_plugin_manager()
 
 # Constants for task validation
 TASK_COMMAND_MAX_LENGTH = int(os.environ.get('TASK_COMMAND_MAX_LENGTH', '10000'))
@@ -61,6 +66,45 @@ settings_mgr = get_settings_manager()
 http_server = None
 
 # ==================== HELPER FUNCTIONS ====================
+
+def dispatch_audit_event(user_id, action, target_type, target_id, meta=None, ip=None, user_agent=None, 
+                        username=None, server_id=None, server_name=None, severity=EventSeverity.INFO):
+    """
+    Helper to add audit log and dispatch event to plugin system
+    
+    This replaces direct calls to db.add_audit_log() to ensure events
+    are propagated to plugins.
+    """
+    # Add to audit logs
+    result = db.add_audit_log(
+        user_id=user_id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        meta=meta,
+        ip=ip,
+        user_agent=user_agent
+    )
+    
+    # Create and dispatch event to plugins
+    event = create_event(
+        event_type=action.replace('_', '.'),  # Convert action to event_type
+        user_id=user_id,
+        username=username,
+        server_id=server_id,
+        server_name=server_name,
+        target_type=target_type,
+        target_id=str(target_id),
+        meta=meta or {},
+        ip=ip,
+        user_agent=user_agent,
+        severity=severity
+    )
+    
+    # Dispatch to plugin system
+    plugin_manager.dispatch_event(event)
+    
+    return result
 
 def get_server_with_auth(server_id):
     """Get server details with decrypted password for SSH"""
@@ -1170,7 +1214,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 # Add audit log for the export action
                 user_id_val = auth_result.get('user_id')
                 if user_id_val:
-                    db.add_audit_log(
+                    dispatch_audit_event(
                         user_id=user_id_val,
                         action='audit.export',
                         target_type='audit_logs',
@@ -1186,7 +1230,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                                 'limit': limit
                             }
                         },
-                        ip=self.client_address[0] if self.client_address else None
+                        ip=self.client_address[0] if self.client_address else None,
+                        username=auth_result.get('username'),
+                        severity=EventSeverity.INFO
                     )
                 
                 # Set CSV headers
@@ -3012,6 +3058,13 @@ def graceful_shutdown(signum, frame):
         except Exception as e:
             logger.error('Failed to close SSH connections', error=str(e))
         
+        # Shutdown plugin system
+        logger.info('Shutting down plugin system')
+        try:
+            plugin_manager.shutdown()
+        except Exception as e:
+            logger.error('Failed to shutdown plugins', error=str(e))
+        
         # Shutdown HTTP server
         if http_server:
             logger.info('Shutting down HTTP server')
@@ -3046,6 +3099,16 @@ if __name__ == '__main__':
     audit_scheduler = get_audit_cleanup_scheduler()
     audit_scheduler.start()
     
+    # Initialize plugin system
+    logger.info('Initializing plugin system')
+    plugin_manager.startup({
+        'server': 'central_api',
+        'port': PORT,
+        'version': 'v4',
+        'plugins_enabled': plugin_manager.enabled,
+        'plugins_loaded': list(plugin_manager.plugins.keys())
+    })
+    
     # Log startup
     logger.info('Starting Central API Server', 
                 port=PORT, 
@@ -3054,6 +3117,8 @@ if __name__ == '__main__':
                 terminal_sessions_recovered=recovery_result['terminal_sessions']['recovered'],
                 audit_cleanup_enabled=audit_scheduler.enabled,
                 audit_retention_days=audit_scheduler.retention_days,
+                plugins_enabled=plugin_manager.enabled,
+                plugins_loaded=list(plugin_manager.plugins.keys()),
                 version='v4')
     
     http_server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)
@@ -3065,6 +3130,8 @@ if __name__ == '__main__':
     print(f'🧹 Cleaned up {cleanup_result["deleted"]} expired sessions')
     if recovery_result['total_recovered'] > 0:
         print(f'🔄 Recovered {recovery_result["total_recovered"]} interrupted tasks/sessions')
+    if plugin_manager.enabled:
+        print(f'🔌 Plugins: {len(plugin_manager.plugins)} loaded ({", ".join(plugin_manager.plugins.keys()) if plugin_manager.plugins else "none"})')
     print(f'\n📡 API Endpoints:')
     print(f'   Observability (Phase 6):')
     print(f'   • GET  /api/health                 - Liveness check (public)')
