@@ -62,6 +62,11 @@ class WebhookPlugin(PluginInterface):
             logger.warning('Webhook plugin: Invalid URL scheme, must be http or https',
                           url=self.url)
             self.enabled = False
+        elif self.url.startswith('http://'):
+            # Security Warning: HTTP allows credentials/data interception
+            # Only use for development/testing. Production should use HTTPS.
+            logger.warning('Webhook plugin: Using insecure HTTP protocol (credentials may be intercepted)',
+                          url=self.url)
         
         if self.enabled:
             logger.info('Webhook plugin initialized',
