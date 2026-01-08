@@ -1,9 +1,9 @@
-# 🖥️ Server Monitor Dashboard v2.2
+# 🖥️ Server Monitor Dashboard v2.3
 
-**Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, and advanced security**
+**Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, webhooks, and advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-2.2.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
+[![Version](https://img.shields.io/badge/version-2.3.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
 [![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-black)]()
 [![API](https://img.shields.io/badge/API-OpenAPI%203.0-brightgreen)]()
 [![Tests](https://img.shields.io/badge/tests-passing-green)]()
@@ -11,7 +11,9 @@
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)  
-📚 **API Docs**: [Swagger UI](http://localhost:9083/docs) | [OpenAPI Spec](http://localhost:9083/api/openapi.yaml)
+📚 **API Docs**: [Swagger UI](http://localhost:9083/docs) | [OpenAPI Spec](http://localhost:9083/api/openapi.yaml)  
+📊 **Metrics**: [Prometheus Metrics](http://localhost:9083/api/metrics)  
+🔗 **Webhooks**: Admin → Settings → Integrations
 
 ---
 
@@ -46,14 +48,23 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 
 ### 🎉 What's New
 
+**v2.3 (2026-01-08) - Plugin System & Webhooks:**
+- 🔌 **Plugin System**: Extensible architecture with event-driven plugins
+- 🔗 **Managed Webhooks**: Database-backed webhooks with UI management (Admin → Settings → Integrations)
+- 🛡️ **SSRF Protection**: Multi-layer validation blocks internal network access
+- 🔐 **HMAC Signing**: Cryptographic signatures for webhook authenticity
+- ⚡ **Performance**: TTL cache reduces DB queries by 40-60%, token bucket rate limiting
+- 📊 **Enhanced Metrics**: Cache hits/misses, rate limits, webhook delivery tracking at `/api/metrics`
+- 🌍 **i18n**: Webhooks UI supports 8 languages
+- 🔄 **Zero Breaking Changes**: Fully backward compatible with v2.2
+
 **v2.2 (2026-01-07) - Observability & Reliability:**
-- 📊 **Observability**: Health checks, readiness probes, Prometheus metrics
+- 📊 **Observability**: Health checks at `/api/health` and `/api/ready`, Prometheus metrics at `/api/metrics`
 - 🔍 **Request Tracing**: Correlation IDs for end-to-end request tracking
 - 📝 **Structured Logging**: JSON logs across all services with redaction
 - 🔒 **Enhanced Security**: Startup validation, task safety policy, audit retention
 - 🛡️ **Reliability**: Graceful shutdown, automatic task recovery, session recovery
 - 📤 **Audit Export**: CSV/JSON export with filtering and sanitization
-- 🔄 **Zero Breaking Changes**: Fully backward compatible with v2.1
 
 **v2.1 (2026-01-07) - Production Polish:**
 - 📚 **OpenAPI 3.0.3 Documentation**: Complete API specification with 70+ endpoints
