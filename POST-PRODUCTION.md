@@ -142,11 +142,95 @@ MaxRetentionSec=1month
 
 # Compress logs older than 1 day
 MaxFileSec=1day
+
+# Forward to syslog if needed
+ForwardToSyslog=no
+
+# Store on disk
+Storage=persistent
 ```
 
 Apply changes:
 ```bash
 sudo systemctl restart systemd-journald
+```
+
+**Check current journal usage:**
+```bash
+# Show disk usage
+sudo journalctl --disk-usage
+
+# Show current limits
+sudo journalctl --header
+```
+
+**Manually clean old logs:**
+```bash
+# Remove logs older than 2 weeks
+sudo journalctl --vacuum-time=2weeks
+
+# Keep only 200MB of logs
+sudo journalctl --vacuum-size=200M
+
+# Verify journal integrity
+sudo journalctl --verify
+```
+
+### Request-ID Based Log Querying
+
+Server Monitor v2.2.0+ includes request correlation via `X-Request-Id` headers. Use these IDs to trace requests across all services.
+
+**Query logs by Request-ID:**
+```bash
+# Find all logs for a specific request
+REQUEST_ID="req_abc123def456"
+sudo journalctl -u 'server-monitor-*' --since "1 hour ago" | grep "$REQUEST_ID"
+
+# With JSON parsing (for structured logs)
+sudo journalctl -u server-monitor-api -o json --since "1 hour ago" | \
+  jq -r "select(.MESSAGE | contains(\"$REQUEST_ID\")) | .MESSAGE"
+
+# Find error logs for a request
+sudo journalctl -u server-monitor-api -p err --since "1 hour ago" | grep "$REQUEST_ID"
+```
+
+**Extract Request-ID from API response:**
+```bash
+# Make request and capture Request-ID
+curl -i http://localhost:9083/api/servers 2>&1 | grep -i x-request-id
+
+# Example output:
+# x-request-id: req_1704672345_abc123
+```
+
+**Trace request flow:**
+```bash
+# 1. Extract Request-ID from response
+REQUEST_ID=$(curl -s -i http://localhost:9083/api/servers | grep -i x-request-id | cut -d: -f2 | tr -d ' \r')
+
+# 2. Find all logs for this request across services
+sudo journalctl -u 'server-monitor-*' --since "5 minutes ago" | grep "$REQUEST_ID"
+
+# 3. Check if request hit multiple services
+for service in api ws terminal frontend; do
+  echo "=== server-monitor-$service ==="
+  sudo journalctl -u "server-monitor-$service" --since "5 minutes ago" | grep "$REQUEST_ID" || echo "No logs found"
+done
+```
+
+**Debug slow requests:**
+```bash
+# Find slow API requests (duration > 1000ms)
+sudo journalctl -u server-monitor-api --since "1 hour ago" -o json | \
+  jq -r 'select(.MESSAGE | contains("\"duration\":")) | 
+         select(.MESSAGE | contains("duration") and 
+                ((.MESSAGE | fromjson | .duration) > 1000)) | 
+         .MESSAGE' | jq .
+
+# Output structured logs with request details
+sudo journalctl -u server-monitor-api -o json --since "1 hour ago" | \
+  jq -r 'select(.MESSAGE | contains("request_id")) | 
+         {time: .__REALTIME_TIMESTAMP, message: (.MESSAGE | fromjson)}'
 ```
 
 **For manual installations:**
@@ -392,6 +476,220 @@ SELECT * FROM servers;
 .output users_backup.csv
 SELECT * FROM users;
 EOF
+```
+
+### Audit Export Schedule
+
+**Configure automated audit log exports** (v2.2.0+):
+
+```bash
+# Create audit export script
+cat > /opt/server-monitor/scripts/audit-export.sh << 'EOF'
+#!/bin/bash
+# Automated audit log export
+
+EXPORT_DIR="/var/lib/server-monitor/audit-exports"
+API_URL="http://localhost:9083"
+ADMIN_TOKEN="YOUR_ADMIN_TOKEN"  # Store securely, e.g., from vault
+RETENTION_DAYS=90
+
+mkdir -p "$EXPORT_DIR"
+
+# Export to CSV
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$API_URL/api/export/audit/csv" > "$EXPORT_DIR/audit-$TIMESTAMP.csv"
+
+# Export to JSON (for archival)
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  "$API_URL/api/export/audit/json" > "$EXPORT_DIR/audit-$TIMESTAMP.json"
+
+# Compress exports
+gzip "$EXPORT_DIR/audit-$TIMESTAMP.csv"
+gzip "$EXPORT_DIR/audit-$TIMESTAMP.json"
+
+# Remove old exports
+find "$EXPORT_DIR" -name "audit-*.gz" -mtime +$RETENTION_DAYS -delete
+
+echo "[$(date)] Audit export completed"
+EOF
+
+chmod +x /opt/server-monitor/scripts/audit-export.sh
+
+# Schedule weekly audit exports (Sundays at 3 AM)
+sudo crontab -e
+# Add: 0 3 * * 0 /opt/server-monitor/scripts/audit-export.sh >> /var/log/audit-export.log 2>&1
+```
+
+**Export audit logs filtered by criteria:**
+```bash
+# Export last 30 days
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/api/export/audit/csv?days=30" > audit-30days.csv
+
+# Export specific user actions
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/api/export/audit/json?user_id=123" > audit-user123.json
+
+# Export specific action types
+curl -H "Authorization: Bearer $TOKEN" \
+  "$API_URL/api/export/audit/csv?action=login,logout" > audit-auth.csv
+```
+
+### Backup Best Practices
+
+#### 1. Consistent Snapshots
+
+**SQLite requires consistent snapshots.** Use one of these methods:
+
+**Method A: Stop-copy-start (most reliable)**
+```bash
+#!/bin/bash
+# Consistent backup with service stop
+
+# Stop write services
+systemctl stop server-monitor-api server-monitor-ws server-monitor-terminal
+
+# Wait for writes to complete
+sleep 2
+
+# Backup database
+cp /var/lib/server-monitor/servers.db /backup/servers-$(date +%Y%m%d).db
+
+# Restart services
+systemctl start server-monitor-api server-monitor-ws server-monitor-terminal
+```
+
+**Method B: SQLite backup command (no downtime)**
+```bash
+#!/bin/bash
+# Online backup using SQLite3 backup API
+
+sqlite3 /var/lib/server-monitor/servers.db << EOF
+.backup /backup/servers-$(date +%Y%m%d).db
+EOF
+```
+
+**Method C: Filesystem snapshot (if available)**
+```bash
+# LVM snapshot
+lvcreate --size 1G --snapshot --name server-monitor-snap /dev/vg0/lv-data
+
+# Mount and copy
+mount /dev/vg0/server-monitor-snap /mnt/snap
+cp /mnt/snap/servers.db /backup/servers-$(date +%Y%m%d).db
+umount /mnt/snap
+lvremove -f /dev/vg0/server-monitor-snap
+
+# Or with ZFS
+zfs snapshot tank/data@backup-$(date +%Y%m%d)
+zfs send tank/data@backup-$(date +%Y%m%d) | gzip > /backup/zfs-backup.gz
+```
+
+#### 2. Backup Verification
+
+**Always verify backups:**
+```bash
+#!/bin/bash
+# Verify backup integrity
+
+BACKUP_FILE="/backup/servers-20260107.db"
+
+# Check SQLite integrity
+if sqlite3 "$BACKUP_FILE" "PRAGMA integrity_check;" | grep -q "ok"; then
+  echo "✓ Backup integrity verified"
+else
+  echo "✗ Backup integrity check failed!"
+  exit 1
+fi
+
+# Check file size (should be > 0)
+SIZE=$(stat -c%s "$BACKUP_FILE")
+if [ "$SIZE" -gt 0 ]; then
+  echo "✓ Backup file size OK: $SIZE bytes"
+else
+  echo "✗ Backup file is empty!"
+  exit 1
+fi
+
+# Check table counts
+TABLE_COUNT=$(sqlite3 "$BACKUP_FILE" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';")
+if [ "$TABLE_COUNT" -gt 5 ]; then
+  echo "✓ Backup contains expected tables: $TABLE_COUNT"
+else
+  echo "✗ Backup has too few tables: $TABLE_COUNT"
+  exit 1
+fi
+```
+
+#### 3. Backup Retention Policy
+
+**Recommended retention schedule:**
+
+| Backup Type | Retention | Frequency |
+|------------|-----------|-----------|
+| Hourly     | 24 hours  | Every hour |
+| Daily      | 30 days   | Daily at 2 AM |
+| Weekly     | 90 days   | Sundays at 3 AM |
+| Monthly    | 1 year    | 1st of month |
+| Annual     | 3 years   | Jan 1st |
+
+**Implement with backup script:**
+```bash
+#!/bin/bash
+# Multi-tier backup retention
+
+HOURLY_DIR="/backup/hourly"
+DAILY_DIR="/backup/daily"
+WEEKLY_DIR="/backup/weekly"
+MONTHLY_DIR="/backup/monthly"
+
+DB_PATH="/var/lib/server-monitor/servers.db"
+BACKUP_FILE="servers-$(date +%Y%m%d-%H%M%S).db"
+
+# Create directories
+mkdir -p "$HOURLY_DIR" "$DAILY_DIR" "$WEEKLY_DIR" "$MONTHLY_DIR"
+
+# Always create hourly backup
+sqlite3 "$DB_PATH" ".backup $HOURLY_DIR/$BACKUP_FILE"
+
+# Copy to daily if it's a new day
+if [ $(date +%H) -eq 2 ]; then
+  cp "$HOURLY_DIR/$BACKUP_FILE" "$DAILY_DIR/"
+fi
+
+# Copy to weekly if it's Sunday
+if [ $(date +%u) -eq 7 ] && [ $(date +%H) -eq 3 ]; then
+  cp "$HOURLY_DIR/$BACKUP_FILE" "$WEEKLY_DIR/"
+fi
+
+# Copy to monthly if it's 1st of month
+if [ $(date +%d) -eq 01 ] && [ $(date +%H) -eq 3 ]; then
+  cp "$HOURLY_DIR/$BACKUP_FILE" "$MONTHLY_DIR/"
+fi
+
+# Cleanup old backups
+find "$HOURLY_DIR" -name "servers-*.db" -mmin +1440 -delete  # 24 hours
+find "$DAILY_DIR" -name "servers-*.db" -mtime +30 -delete     # 30 days
+find "$WEEKLY_DIR" -name "servers-*.db" -mtime +90 -delete    # 90 days
+find "$MONTHLY_DIR" -name "servers-*.db" -mtime +365 -delete  # 1 year
+```
+
+#### 4. Off-Site Backups
+
+**Configure off-site backup (recommended):**
+```bash
+# To AWS S3
+aws s3 sync /backup/daily/ s3://my-bucket/server-monitor/backup/ \
+  --storage-class STANDARD_IA
+
+# To remote server via rsync
+rsync -avz --delete /backup/daily/ backup-server:/backups/server-monitor/
+
+# To another data center with encryption
+tar czf - /backup/daily/ | \
+  openssl enc -aes-256-cbc -salt -out - | \
+  ssh backup-server "cat > /backups/server-monitor-$(date +%Y%m%d).tar.gz.enc"
 ```
 
 ### Database Restore
