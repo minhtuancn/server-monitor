@@ -9,9 +9,12 @@ import time
 import threading
 from typing import Any, Optional, Callable
 from dataclasses import dataclass
-from observability import get_metrics_collector
 
-metrics = get_metrics_collector()
+try:
+    from observability import get_metrics_collector
+    metrics = get_metrics_collector()
+except:
+    metrics = None
 
 
 @dataclass
@@ -53,7 +56,7 @@ class SimpleCache:
             
             if entry is None:
                 self._misses += 1
-                metrics.increment('cache_misses', labels={'key': self._sanitize_key(key)})
+                self._track_metric('cache_misses', key)
                 return None
             
             # Check if expired
@@ -61,13 +64,21 @@ class SimpleCache:
                 # Remove expired entry
                 del self._cache[key]
                 self._misses += 1
-                metrics.increment('cache_misses', labels={'key': self._sanitize_key(key)})
+                self._track_metric('cache_misses', key)
                 return None
             
             # Cache hit
             self._hits += 1
-            metrics.increment('cache_hits', labels={'key': self._sanitize_key(key)})
+            self._track_metric('cache_hits', key)
             return entry.value
+    
+    def _track_metric(self, metric_name: str, key: str):
+        """Track cache metrics if metrics collector is available"""
+        if metrics and hasattr(metrics, 'increment'):
+            try:
+                metrics.increment(metric_name, labels={'key': self._sanitize_key(key)})
+            except:
+                pass
     
     def set(self, key: str, value: Any, ttl: int):
         """
