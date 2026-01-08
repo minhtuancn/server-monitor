@@ -201,8 +201,9 @@ async def handle_client(websocket, path):
 
                 # Handle server subscription (future feature)
                 elif data.get('type') == 'subscribe':
-                    # Store subscription preferences (future feature)
-                    # server_ids = data.get('server_ids', [])
+                    # TODO: Implement server-specific subscriptions
+                    # This will allow clients to subscribe to updates from specific servers only
+                    # Expected format: {'type': 'subscribe', 'server_ids': [1, 2, 3]}
                     pass
 
             except json.JSONDecodeError:
@@ -282,8 +283,10 @@ async def main():
     # Start WebSocket server
     # Bind to 0.0.0.0 to allow external connections in production
     # Security: Use firewall rules to restrict access as needed
-    async with websockets.serve(handle_client, "0.0.0.0", PORT):  # nosec B104
-        print(f"WebSocket server listening on ws://0.0.0.0:{PORT}")
+    # TODO: Make bind address configurable via WEBSOCKET_BIND_HOST env var
+    bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')
+    async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104
+        print(f"WebSocket server listening on ws://{bind_host}:{PORT}")
         print("Waiting for clients to connect...\n")
 
         # Run broadcast and stats reporter concurrently
