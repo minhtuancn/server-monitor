@@ -1177,8 +1177,8 @@ Copyright (c) 2026 Minh Tuấn
 - 🌐 Demo: [GitHub Pages](https://minhtuancn.github.io/server-monitor/)
 
 **Project**: Server Monitoring System  
-**Version**: 1.0.0  
-**Release Date**: January 6, 2026
+**Version**: 2.3.0  
+**Release Date**: January 8, 2026
 
 ---
 
@@ -1194,21 +1194,27 @@ For issues or questions:
 
 ## 🎯 Roadmap
 
-### v1.1.0 (Planned - Q1 2026)
-- [ ] PostgreSQL support
-- [ ] Redis caching
-- [ ] Docker containerization
-- [ ] Swagger/OpenAPI documentation
-- [ ] Advanced alerting rules
-- [ ] GitHub Pages deployment
+### ✅ Completed Features
+- [x] PostgreSQL support (can be configured)
+- [x] Swagger/OpenAPI documentation (v2.1+)
+- [x] Multi-user management (Phase 4+)
+- [x] Role-based access control (RBAC) (v2.0+)
+- [x] GitHub Pages deployment
+- [x] Redis caching (cache_helper.py in v2.2+)
 
-### v2.0.0 (Planned - Q2 2026)
+### v2.4.0 (Planned - Q1 2026)
+- [ ] Docker containerization with docker-compose
+- [ ] Enhanced monitoring dashboards with custom widgets
+- [ ] Advanced alerting rules with conditional logic
+- [ ] Plugin marketplace and third-party integrations
+- [ ] Mobile app (React Native)
+
+### v3.0.0 (Planned - Q2 2026)
 - [ ] Kubernetes support
-- [ ] Multi-user management
-- [ ] Role-based access control (RBAC)
-- [ ] Advanced reporting
-- [ ] Mobile responsive improvements
-- [ ] Plugin system
+- [ ] Advanced reporting with scheduled reports
+- [ ] Multi-tenancy support
+- [ ] AI-powered anomaly detection
+- [ ] Performance optimization for 1000+ servers
 
 ---
 
