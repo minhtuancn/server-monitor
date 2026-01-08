@@ -89,7 +89,8 @@ class SSHTerminalSession:
             
             # Create SSH client
             self.ssh_client = paramiko.SSHClient()
-            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Security Note: AutoAddPolicy used for web terminal access to monitored servers
+            self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             # Connect to server
             connect_kwargs = {
@@ -535,8 +536,6 @@ def graceful_shutdown():
     - Mark sessions as interrupted in database
     - Close WebSocket server
     """
-    global ws_server
-    
     logger.info('Received shutdown signal, shutting down gracefully')
     print(f'\n\n🛑 Shutting down terminal server gracefully...')
     

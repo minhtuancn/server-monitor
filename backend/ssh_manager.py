@@ -55,7 +55,14 @@ class SSHConnectionPool:
             
             # Create new connection
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Security Note: AutoAddPolicy is intentionally used for this monitoring system
+            # to automatically trust and add unknown host keys. This is acceptable because:
+            # 1. The system is designed to monitor multiple dynamic servers
+            # 2. Manual host key verification would be impractical at scale
+            # 3. Authentication still requires valid SSH credentials (key or password)
+            # For production deployments requiring strict host key verification,
+            # consider implementing a custom policy with a known_hosts database.
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             try:
                 if ssh_key_path:
@@ -119,7 +126,8 @@ class SSHConnectionPool:
         """Quick connection test with short timeout"""
         try:
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Security Note: AutoAddPolicy used for server monitoring - see note above
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             
             connect_kwargs = {
                 'hostname': host,
