@@ -10,7 +10,19 @@
 [![Security](https://img.shields.io/badge/security-hardened-green)]()
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-📺 **Live Demo**: [GitHub Pages](https://minhtuancn.github.io/server-monitor/) | [Localhost](http://localhost:9081)  
+## 🚀 Quick Navigation
+
+**Bạn muốn làm gì?**
+- 💻 **[Test trên máy local?](#-chạy-thử-trên-local-developmenttesting)** ← Bắt đầu từ đây!
+- 🚀 **[Deploy production?](#one-command-installation-on-linux-recommended)** ← Cài đặt tự động 1 lệnh
+- 📚 **[Xem API docs?](http://localhost:9083/docs)** ← Swagger UI
+- 🔧 **[Cấu hình?](#-configuration)** ← Ports, environment variables
+- 🐛 **[Gặp lỗi?](#-troubleshooting)** ← Troubleshooting guide
+
+---
+
+**Getting Started:**
+
 📚 **API Docs**: [Swagger UI](http://localhost:9083/docs) | [OpenAPI Spec](http://localhost:9083/api/openapi.yaml)  
 📊 **Metrics**: [Prometheus Metrics](http://localhost:9083/api/metrics)  
 🔗 **Webhooks**: Admin → Settings → Integrations
@@ -20,6 +32,18 @@
 ## 📋 Tổng Quan
 
 Server Monitor Dashboard là hệ thống giám sát multi-server với giao diện web hiện đại Next.js, cho phép quản lý và theo dõi nhiều servers từ một dashboard trung tâm.
+
+### 🎯 Các Phương Thức Sử Dụng
+
+1. **Local Development/Testing** 💻
+   - Chạy trực tiếp trên máy local để phát triển và test
+   - Không cần systemd hay deployment phức tạp
+   - Xem hướng dẫn chi tiết tại: [Chạy Thử Trên Local](#-chạy-thử-trên-local-developmenttesting)
+
+2. **Production Deployment** 🚀
+   - Cài đặt tự động với systemd services
+   - Auto-start khi khởi động server
+   - Xem hướng dẫn tại: [Quick Start - One-Command Installation](#one-command-installation-on-linux-recommended)
 
 ### ✨ Tính Năng Chính
 
@@ -92,6 +116,163 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 📊 **Audit Logs**: Comprehensive activity tracking for compliance
 - 🔄 **Server Workspace**: Tab-based UI (Overview, Inventory, Terminal, Tasks, Notes)
 - 📈 **Recent Activity**: Dashboard widget showing latest system actions
+
+---
+
+## 💻 Chạy Thử Trên Local (Development/Testing)
+
+**CÂU TRẢ LỜI: CÓ! Dự án có thể chạy thử hoàn toàn trên local để test và phát triển.**
+
+### Yêu Cầu Hệ Thống
+
+- **Python 3.8+** (kiểm tra: `python3 --version`)
+- **Node.js 18+** và npm (kiểm tra: `node --version`)
+- **Hệ điều hành**: Linux/macOS (Windows cần WSL)
+- **RAM**: Tối thiểu 2GB
+- **Disk**: ~500MB cho code và dependencies
+
+### Cài Đặt Nhanh Cho Local Development
+
+```bash
+# 1. Clone repository
+git clone https://github.com/minhtuancn/server-monitor.git
+cd server-monitor
+
+# 2. Tạo file cấu hình môi trường
+cp .env.example .env
+
+# 3. Tạo keys bảo mật (QUAN TRỌNG!)
+python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))" >> .env
+python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(24))" >> .env
+python3 -c "import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))" >> .env
+
+# 4. Cài đặt backend dependencies
+cd backend
+pip3 install -r requirements.txt
+cd ..
+
+# 5. Cài đặt frontend dependencies (Next.js)
+cd frontend-next
+npm install  # hoặc npm ci
+cd ..
+
+# 6. Tạo file cấu hình cho frontend
+cat > frontend-next/.env.local << 'EOF'
+API_PROXY_TARGET=http://localhost:9083
+NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+EOF
+```
+
+### Khởi Động Services Để Test
+
+**Cách 1: Sử dụng script tự động (Khuyến nghị)**
+
+```bash
+# Terminal 1: Khởi động backend services
+./start-all.sh
+
+# Terminal 2: Khởi động frontend Next.js
+cd frontend-next
+npm run dev
+```
+
+**Cách 2: Khởi động từng service riêng (để debug)**
+
+```bash
+# Terminal 1: Backend API
+cd backend
+python3 central_api.py
+
+# Terminal 2: WebSocket server (real-time updates)
+cd backend
+python3 websocket_server.py
+
+# Terminal 3: Terminal server (SSH terminal)
+cd backend
+python3 terminal.py
+
+# Terminal 4: Frontend Next.js
+cd frontend-next
+npm run dev
+```
+
+### Truy Cập Dashboard
+
+Sau khi khởi động thành công:
+
+- 🌐 **Dashboard**: http://localhost:9081
+- 🔌 **API Backend**: http://localhost:9083
+- 📚 **API Documentation**: http://localhost:9083/docs (Swagger UI)
+- 📊 **API Health**: http://localhost:9083/api/health
+
+**Đăng nhập mặc định:**
+- Username: `admin`
+- Password: `admin123`
+
+⚠️ **Lưu ý**: Đổi mật khẩu ngay sau khi đăng nhập lần đầu!
+
+### Kiểm Tra Services Đang Chạy
+
+```bash
+# Kiểm tra ports đang được sử dụng
+lsof -i :9081  # Frontend
+lsof -i :9083  # API
+lsof -i :9084  # Terminal WebSocket
+lsof -i :9085  # Monitoring WebSocket
+
+# Xem logs
+tail -f logs/*.log
+
+# Kiểm tra health của API
+curl http://localhost:9083/api/health
+```
+
+### Dừng Services
+
+```bash
+# Dừng backend services
+./stop-all.sh
+
+# Dừng frontend: Nhấn Ctrl+C trong terminal đang chạy npm
+```
+
+### Test Nhanh Các Tính Năng
+
+1. **Thêm server để monitor**: Dashboard → Add Server
+2. **Xem real-time metrics**: Metrics sẽ tự động cập nhật mỗi 3 giây
+3. **Test web terminal**: Terminal → Connect to server via SSH
+4. **Test alerts**: Settings → Email/Alerts
+5. **Export data**: Servers → Export CSV/JSON
+
+### Troubleshooting
+
+**Lỗi: Port already in use**
+```bash
+# Tìm và kill process đang dùng port
+sudo lsof -ti:9081 | xargs kill -9
+sudo lsof -ti:9083 | xargs kill -9
+```
+
+**Lỗi: Module not found**
+```bash
+# Cài lại dependencies
+cd backend && pip3 install -r requirements.txt
+cd ../frontend-next && npm install
+```
+
+**Database bị lỗi**
+```bash
+# Khởi tạo lại database
+cd backend
+python3 -c "import database; database.init_database()"
+```
+
+### Hot Reload (Development)
+
+- **Frontend**: Next.js tự động reload khi bạn sửa code (Fast Refresh)
+- **Backend**: Cần restart service sau khi sửa Python code
+- **Tip**: Dùng `nodemon` hoặc `watchdog` để auto-restart backend
 
 ---
 
