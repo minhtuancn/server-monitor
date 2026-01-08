@@ -565,7 +565,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [audit-static-checks, unit-integration-tests, boot-smoke-tests, doc-consistency-check]
-    if: always()
+    if: always() && (needs.audit-static-checks.result != 'cancelled' || needs.unit-integration-tests.result != 'cancelled' || needs.boot-smoke-tests.result != 'cancelled' || needs.doc-consistency-check.result != 'cancelled')
     permissions:
       contents: read
     
@@ -579,6 +579,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
+        continue-on-error: true
       
       - name: Prepare results for report
         run: |
@@ -622,9 +623,10 @@ jobs:
     name: Create PR & Issue
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [generate-report, ui-screenshots]
+    needs: [generate-report]
     if: |
       always() && 
+      needs.generate-report.result != 'failure' &&
       (github.event.inputs.create_pr == 'true' || github.event.inputs.create_issue == 'true')
     permissions:
       contents: write
