@@ -71,6 +71,8 @@ tags:
     description: Email, Telegram, and Slack notifications
   - name: Export
     description: Data export (CSV, JSON)
+  - name: Webhooks
+    description: Webhook management and event integration
 
 components:
   securitySchemes:
@@ -465,6 +467,157 @@ components:
           type: object
           additionalProperties: true
         created_at:
+          type: string
+          format: date-time
+    
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "Slack Notifications"
+        url:
+          type: string
+          format: uri
+          example: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+        secret:
+          type: string
+          description: "HMAC secret (always redacted in responses)"
+          example: "***REDACTED***"
+        enabled:
+          type: integer
+          description: "1 for enabled, 0 for disabled"
+          example: 1
+        event_types:
+          type: array
+          items:
+            type: string
+          description: "List of event types to subscribe to. Empty array means all events."
+          example: ["task.finished", "server.created", "alert.triggered"]
+        retry_max:
+          type: integer
+          default: 3
+          example: 3
+        timeout:
+          type: integer
+          default: 10
+          example: 10
+        created_by:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_triggered_at:
+          type: string
+          format: date-time
+          nullable: true
+    
+    WebhookCreate:
+      type: object
+      required:
+        - name
+        - url
+      properties:
+        name:
+          type: string
+          example: "My Webhook"
+        url:
+          type: string
+          format: uri
+          example: "https://example.com/webhook"
+        secret:
+          type: string
+          description: "Optional HMAC secret for signing webhook payloads"
+          example: "my-secret-key"
+        enabled:
+          type: boolean
+          default: true
+        event_types:
+          type: array
+          items:
+            type: string
+          description: "List of event types to subscribe to. Omit or pass empty array for all events."
+          example: ["task.finished", "server.created"]
+        retry_max:
+          type: integer
+          default: 3
+          minimum: 1
+          maximum: 10
+        timeout:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 60
+    
+    WebhookUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          description: "Set to empty string to remove secret"
+        enabled:
+          type: boolean
+        event_types:
+          type: array
+          items:
+            type: string
+        retry_max:
+          type: integer
+          minimum: 1
+          maximum: 10
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 60
+    
+    WebhookDelivery:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "delivery-uuid"
+        webhook_id:
+          type: string
+          example: "webhook-uuid"
+        event_id:
+          type: string
+          example: "event-uuid"
+        event_type:
+          type: string
+          example: "task.finished"
+        status:
+          type: string
+          enum: [success, failed, retrying]
+          example: "success"
+        status_code:
+          type: integer
+          nullable: true
+          example: 200
+        response_body:
+          type: string
+          nullable: true
+          description: "Truncated to 1000 characters"
+          example: "OK"
+        error:
+          type: string
+          nullable: true
+          example: "Connection timeout"
+        attempt:
+          type: integer
+          example: 1
+        delivered_at:
           type: string
           format: date-time
 
@@ -2144,3 +2297,267 @@ paths:
                             type: string
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  # ==================== Webhooks ====================
+  /api/webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List all webhooks
+      description: Get list of all configured webhooks (admin only). Secrets are redacted in response.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: List of webhooks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    
+    post:
+      tags:
+        - Webhooks
+      summary: Create webhook
+      description: Create a new webhook configuration (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookCreate'
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  webhook_id:
+                    type: string
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  
+  /api/webhooks/{id}:
+    get:
+      tags:
+        - Webhooks
+      summary: Get webhook details
+      description: Get details of a specific webhook (admin only). Secret is redacted.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Webhook ID
+      responses:
+        '200':
+          description: Webhook details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    put:
+      tags:
+        - Webhooks
+      summary: Update webhook
+      description: Update webhook configuration (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Webhook ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookUpdate'
+      responses:
+        '200':
+          description: Webhook updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete webhook
+      description: Delete a webhook configuration (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Webhook ID
+      responses:
+        '200':
+          description: Webhook deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/webhooks/{id}/test:
+    post:
+      tags:
+        - Webhooks
+      summary: Test webhook
+      description: Send a test event to the webhook (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Webhook ID
+      responses:
+        '200':
+          description: Test event sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Test webhook sent"
+                  delivery:
+                    $ref: '#/components/schemas/WebhookDelivery'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  
+  /api/webhooks/{id}/deliveries:
+    get:
+      tags:
+        - Webhooks
+      summary: Get webhook delivery logs
+      description: Get delivery logs for a specific webhook (admin only)
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Webhook ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum number of results
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Number of results to skip
+      responses:
+        '200':
+          description: List of webhook deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deliveries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookDelivery'
+                  count:
+                    type: integer
+                    example: 50
+                  limit:
+                    type: integer
+                    example: 50
+                  offset:
+                    type: integer
+                    example: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
