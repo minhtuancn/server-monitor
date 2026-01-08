@@ -142,9 +142,11 @@ cd server-monitor
 cp .env.example .env
 
 # 3. Tạo keys bảo mật (QUAN TRỌNG!)
+# Tạo .env file mới hoặc append nếu đã có
 python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))" >> .env
 python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(24))" >> .env
 python3 -c "import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))" >> .env
+# Lưu ý: Nếu chạy lại script này, hãy xóa các dòng cũ trong .env trước
 
 # 4. Cài đặt backend dependencies
 cd backend
@@ -249,7 +251,11 @@ curl http://localhost:9083/api/health
 
 **Lỗi: Port already in use**
 ```bash
-# Tìm và kill process đang dùng port
+# Tìm và kill process đang dùng port (thử SIGTERM trước)
+sudo lsof -ti:9081 | xargs kill
+sudo lsof -ti:9083 | xargs kill
+
+# Nếu process không dừng, dùng SIGKILL
 sudo lsof -ti:9081 | xargs kill -9
 sudo lsof -ti:9083 | xargs kill -9
 ```
@@ -272,7 +278,15 @@ python3 -c "import database; database.init_database()"
 
 - **Frontend**: Next.js tự động reload khi bạn sửa code (Fast Refresh)
 - **Backend**: Cần restart service sau khi sửa Python code
-- **Tip**: Dùng `nodemon` hoặc `watchdog` để auto-restart backend
+- **Tip**: Để auto-restart backend khi code thay đổi, có thể dùng:
+  ```bash
+  # Cài đặt watchdog
+  pip3 install watchdog
+  
+  # Chạy với watchmedo (auto-restart khi file .py thay đổi)
+  cd backend
+  watchmedo auto-restart --patterns="*.py" --recursive -- python3 central_api.py
+  ```
 
 ---
 
