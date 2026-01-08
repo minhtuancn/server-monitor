@@ -48,8 +48,8 @@ jobs:
           # Exit-zero treats all errors as warnings
           flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics
 
-  test:
-    name: Run Tests
+  unit-tests:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
     needs: lint
     permissions:
@@ -80,6 +80,7 @@ jobs:
           echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> $GITHUB_ENV
           echo "JWT_SECRET=test-secret-key-for-ci" >> $GITHUB_ENV
           echo "ENCRYPTION_KEY=test-encryption-key-ci" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
       
       - name: Initialize database
         run: |
@@ -89,17 +90,115 @@ jobs:
       - name: Run unit tests
         run: |
           cd tests
-          # Run tests - skip integration tests that require running server
-          # Use -m to mark tests, or run specific test files
+          # Run pure unit tests that don't require API server
           python -m pytest --tb=short -v \
             test_crypto_vault.py \
+            test_cache.py \
+            test_rate_limiter.py \
             test_plugin_system.py \
             test_plugin_integration.py \
+            test_webhooks.py
+
+  api-tests:
+    name: Run API Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            tests/requirements.txt
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r tests/requirements.txt
+      
+      - name: Set up environment
+        run: |
+          mkdir -p /tmp/server-monitor-data
+          mkdir -p /tmp/ci-logs
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> $GITHUB_ENV
+          echo "JWT_SECRET=test-secret-key-for-ci" >> $GITHUB_ENV
+          echo "ENCRYPTION_KEY=test-encryption-key-ci" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
+          echo "LOG_FILE=/tmp/ci-logs/central-api.log" >> $GITHUB_ENV
+      
+      - name: Initialize database
+        run: |
+          cd backend
+          python -c "import database; database.init_database()"
+      
+      - name: Start API server
+        run: |
+          cd backend
+          # Start API in background and redirect output to log file
+          nohup python central_api.py > /tmp/ci-logs/central-api.log 2>&1 &
+          echo $! > /tmp/ci-logs/api.pid
+          echo "API server started with PID $(cat /tmp/ci-logs/api.pid)"
+      
+      - name: Wait for API readiness
+        run: |
+          echo "Waiting for API server to be ready..."
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -f http://localhost:9083/api/health > /dev/null 2>&1; then
+              echo "✓ API server is ready!"
+              curl -s http://localhost:9083/api/health | jq '.' || true
+              break
+            fi
+            
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts: API not ready yet, waiting..."
+            sleep 2
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "✗ API server failed to become ready after $max_attempts attempts"
+            echo "=== API Server Logs ==="
+            cat /tmp/ci-logs/central-api.log || echo "No logs available"
+            exit 1
+          fi
+      
+      - name: Run API integration tests
+        run: |
+          cd tests
+          # Run tests that require running API server
+          python -m pytest --tb=short -v \
             test_security.py \
             test_observability.py \
-            test_webhooks.py \
-            || {
-              echo "::warning::Some tests failed. This may be expected for integration tests."
-              echo "::warning::Review the test output above to determine if failures are acceptable."
-              exit 1
-            }
+            test_api.py
+      
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f /tmp/ci-logs/api.pid ]; then
+            PID=$(cat /tmp/ci-logs/api.pid)
+            echo "Stopping API server (PID: $PID)..."
+            kill $PID 2>/dev/null || true
+            # Wait for graceful shutdown
+            sleep 2
+            # Force kill if still running
+            kill -9 $PID 2>/dev/null || true
+          fi
+      
+      - name: Upload API logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-server-logs
+          path: /tmp/ci-logs/central-api.log
+          retention-days: 7
