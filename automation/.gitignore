@@ -1,0 +1,11 @@
+# Ignore generated reports (they will be committed by the workflow)
+FULL_REVIEW_REPORT.md
+
+# Ignore temporary data files
+*.json
+!package.json
+!package-lock.json
+
+# Ignore log files
+*.log
+*.txt
