@@ -25,6 +25,19 @@ TEST_RESULT="${TEST_RESULT:-unknown}"
 BUILD_RESULT="${BUILD_RESULT:-unknown}"
 SMOKE_RESULT="${SMOKE_RESULT:-unknown}"
 SCREENSHOT_RESULT="${SCREENSHOT_RESULT:-unknown}"
+DOC_CHECK_RESULT="${DOC_CHECK_RESULT:-unknown}"
+
+# Job result statuses (from needs context)
+JOB_AUDIT_RESULT="${JOB_AUDIT_RESULT:-unknown}"
+JOB_TESTS_RESULT="${JOB_TESTS_RESULT:-unknown}"
+JOB_SMOKE_RESULT="${JOB_SMOKE_RESULT:-unknown}"
+JOB_SCREENSHOTS_RESULT="${JOB_SCREENSHOTS_RESULT:-unknown}"
+JOB_DOCS_RESULT="${JOB_DOCS_RESULT:-unknown}"
+
+# Workflow information
+WORKFLOW_RUN_URL="${WORKFLOW_RUN_URL:-}"
+WORKFLOW_RUN_ID="${WORKFLOW_RUN_ID:-unknown}"
+WORKFLOW_RUN_NUMBER="${WORKFLOW_RUN_NUMBER:-unknown}"
 
 echo -e "${BLUE}📝 Generating review report...${NC}"
 
@@ -44,6 +57,17 @@ FRONTEND_FILES=$(find frontend-next/src -name "*.tsx" -o -name "*.ts" 2>/dev/nul
 TEST_FILES=$(find tests -name "*.py" 2>/dev/null | wc -l || echo "0")
 DOC_FILES=$(find . -maxdepth 1 -name "*.md" 2>/dev/null | wc -l || echo "0")
 
+# Helper function to map job result to emoji
+map_job_result() {
+  case "$1" in
+    "success") echo "✅ SUCCESS" ;;
+    "failure") echo "❌ FAILURE" ;;
+    "cancelled") echo "🚫 CANCELLED" ;;
+    "skipped") echo "⏭️ SKIPPED" ;;
+    *) echo "⚠️ UNKNOWN" ;;
+  esac
+}
+
 # Generate report
 cat > "$REPORT_FILE" << EOF
 # Project Review Report
@@ -54,6 +78,68 @@ cat > "$REPORT_FILE" << EOF
 **Branch:** ${GIT_BRANCH}  
 **Author:** ${GIT_AUTHOR}  
 **Date:** ${GIT_DATE}
+
+---
+
+## 🔗 Quick Links
+
+- **Workflow Run:** [#${WORKFLOW_RUN_NUMBER}](${WORKFLOW_RUN_URL})
+- **Download Artifacts:** [View Run](${WORKFLOW_RUN_URL})
+- **View Logs:** [Workflow Logs](${WORKFLOW_RUN_URL})
+
+---
+
+## 📊 Job Results Matrix
+
+| Job Name | Status | Details |
+|----------|--------|---------|
+| **audit-static-checks** | $(map_job_result "$JOB_AUDIT_RESULT") | Python linting, security scan, ESLint, TypeScript check |
+| **unit-integration-tests** | $(map_job_result "$JOB_TESTS_RESULT") | pytest unit and integration tests |
+| **boot-smoke-tests** | $(map_job_result "$JOB_SMOKE_RESULT") | Build validation and smoke tests |
+| **ui-screenshots** | $(map_job_result "$JOB_SCREENSHOTS_RESULT") | UI screenshot capture with Playwright |
+| **doc-consistency-check** | $(map_job_result "$JOB_DOCS_RESULT") | Documentation consistency validation |
+
+EOF
+
+# Add failure analysis if any job failed
+if [ "$JOB_AUDIT_RESULT" = "failure" ] || [ "$JOB_TESTS_RESULT" = "failure" ] || \
+   [ "$JOB_SMOKE_RESULT" = "failure" ] || [ "$JOB_SCREENSHOTS_RESULT" = "failure" ] || \
+   [ "$JOB_DOCS_RESULT" = "failure" ] || [ "$JOB_AUDIT_RESULT" = "cancelled" ] || \
+   [ "$JOB_TESTS_RESULT" = "cancelled" ] || [ "$JOB_SMOKE_RESULT" = "cancelled" ] || \
+   [ "$JOB_SCREENSHOTS_RESULT" = "cancelled" ] || [ "$JOB_DOCS_RESULT" = "cancelled" ]; then
+  
+  cat >> "$REPORT_FILE" << EOF
+
+### ⚠️ Failed/Cancelled Jobs
+
+The following jobs require attention:
+
+EOF
+
+  [ "$JOB_AUDIT_RESULT" = "failure" ] && echo "- **audit-static-checks** - Check linting and security scan results below" >> "$REPORT_FILE"
+  [ "$JOB_TESTS_RESULT" = "failure" ] && echo "- **unit-integration-tests** - Review test failures below" >> "$REPORT_FILE"
+  [ "$JOB_SMOKE_RESULT" = "failure" ] && echo "- **boot-smoke-tests** - Check build and smoke test output below" >> "$REPORT_FILE"
+  [ "$JOB_SCREENSHOTS_RESULT" = "failure" ] && echo "- **ui-screenshots** - Review screenshot capture logs" >> "$REPORT_FILE"
+  [ "$JOB_DOCS_RESULT" = "failure" ] && echo "- **doc-consistency-check** - Check documentation issues below" >> "$REPORT_FILE"
+  
+  [ "$JOB_AUDIT_RESULT" = "cancelled" ] && echo "- **audit-static-checks** - Job was cancelled" >> "$REPORT_FILE"
+  [ "$JOB_TESTS_RESULT" = "cancelled" ] && echo "- **unit-integration-tests** - Job was cancelled" >> "$REPORT_FILE"
+  [ "$JOB_SMOKE_RESULT" = "cancelled" ] && echo "- **boot-smoke-tests** - Job was cancelled" >> "$REPORT_FILE"
+  [ "$JOB_SCREENSHOTS_RESULT" = "cancelled" ] && echo "- **ui-screenshots** - Job was cancelled" >> "$REPORT_FILE"
+  [ "$JOB_DOCS_RESULT" = "cancelled" ] && echo "- **doc-consistency-check** - Job was cancelled" >> "$REPORT_FILE"
+
+  cat >> "$REPORT_FILE" << EOF
+
+**How to debug:**
+1. Visit the [workflow run](${WORKFLOW_RUN_URL}) to see detailed logs
+2. Download artifacts for offline analysis
+3. Check the specific step that failed in each job
+4. Review the log excerpts below for quick diagnostics
+
+EOF
+fi
+
+cat >> "$REPORT_FILE" << EOF
 
 ---
 
@@ -70,6 +156,7 @@ This automated review report provides a comprehensive audit of the server-monito
 | Frontend Build | ${BUILD_RESULT} |
 | Smoke Tests | ${SMOKE_RESULT} |
 | UI Screenshots | ${SCREENSHOT_RESULT} |
+| Documentation Check | ${DOC_CHECK_RESULT} |
 
 ---
 
@@ -103,7 +190,7 @@ EOF
 if [ -f "lint-results.txt" ]; then
   echo "#### Details:" >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
-  cat lint-results.txt >> "$REPORT_FILE"
+  tail -50 lint-results.txt >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
 fi
 
@@ -111,7 +198,31 @@ cat >> "$REPORT_FILE" << EOF
 
 **Security Scanning (bandit):** See security scan results
 
+EOF
+
+# Add bandit report excerpt if available
+if [ -f "bandit-report.txt" ]; then
+  echo "#### Bandit Security Scan (Last 30 lines):" >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+  tail -30 bandit-report.txt >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
+
 **Frontend Linting (ESLint):** ${LINT_RESULT}
+
+EOF
+
+# Add ESLint results excerpt if available
+if [ -f "eslint-results.txt" ]; then
+  echo "#### ESLint Results (Last 30 lines):" >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+  tail -30 eslint-results.txt >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
 
 **TypeScript Type Check:** ${LINT_RESULT}
 
@@ -123,9 +234,9 @@ EOF
 
 # Add test details if available
 if [ -f "test-results.txt" ]; then
-  echo "#### Test Summary:" >> "$REPORT_FILE"
+  echo "#### Test Summary (Last 50 lines):" >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
-  cat test-results.txt >> "$REPORT_FILE"
+  tail -50 test-results.txt >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
 fi
 
@@ -143,9 +254,9 @@ EOF
 
 # Add smoke test details if available
 if [ -f "smoke-results.txt" ]; then
-  echo "#### Smoke Test Details:" >> "$REPORT_FILE"
+  echo "#### Smoke Test Details (Last 50 lines):" >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
-  cat smoke-results.txt >> "$REPORT_FILE"
+  tail -50 smoke-results.txt >> "$REPORT_FILE"
   echo '```' >> "$REPORT_FILE"
 fi
 
@@ -155,7 +266,35 @@ cat >> "$REPORT_FILE" << EOF
 
 **Result:** ${SCREENSHOT_RESULT}
 
+EOF
+
+# Add screenshot results if available
+if [ -f "screenshot-results.txt" ]; then
+  echo "#### Screenshot Capture Results:" >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+  tail -30 screenshot-results.txt >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
+
 Screenshots are available in \`docs/screenshots/\` directory.
+
+### 6. Documentation Consistency
+
+**Result:** ${DOC_CHECK_RESULT}
+
+EOF
+
+# Add doc check results if available
+if [ -f "doc-check-results.txt" ]; then
+  echo "#### Documentation Check Results:" >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+  cat doc-check-results.txt >> "$REPORT_FILE"
+  echo '```' >> "$REPORT_FILE"
+fi
+
+cat >> "$REPORT_FILE" << EOF
 
 ---
 
@@ -302,10 +441,12 @@ Before releasing the next version, ensure:
 
 The following artifacts were generated during this review:
 
-- Test results: See GitHub Actions artifacts
-- Lint results: See GitHub Actions artifacts
+- Test results: [Download from workflow run](${WORKFLOW_RUN_URL})
+- Lint results: [Download from workflow run](${WORKFLOW_RUN_URL})
 - Screenshots: \`docs/screenshots/\`
 - Review report: \`docs/REVIEW_REPORT.md\` (this file)
+
+**Direct artifact downloads available at:** [${WORKFLOW_RUN_URL}](${WORKFLOW_RUN_URL})
 
 ---
 
@@ -323,12 +464,20 @@ echo "=========================================="
 echo "Ref: ${REF}"
 echo "Commit: ${GIT_COMMIT_SHORT}"
 echo ""
-echo "Results:"
+echo "Job Results:"
+echo "  audit-static-checks: $JOB_AUDIT_RESULT"
+echo "  unit-integration-tests: $JOB_TESTS_RESULT"
+echo "  boot-smoke-tests: $JOB_SMOKE_RESULT"
+echo "  ui-screenshots: $JOB_SCREENSHOTS_RESULT"
+echo "  doc-consistency-check: $JOB_DOCS_RESULT"
+echo ""
+echo "Component Results:"
 echo "  Linting: ${LINT_RESULT}"
 echo "  Tests: ${TEST_RESULT}"
 echo "  Build: ${BUILD_RESULT}"
 echo "  Smoke: ${SMOKE_RESULT}"
 echo "  Screenshots: ${SCREENSHOT_RESULT}"
+echo "  Doc Check: ${DOC_CHECK_RESULT}"
 echo ""
 echo "Full report: ${REPORT_FILE}"
 echo "=========================================="

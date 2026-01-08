@@ -97,9 +97,16 @@ jobs:
       - name: Run Python linting (flake8)
         run: |
           echo "=== Python Linting (flake8) ===" | tee lint-results.txt
-          flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics | tee -a lint-results.txt || true
-          flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics | tee -a lint-results.txt
-          echo "LINT_RESULT=✅ PASSED" >> $GITHUB_ENV
+          # Check for critical errors first
+          if flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics 2>&1 | tee -a lint-results.txt; then
+            # Run full lint with warnings
+            flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics | tee -a lint-results.txt
+            echo "LINT_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
+            # Still run full lint for reporting but mark as failed
+            flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics | tee -a lint-results.txt
+            echo "LINT_RESULT=❌ FAILED" >> $GITHUB_ENV
+          fi
       
       - name: Run security scan (bandit)
         run: |
@@ -289,8 +296,11 @@ jobs:
       - name: Build frontend
         working-directory: frontend-next
         run: |
-          npm run build
-          echo "BUILD_RESULT=✅ PASSED" >> $GITHUB_ENV
+          if npm run build; then
+            echo "BUILD_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
+            echo "BUILD_RESULT=❌ FAILED" >> $GITHUB_ENV
+          fi
       
       - name: Start backend services
         run: |
@@ -553,7 +563,17 @@ jobs:
       - name: Run documentation checker
         run: |
           chmod +x scripts/doc-checker.sh
-          ./scripts/doc-checker.sh | tee doc-check-results.txt
+          # Capture output and check for issues
+          if ./scripts/doc-checker.sh | tee doc-check-results.txt; then
+            # Check if any issues were found by looking for "issue(s)" in output
+            if grep -q "Found .* issue(s)" doc-check-results.txt; then
+              echo "DOC_CHECK_RESULT=⚠️ ISSUES FOUND" >> $GITHUB_ENV
+            else
+              echo "DOC_CHECK_RESULT=✅ PASSED" >> $GITHUB_ENV
+            fi
+          else
+            echo "DOC_CHECK_RESULT=❌ FAILED" >> $GITHUB_ENV
+          fi
       
       - name: Upload doc check results
         uses: actions/upload-artifact@v4
@@ -599,11 +619,23 @@ jobs:
           SMOKE_JOB_RESULT: ${{ needs.boot-smoke-tests.result }}
           SCREENSHOTS_RESULT: ${{ needs.ui-screenshots.result }}
           DOCS_RESULT: ${{ needs.doc-consistency-check.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
         run: |
           # Copy results to expected locations
           cp artifacts/lint-results/lint-results.txt . || touch lint-results.txt
           cp artifacts/test-results/test-results.txt . || touch test-results.txt
           cp artifacts/smoke-test-results/smoke-results.txt . || touch smoke-results.txt
+          cp artifacts/doc-check-results/doc-check-results.txt . || touch doc-check-results.txt
+          
+          # Copy additional artifacts for detailed reporting
+          cp artifacts/lint-results/bandit-report.txt . || touch bandit-report.txt
+          cp artifacts/lint-results/eslint-results.txt . || touch eslint-results.txt
+          cp artifacts/smoke-test-results/all-services.log . || touch all-services.log
+          cp artifacts/ui-screenshots/screenshot-results.txt . || touch screenshot-results.txt
           
           # Determine job statuses from needs context
           echo "Setting job statuses from needs context..."
@@ -624,6 +656,19 @@ jobs:
           echo "SMOKE_RESULT=$(map_result "$SMOKE_JOB_RESULT")" >> $GITHUB_ENV
           echo "SCREENSHOT_RESULT=$(map_result "$SCREENSHOTS_RESULT")" >> $GITHUB_ENV
           echo "BUILD_RESULT=$(map_result "$SMOKE_JOB_RESULT")" >> $GITHUB_ENV
+          echo "DOC_CHECK_RESULT=$(map_result "$DOCS_RESULT")" >> $GITHUB_ENV
+          
+          # Export job result statuses for report generation
+          echo "JOB_AUDIT_RESULT=$AUDIT_RESULT" >> $GITHUB_ENV
+          echo "JOB_TESTS_RESULT=$TESTS_RESULT" >> $GITHUB_ENV
+          echo "JOB_SMOKE_RESULT=$SMOKE_JOB_RESULT" >> $GITHUB_ENV
+          echo "JOB_SCREENSHOTS_RESULT=$SCREENSHOTS_RESULT" >> $GITHUB_ENV
+          echo "JOB_DOCS_RESULT=$DOCS_RESULT" >> $GITHUB_ENV
+          
+          # Export workflow run information
+          echo "WORKFLOW_RUN_URL=$RUN_URL" >> $GITHUB_ENV
+          echo "WORKFLOW_RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "WORKFLOW_RUN_NUMBER=$RUN_NUMBER" >> $GITHUB_ENV
           
           # Track failed jobs for issue creation
           FAILED_JOBS=""
@@ -632,6 +677,13 @@ jobs:
           [ "$SMOKE_JOB_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}boot-smoke-tests,"
           [ "$SCREENSHOTS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}ui-screenshots,"
           [ "$DOCS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}doc-consistency-check,"
+          
+          # Also track cancelled jobs
+          [ "$AUDIT_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}audit-static-checks,"
+          [ "$TESTS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}unit-integration-tests,"
+          [ "$SMOKE_JOB_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}boot-smoke-tests,"
+          [ "$SCREENSHOTS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}ui-screenshots,"
+          [ "$DOCS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}doc-consistency-check,"
           
           # Remove trailing comma
           FAILED_JOBS="${FAILED_JOBS%,}"
@@ -906,16 +958,83 @@ jobs:
           "
           fi
           
+          # Build "What to Fix First" section based on failures
+          WHAT_TO_FIX_FIRST=""
+          if [ "${HAS_FAILURES}" = "true" ] && [ -n "${FAILED_JOBS}" ]; then
+            WHAT_TO_FIX_FIRST=$(cat <<'FIX_EOF'
+          ### 🎯 What to Fix First (Priority Order)
+          
+          Based on the failed jobs, here's the recommended fix order:
+          
+          FIX_EOF
+          )
+            
+            PRIORITY_NUM=1
+            if echo "${FAILED_JOBS}" | grep -q "audit-static-checks"; then
+              WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          ${PRIORITY_NUM}. **Fix Linting/Security Issues** - Static checks failed
+             - Run \`flake8 backend/\` locally to see Python linting errors
+             - Run \`bandit -r backend/\` to check security issues
+             - Run \`npm run lint\` in frontend-next/ for TypeScript issues
+          "
+              PRIORITY_NUM=$((PRIORITY_NUM + 1))
+            fi
+            
+            if echo "${FAILED_JOBS}" | grep -q "unit-integration-tests"; then
+              WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          ${PRIORITY_NUM}. **Fix Failing Tests** - Unit/integration tests failed
+             - Run \`pytest tests/ -v\` locally to identify failing tests
+             - Check test logs in artifacts for specific failures
+             - Fix test failures before proceeding with other fixes
+          "
+              PRIORITY_NUM=$((PRIORITY_NUM + 1))
+            fi
+            
+            if echo "${FAILED_JOBS}" | grep -q "boot-smoke-tests"; then
+              WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          ${PRIORITY_NUM}. **Fix Build/Smoke Tests** - Application startup or smoke tests failed
+             - Check if frontend builds: \`cd frontend-next && npm run build\`
+             - Verify backend services start properly
+             - Review smoke test logs for specific endpoint failures
+          "
+              PRIORITY_NUM=$((PRIORITY_NUM + 1))
+            fi
+            
+            if echo "${FAILED_JOBS}" | grep -q "doc-consistency-check"; then
+              WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          ${PRIORITY_NUM}. **Fix Documentation Issues** - Doc consistency check found problems
+             - Run \`./scripts/doc-checker.sh\` to see specific issues
+             - Fix broken internal links
+             - Update outdated documentation
+          "
+              PRIORITY_NUM=$((PRIORITY_NUM + 1))
+            fi
+            
+            if echo "${FAILED_JOBS}" | grep -q "ui-screenshots"; then
+              WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          ${PRIORITY_NUM}. **Fix Screenshot Capture** - UI screenshot job failed
+             - This is typically lower priority
+             - May be due to UI changes or timeout issues
+             - Review screenshot logs for details
+          "
+            fi
+            
+            WHAT_TO_FIX_FIRST="${WHAT_TO_FIX_FIRST}
+          
+          "
+          fi
+          
           ISSUE_BODY=$(cat <<EOF
           ## 📋 Automated Review Follow-ups
 
           This issue tracks follow-up actions from the automated project review.
 
-          ### 🔗 Links
+          ### 🔗 Quick Links
 
           - **Review Report:** [docs/REVIEW_REPORT.md](./docs/REVIEW_REPORT.md)
           - **Workflow Run:** [#${RUN_NUMBER}](${RUN_URL})
-          - **Artifacts:** [Download](${RUN_URL})
+          - **View Logs:** [Workflow Logs](${RUN_URL})
+          - **Download Artifacts:** [All Artifacts](${RUN_URL})
           EOF
           )
           
@@ -926,7 +1045,7 @@ jobs:
           
           ISSUE_BODY="${ISSUE_BODY}
 
-          ${FAILED_JOBS_SECTION}### ✅ Review Checklist
+          ${FAILED_JOBS_SECTION}${WHAT_TO_FIX_FIRST}### ✅ Review Checklist
 
           #### High Priority
           - [ ] Address any failing tests
