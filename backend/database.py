@@ -1278,6 +1278,7 @@ def _sanitize_csv_field(value):
     value_str = str(value)
     
     # Check if field starts with potentially dangerous characters
+    # The if check is needed to prevent IndexError on empty strings
     if value_str:
         first_char = value_str[0]
         if first_char in ['=', '+', '-', '@', '\t', '\r']:
