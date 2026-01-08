@@ -1278,7 +1278,7 @@ def _sanitize_csv_field(value):
     value_str = str(value)
     
     # Check if field starts with potentially dangerous characters
-    if value_str and len(value_str) > 0:
+    if value_str:
         first_char = value_str[0]
         if first_char in ['=', '+', '-', '@', '\t', '\r']:
             # Prefix with single quote to prevent formula injection
@@ -1379,13 +1379,14 @@ def export_alerts_csv(server_id=None, is_read=None):
     
     # Data - sanitize each field to prevent CSV injection
     for alert in alerts:
+        is_read_str = 'Yes' if alert.get('is_read') else 'No'
         writer.writerow([
             _sanitize_csv_field(alert.get('id')),
             _sanitize_csv_field(alert.get('server_id')),
             _sanitize_csv_field(alert.get('alert_type')),
             _sanitize_csv_field(alert.get('message')),
             _sanitize_csv_field(alert.get('severity')),
-            'Yes' if alert.get('is_read') else 'No',
+            _sanitize_csv_field(is_read_str),
             _sanitize_csv_field(alert.get('created_at'))
         ])
     
