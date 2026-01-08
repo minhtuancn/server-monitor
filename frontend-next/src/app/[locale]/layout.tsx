@@ -1,7 +1,7 @@
 import { AppProviders } from "@/components/providers/AppProviders";
 import { locales } from "@/i18n/config";
 import type { Metadata } from "next";
-import { getMessages } from "next-intl/server";
+import { getMessages, setRequestLocale } from "next-intl/server";
 import "../globals.css";
 
 export const metadata: Metadata = {
@@ -21,6 +21,9 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
+  // Enable static rendering for next-intl
+  setRequestLocale(params.locale);
+  
   const messages = await getMessages();
   return (
     <html lang={params.locale} suppressHydrationWarning>
