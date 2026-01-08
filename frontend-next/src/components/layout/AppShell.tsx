@@ -20,6 +20,7 @@ import PolicyIcon from "@mui/icons-material/Policy";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import HistoryIcon from "@mui/icons-material/History";
+import WebhookIcon from "@mui/icons-material/Webhook";
 import {
   AppBar,
   Avatar,
@@ -101,6 +102,12 @@ const NAV_SECTIONS: NavSection[] = [
         label: "SSH Keys",
         href: "/settings/ssh-keys",
         icon: <VpnKeyIcon />,
+      },
+      {
+        label: "Webhooks",
+        href: "/settings/integrations/webhooks",
+        icon: <WebhookIcon />,
+        roles: ["admin"],
       },
     ],
   },
