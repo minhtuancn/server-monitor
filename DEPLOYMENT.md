@@ -110,13 +110,27 @@ NEXT_PUBLIC_TERMINAL_WS_URL=wss://monitor.example.com/terminal
 |----------|----------|-------------|----------|---------|
 | `JWT_SECRET` | Backend | JWT token secret | Yes | - |
 | `ENCRYPTION_KEY` | Backend | SSH password encryption key | Yes | - |
+| `KEY_VAULT_MASTER_KEY` | Backend | SSH key vault encryption (v2.0+) | Yes | - |
 | `JWT_EXPIRATION` | Backend | Token expiry (seconds) | No | 86400 |
 | `API_PORT` | Backend | API server port | No | 9083 |
 | `WEBSOCKET_PORT` | Backend | WebSocket server port | No | 9085 |
 | `TERMINAL_PORT` | Backend | Terminal server port | No | 9084 |
+| `AUDIT_RETENTION_DAYS` | Backend | Audit log retention (v2.2+) | No | 90 |
+| `WEBHOOK_DELIVERY_LOG_MAX_DAYS` | Backend | Webhook delivery log retention (v2.3+) | No | 90 |
+| `WEBHOOK_PAYLOAD_MAX_BYTES` | Backend | Max webhook payload size (v2.3+) | No | 65536 |
+| `WEBHOOK_TIMEOUT_MIN` | Backend | Min webhook timeout (v2.3+) | No | 3 |
+| `WEBHOOK_TIMEOUT_MAX` | Backend | Max webhook timeout (v2.3+) | No | 60 |
 | `API_PROXY_TARGET` | Frontend | Backend API URL for BFF | No | http://localhost:9083 |
 | `NEXT_PUBLIC_MONITORING_WS_URL` | Frontend | Monitoring WebSocket URL | No | ws://localhost:9085 |
 | `NEXT_PUBLIC_TERMINAL_WS_URL` | Frontend | Terminal WebSocket URL | No | ws://localhost:9084 |
+
+**Webhook Configuration (v2.3.0):**
+
+Managed webhooks (recommended) require **no environment configuration**. Configure via:
+- Admin UI: Settings → Integrations
+- API: `POST /api/webhooks` (admin only)
+
+See [docs/INSTALLER.md](docs/INSTALLER.md) for detailed webhook configuration guide.
 
 ---
 

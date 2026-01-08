@@ -848,6 +848,22 @@ The webhook feature includes comprehensive Server-Side Request Forgery (SSRF) pr
 - Public HTTP and HTTPS URLs only
 - Valid, routable internet addresses
 
+**HTTP Redirect Policy (v2.3.0):**
+- **Redirects are NOT followed** by default
+- If webhook URL returns 3xx redirect, delivery fails
+- **Reason:** Following redirects could bypass SSRF protection
+- **Workaround:** Configure webhook with final/canonical URL directly
+- **Future:** May support redirects with re-validation of target URL
+
+**Example:**
+```python
+# ❌ Bad: Webhook URL with redirect
+url = "http://example.com/short-url"  # Redirects to internal IP
+
+# ✅ Good: Use final URL directly
+url = "https://webhook.example.com/final-endpoint"
+```
+
 ### HMAC Signature Security
 
 Webhooks support HMAC-SHA256 signatures for payload integrity and authenticity:

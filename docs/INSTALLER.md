@@ -463,6 +463,212 @@ sudo userdel server-monitor
 
 ---
 
+## 🔌 Plugin System & Webhooks Configuration (v2.3.0)
+
+### Overview
+
+Server Monitor v2.3.0 introduces two integration mechanisms:
+
+1. **Managed Webhooks** (Recommended): Database-backed webhooks configured via UI
+2. **File-based Plugins**: Configuration-file based plugins (legacy)
+
+### Managed Webhooks (Recommended)
+
+**Benefits:**
+- ✅ No configuration file editing needed
+- ✅ Configure via Admin UI (Settings → Integrations)
+- ✅ Per-webhook configuration (URL, events, secrets, retry policy)
+- ✅ Delivery logs and audit trail
+- ✅ Enable/disable without restart
+- ✅ Test webhooks before activation
+
+**Configuration:**
+
+Managed webhooks require **no environment variable configuration**. They are enabled by default and managed entirely through the web UI.
+
+**Optional Environment Variables:**
+```bash
+# Webhook delivery log retention (default: 90 days)
+WEBHOOK_DELIVERY_LOG_MAX_DAYS=90
+
+# Enable/disable automatic delivery log cleanup (default: true)
+WEBHOOK_DELIVERY_CLEANUP_ENABLED=true
+
+# Cleanup interval in hours (default: 24)
+WEBHOOK_DELIVERY_CLEANUP_INTERVAL_HOURS=24
+
+# Maximum payload size in bytes (default: 64KB)
+WEBHOOK_PAYLOAD_MAX_BYTES=65536
+
+# Timeout bounds (seconds)
+WEBHOOK_TIMEOUT_MIN=3
+WEBHOOK_TIMEOUT_MAX=60
+
+# Maximum retry limit
+WEBHOOK_RETRY_MAX_LIMIT=5
+```
+
+**Setup Steps:**
+
+1. **Login as Admin**
+   ```bash
+   # Access web UI: http://your-server:9081
+   # Login with admin credentials
+   ```
+
+2. **Navigate to Webhooks**
+   - Go to Settings (gear icon) → Integrations
+   - Click "Add Webhook" or similar button
+
+3. **Configure Webhook**
+   - **Name**: Human-readable name (e.g., "Slack Alerts")
+   - **URL**: Target endpoint (must be HTTPS in production)
+   - **Secret**: HMAC secret for signature verification (recommended)
+   - **Event Types**: Select events to subscribe to
+   - **Retry Max**: Number of retry attempts (default: 3)
+   - **Timeout**: Request timeout in seconds (default: 10)
+   - **Enabled**: Toggle to activate/deactivate
+
+4. **Test Webhook**
+   - Click "Test" button to send test event
+   - Verify delivery in webhook receiver logs
+   - Check delivery logs in UI
+
+**Security Best Practices:**
+
+```bash
+# Always use HTTPS in production
+✅ https://webhook.example.com/endpoint
+❌ http://webhook.example.com/endpoint  # Insecure!
+
+# Never use internal URLs (SSRF protection will block these)
+❌ http://localhost/webhook
+❌ http://192.168.1.100/webhook
+❌ http://server.local/webhook
+
+# Use HMAC secrets for verification
+✅ Generate strong secret: openssl rand -hex 32
+```
+
+**Monitoring:**
+
+```bash
+# Check webhook metrics
+curl http://localhost:9083/api/metrics | grep webhook
+
+# Expected metrics:
+# webhook_deliveries_total{status="success"} <count>
+# webhook_deliveries_total{status="failed"} <count>
+# webhook_deliveries_total{status="retrying"} <count>
+```
+
+### File-based Plugin System (Legacy)
+
+**Note:** File-based plugins are a legacy mechanism. Use **Managed Webhooks** instead for most use cases.
+
+**When to Use:**
+- Custom plugin development
+- Advanced integration requirements
+- Non-webhook integrations
+
+**Configuration:**
+
+Edit `/etc/server-monitor/server-monitor.env`:
+
+```bash
+# Enable plugin system
+PLUGINS_ENABLED=true
+
+# Allowlist-based loading (security)
+PLUGINS_ALLOWLIST=webhook
+
+# Plugin-specific configuration (JSON format)
+PLUGIN_WEBHOOK_CONFIG={"url":"https://example.com/hook","secret":"secret123","event_types":["task.finished"],"timeout":10,"retry_max":3}
+```
+
+**Important:**
+- Plugin system must be explicitly enabled
+- Only allowlisted plugins are loaded
+- Configuration changes require service restart
+- Managed webhooks are recommended over file-based plugins
+
+**Restart After Configuration:**
+
+```bash
+# Restart API service to load plugin configuration
+sudo systemctl restart server-monitor-api
+
+# Check logs for plugin initialization
+sudo journalctl -u server-monitor-api -n 50 | grep -i plugin
+```
+
+### Webhook Delivery Log Cleanup
+
+**Automatic Cleanup:**
+
+Enabled by default. Old delivery logs are automatically deleted based on retention period.
+
+```bash
+# Configure retention in /etc/server-monitor/server-monitor.env
+WEBHOOK_DELIVERY_LOG_MAX_DAYS=90         # Keep logs for 90 days
+WEBHOOK_DELIVERY_CLEANUP_ENABLED=true    # Enable automatic cleanup
+WEBHOOK_DELIVERY_CLEANUP_INTERVAL_HOURS=24  # Run cleanup daily
+```
+
+**Manual Cleanup:**
+
+```bash
+# Connect to database
+sudo sqlite3 /var/lib/server-monitor/servers.db
+
+# Check delivery log count
+SELECT COUNT(*) FROM webhook_deliveries;
+
+# Delete logs older than 90 days (example)
+DELETE FROM webhook_deliveries 
+WHERE delivered_at < datetime('now', '-90 days');
+
+# Exit
+.quit
+```
+
+### Troubleshooting Webhooks
+
+**Webhook Not Delivering:**
+
+1. **Check SSRF Validation**
+   ```bash
+   # Webhook URL must be public, not internal
+   ❌ localhost, 127.0.0.1, 192.168.x.x, etc.
+   ```
+
+2. **Check Logs**
+   ```bash
+   sudo journalctl -u server-monitor-api -n 100 | grep webhook
+   ```
+
+3. **Test Connectivity**
+   ```bash
+   # From server, test webhook URL
+   curl -v https://your-webhook-url.com/endpoint
+   ```
+
+4. **Check Delivery Logs**
+   - UI: Settings → Integrations → [Webhook] → View Deliveries
+   - API: `GET /api/webhooks/{id}/deliveries`
+
+**Common Issues:**
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| "Internal/localhost URLs not allowed" | SSRF protection blocking URL | Use public URL only |
+| "HTTP 403 Forbidden" | Non-admin user | Login as admin to manage webhooks |
+| Signature verification failed | Secret mismatch | Verify secret matches on both ends |
+| Delivery timeout | Target too slow | Increase timeout or optimize receiver |
+| Too many retries | Receiver returning 5xx | Fix receiver or disable webhook |
+
+---
+
 ## 🔥 Firewall & Network Configuration
 
 ### UFW (Ubuntu/Debian)
