@@ -1261,6 +1261,33 @@ def get_ssh_key_by_name(name):
 
 # ==================== EXPORT FUNCTIONS ====================
 
+def _sanitize_csv_field(value):
+    """
+    Sanitize CSV field to prevent CSV injection
+    Prefix with single quote if starts with =, +, -, @, tab, or carriage return
+    
+    Args:
+        value: Field value to sanitize
+        
+    Returns:
+        Sanitized field value
+    """
+    if value is None:
+        return ''
+    
+    value_str = str(value)
+    
+    # Check if field starts with potentially dangerous characters
+    # The if check is needed to prevent IndexError on empty strings
+    if value_str:
+        first_char = value_str[0]
+        if first_char in ['=', '+', '-', '@', '\t', '\r']:
+            # Prefix with single quote to prevent formula injection
+            return "'" + value_str
+    
+    return value_str
+
+
 def export_servers_csv():
     """Export servers list to CSV format"""
     import csv
@@ -1274,20 +1301,20 @@ def export_servers_csv():
     # Header
     writer.writerow(['ID', 'Name', 'Host', 'Port', 'Username', 'Description', 'Status', 'Tags', 'Agent Port', 'Last Seen', 'Created At'])
     
-    # Data
+    # Data - sanitize each field to prevent CSV injection
     for server in servers:
         writer.writerow([
-            server.get('id'),
-            server.get('name'),
-            server.get('host'),
-            server.get('port'),
-            server.get('username'),
-            server.get('description', ''),
-            server.get('status'),
-            server.get('tags', ''),
-            server.get('agent_port'),
-            server.get('last_seen', ''),
-            server.get('created_at', '')
+            _sanitize_csv_field(server.get('id')),
+            _sanitize_csv_field(server.get('name')),
+            _sanitize_csv_field(server.get('host')),
+            _sanitize_csv_field(server.get('port')),
+            _sanitize_csv_field(server.get('username')),
+            _sanitize_csv_field(server.get('description', '')),
+            _sanitize_csv_field(server.get('status')),
+            _sanitize_csv_field(server.get('tags', '')),
+            _sanitize_csv_field(server.get('agent_port')),
+            _sanitize_csv_field(server.get('last_seen', '')),
+            _sanitize_csv_field(server.get('created_at', ''))
         ])
     
     return output.getvalue()
@@ -1314,15 +1341,16 @@ def export_monitoring_history_csv(server_id=None, start_date=None, end_date=None
             except:
                 metric_data = {}
         
+        # Sanitize each field to prevent CSV injection
         writer.writerow([
-            item.get('timestamp'),
-            item.get('server_id'),
-            item.get('metric_type'),
-            metric_data.get('cpu', ''),
-            metric_data.get('memory', ''),
-            metric_data.get('disk', ''),
-            metric_data.get('network_rx', ''),
-            metric_data.get('network_tx', '')
+            _sanitize_csv_field(item.get('timestamp')),
+            _sanitize_csv_field(item.get('server_id')),
+            _sanitize_csv_field(item.get('metric_type')),
+            _sanitize_csv_field(metric_data.get('cpu', '')),
+            _sanitize_csv_field(metric_data.get('memory', '')),
+            _sanitize_csv_field(metric_data.get('disk', '')),
+            _sanitize_csv_field(metric_data.get('network_rx', '')),
+            _sanitize_csv_field(metric_data.get('network_tx', ''))
         ])
     
     return output.getvalue()
@@ -1350,44 +1378,21 @@ def export_alerts_csv(server_id=None, is_read=None):
     # Header
     writer.writerow(['ID', 'Server ID', 'Alert Type', 'Message', 'Severity', 'Is Read', 'Created At'])
     
-    # Data
+    # Data - sanitize each field to prevent CSV injection
     for alert in alerts:
+        is_read_str = 'Yes' if alert.get('is_read') else 'No'
         writer.writerow([
-            alert.get('id'),
-            alert.get('server_id'),
-            alert.get('alert_type'),
-            alert.get('message'),
-            alert.get('severity'),
-            'Yes' if alert.get('is_read') else 'No',
-            alert.get('created_at')
+            _sanitize_csv_field(alert.get('id')),
+            _sanitize_csv_field(alert.get('server_id')),
+            _sanitize_csv_field(alert.get('alert_type')),
+            _sanitize_csv_field(alert.get('message')),
+            _sanitize_csv_field(alert.get('severity')),
+            _sanitize_csv_field(is_read_str),
+            _sanitize_csv_field(alert.get('created_at'))
         ])
     
     return output.getvalue()
 
-def _sanitize_csv_field(value):
-    """
-    Sanitize CSV field to prevent CSV injection
-    Prefix with single quote if starts with =, +, -, @, tab, or carriage return
-    
-    Args:
-        value: Field value to sanitize
-        
-    Returns:
-        Sanitized field value
-    """
-    if value is None:
-        return ''
-    
-    value_str = str(value)
-    
-    # Check if field starts with potentially dangerous characters
-    if value_str and len(value_str) > 0:
-        first_char = value_str[0]
-        if first_char in ['=', '+', '-', '@', '\t', '\r']:
-            # Prefix with single quote to prevent formula injection
-            return "'" + value_str
-    
-    return value_str
 
 def export_audit_logs_csv(user_id=None, action=None, target_type=None, start_date=None, end_date=None, limit=10000):
     """

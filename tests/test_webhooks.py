@@ -457,5 +457,101 @@ class TestWebhookDispatcher(unittest.TestCase):
         self.assertEqual(deliveries[1]['attempt'], 1)
 
 
+class TestCSVInjectionPrevention(unittest.TestCase):
+    """Test CSV injection prevention in export functions"""
+    
+    def setUp(self):
+        """Set up test database"""
+        self.db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        self.db_file.close()
+        db.DB_PATH = self.db_file.name
+        db.init_database()
+    
+    def tearDown(self):
+        """Clean up test database"""
+        try:
+            os.unlink(self.db_file.name)
+        except:
+            pass
+    
+    def test_sanitize_csv_field_formula_injection(self):
+        """Test that formula injection characters are escaped"""
+        # Test = (formula prefix)
+        self.assertEqual(db._sanitize_csv_field('=HYPERLINK("http://evil.com")'), 
+                        "'=HYPERLINK(\"http://evil.com\")")
+        
+        # Test + (formula prefix)
+        self.assertEqual(db._sanitize_csv_field('+1+cmd|" /C calc"!A0'), 
+                        "'+1+cmd|\" /C calc\"!A0")
+        
+        # Test - (formula prefix, also negative numbers)
+        self.assertEqual(db._sanitize_csv_field('-1+cmd|" /C calc"!A0'), 
+                        "'-1+cmd|\" /C calc\"!A0")
+        
+        # Test @ (formula prefix in some apps)
+        self.assertEqual(db._sanitize_csv_field('@SUM(1+1)*cmd|" /C calc"!A0'), 
+                        "'@SUM(1+1)*cmd|\" /C calc\"!A0")
+        
+        # Test tab character
+        self.assertEqual(db._sanitize_csv_field('\t=evil'), "'\t=evil")
+        
+        # Test carriage return
+        self.assertEqual(db._sanitize_csv_field('\r=evil'), "'\r=evil")
+    
+    def test_sanitize_csv_field_safe_values(self):
+        """Test that safe values are not modified"""
+        self.assertEqual(db._sanitize_csv_field('normal text'), 'normal text')
+        self.assertEqual(db._sanitize_csv_field('server-name'), 'server-name')
+        self.assertEqual(db._sanitize_csv_field('192.168.1.1'), '192.168.1.1')
+        self.assertEqual(db._sanitize_csv_field(123), '123')
+        self.assertEqual(db._sanitize_csv_field(None), '')
+        self.assertEqual(db._sanitize_csv_field(''), '')
+    
+    def test_export_servers_csv_sanitizes_fields(self):
+        """Test that export_servers_csv sanitizes fields"""
+        # Create a server with a malicious name
+        db.add_server(
+            name='=HYPERLINK("http://evil.com","Click me")',
+            host='192.168.1.1',
+            port=22,
+            username='root',
+            description='+cmd|" /C calc"!A0'
+        )
+        
+        csv_data = db.export_servers_csv()
+        
+        # Verify the malicious content is sanitized
+        self.assertIn("'=HYPERLINK", csv_data)
+        self.assertIn("'+cmd", csv_data)
+        # Verify the original malicious content is not present unescaped
+        self.assertNotIn(',=HYPERLINK', csv_data)
+        self.assertNotIn(',+cmd', csv_data)
+    
+    def test_export_alerts_csv_sanitizes_fields(self):
+        """Test that export_alerts_csv sanitizes fields"""
+        # First, we need a server to attach an alert to
+        server_result = db.add_server(
+            name='TestServer',
+            host='192.168.1.2',
+            port=22,
+            username='root'
+        )
+        server_id = server_result.get('server_id')
+        
+        # Create an alert with malicious content
+        db.create_alert(
+            server_id=server_id,
+            alert_type='=FORMULA',
+            message='-dangerous payload',
+            severity='high'
+        )
+        
+        csv_data = db.export_alerts_csv()
+        
+        # Verify the malicious content is sanitized
+        self.assertIn("'=FORMULA", csv_data)
+        self.assertIn("'-dangerous", csv_data)
+
+
 if __name__ == '__main__':
     unittest.main()
