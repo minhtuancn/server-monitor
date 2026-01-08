@@ -151,7 +151,6 @@ export default function ServerWorkspacePage() {
   const {
     data: tasks,
     isLoading: tasksLoading,
-    refetch: refetchTasks,
   } = useQuery<{ tasks: Task[] }>({
     queryKey: ["server-tasks", serverId],
     queryFn: () =>
