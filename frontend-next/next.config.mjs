@@ -4,6 +4,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // typedRoutes moved from experimental to stable in Next.js 15
   typedRoutes: true,
   async rewrites() {
     const apiBase = process.env.API_PROXY_TARGET || "http://localhost:9083";
