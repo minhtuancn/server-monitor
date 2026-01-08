@@ -636,7 +636,7 @@ POST   /api/email/test       - Send test email
 
 **Total: 29 REST endpoints + 1 WebSocket endpoint**
 
-Full API documentation: See [API-TESTING-GUIDE.txt](API-TESTING-GUIDE.txt)
+Full API documentation: See [OpenAPI Spec](docs/openapi.yaml) | [Swagger UI](http://localhost:9083/docs) | [Test Guide](TEST_GUIDE.md)
 
 ---
 
