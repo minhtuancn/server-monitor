@@ -387,6 +387,59 @@ def init_database():
         ON tasks(created_at DESC)
     ''')
     
+    # Webhooks table (Phase 8)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS webhooks (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL,
+            secret TEXT,
+            enabled INTEGER DEFAULT 1,
+            event_types TEXT,
+            retry_max INTEGER DEFAULT 3,
+            timeout INTEGER DEFAULT 10,
+            created_by INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            last_triggered_at TEXT,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for webhooks
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_webhooks_enabled 
+        ON webhooks(enabled)
+    ''')
+    
+    # Webhook delivery log (for tracking and debugging)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS webhook_deliveries (
+            id TEXT PRIMARY KEY,
+            webhook_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            status_code INTEGER,
+            response_body TEXT,
+            error TEXT,
+            attempt INTEGER DEFAULT 1,
+            delivered_at TEXT NOT NULL,
+            FOREIGN KEY (webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE
+        )
+    ''')
+    
+    # Create indexes for webhook deliveries
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook_id 
+        ON webhook_deliveries(webhook_id)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_delivered_at 
+        ON webhook_deliveries(delivered_at DESC)
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -2473,6 +2526,338 @@ def get_servers_by_tag(tag_id):
     
     conn.close()
     return server_ids
+
+
+# ==================== WEBHOOKS MANAGEMENT (Phase 8) ====================
+
+def create_webhook(name, url, secret=None, enabled=True, event_types=None, 
+                   retry_max=3, timeout=10, created_by=None):
+    """
+    Create a new webhook
+    
+    Args:
+        name: Webhook name/description
+        url: Webhook URL
+        secret: Optional secret for HMAC signing
+        enabled: Whether webhook is enabled
+        event_types: List of event types to trigger on (None = all events)
+        retry_max: Maximum retry attempts
+        timeout: Request timeout in seconds
+        created_by: User ID who created the webhook
+    
+    Returns:
+        Dict with success status and webhook_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        webhook_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        # Convert event_types list to JSON string
+        event_types_json = json.dumps(event_types) if event_types else None
+        
+        cursor.execute('''
+            INSERT INTO webhooks (
+                id, name, url, secret, enabled, event_types, 
+                retry_max, timeout, created_by, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (webhook_id, name, url, secret, int(enabled), event_types_json,
+              retry_max, timeout, created_by, now, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'webhook_id': webhook_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def get_webhooks(enabled_only=False):
+    """
+    Get all webhooks
+    
+    Args:
+        enabled_only: If True, return only enabled webhooks
+    
+    Returns:
+        List of webhook dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if enabled_only:
+        cursor.execute('SELECT * FROM webhooks WHERE enabled = 1 ORDER BY created_at DESC')
+    else:
+        cursor.execute('SELECT * FROM webhooks ORDER BY created_at DESC')
+    
+    columns = [desc[0] for desc in cursor.description]
+    webhooks = []
+    
+    for row in cursor.fetchall():
+        webhook = dict(zip(columns, row))
+        # Parse event_types JSON
+        if webhook.get('event_types'):
+            try:
+                webhook['event_types'] = json.loads(webhook['event_types'])
+            except:
+                webhook['event_types'] = None
+        # Convert enabled to boolean
+        webhook['enabled'] = bool(webhook.get('enabled', 0))
+        webhooks.append(webhook)
+    
+    conn.close()
+    return webhooks
+
+
+def get_webhook(webhook_id):
+    """
+    Get a single webhook by ID
+    
+    Args:
+        webhook_id: Webhook ID
+    
+    Returns:
+        Webhook dict or None if not found
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM webhooks WHERE id = ?', (webhook_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return None
+    
+    columns = [desc[0] for desc in cursor.description]
+    webhook = dict(zip(columns, row))
+    
+    # Parse event_types JSON
+    if webhook.get('event_types'):
+        try:
+            webhook['event_types'] = json.loads(webhook['event_types'])
+        except:
+            webhook['event_types'] = None
+    
+    # Convert enabled to boolean
+    webhook['enabled'] = bool(webhook.get('enabled', 0))
+    
+    conn.close()
+    return webhook
+
+
+def update_webhook(webhook_id, name=None, url=None, secret=None, enabled=None, 
+                   event_types=None, retry_max=None, timeout=None):
+    """
+    Update a webhook
+    
+    Args:
+        webhook_id: Webhook ID
+        name: New name (optional)
+        url: New URL (optional)
+        secret: New secret (optional, empty string to clear)
+        enabled: New enabled status (optional)
+        event_types: New event types list (optional)
+        retry_max: New retry max (optional)
+        timeout: New timeout (optional)
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        # Build update query dynamically
+        updates = ['updated_at = ?']
+        params = [now]
+        
+        if name is not None:
+            updates.append('name = ?')
+            params.append(name)
+        if url is not None:
+            updates.append('url = ?')
+            params.append(url)
+        if secret is not None:
+            updates.append('secret = ?')
+            params.append(secret if secret else None)
+        if enabled is not None:
+            updates.append('enabled = ?')
+            params.append(int(enabled))
+        if event_types is not None:
+            updates.append('event_types = ?')
+            params.append(json.dumps(event_types) if event_types else None)
+        if retry_max is not None:
+            updates.append('retry_max = ?')
+            params.append(retry_max)
+        if timeout is not None:
+            updates.append('timeout = ?')
+            params.append(timeout)
+        
+        params.append(webhook_id)
+        
+        query = f'UPDATE webhooks SET {", ".join(updates)} WHERE id = ?'
+        cursor.execute(query, params)
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def delete_webhook(webhook_id):
+    """
+    Delete a webhook
+    
+    Args:
+        webhook_id: Webhook ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM webhooks WHERE id = ?', (webhook_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return {'success': False, 'error': 'Webhook not found'}
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def update_webhook_last_triggered(webhook_id):
+    """
+    Update last triggered timestamp for webhook
+    
+    Args:
+        webhook_id: Webhook ID
+    
+    Returns:
+        Dict with success status
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        now = datetime.utcnow().isoformat() + 'Z'
+        cursor.execute('''
+            UPDATE webhooks 
+            SET last_triggered_at = ?
+            WHERE id = ?
+        ''', (now, webhook_id))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def log_webhook_delivery(webhook_id, event_id, event_type, status, 
+                         status_code=None, response_body=None, error=None, attempt=1):
+    """
+    Log a webhook delivery attempt
+    
+    Args:
+        webhook_id: Webhook ID
+        event_id: Event ID that triggered webhook
+        event_type: Event type
+        status: 'success', 'failed', or 'retrying'
+        status_code: HTTP status code (if available)
+        response_body: Response body (truncated)
+        error: Error message (if failed)
+        attempt: Attempt number
+    
+    Returns:
+        Dict with success status and log_id
+    """
+    import uuid
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        log_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        # Truncate response body if too large
+        if response_body and len(response_body) > 10000:
+            response_body = response_body[:10000] + '... (truncated)'
+        
+        cursor.execute('''
+            INSERT INTO webhook_deliveries (
+                id, webhook_id, event_id, event_type, status, 
+                status_code, response_body, error, attempt, delivered_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (log_id, webhook_id, event_id, event_type, status,
+              status_code, response_body, error, attempt, now))
+        
+        conn.commit()
+        conn.close()
+        return {'success': True, 'log_id': log_id}
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def get_webhook_deliveries(webhook_id=None, limit=100, offset=0):
+    """
+    Get webhook delivery logs
+    
+    Args:
+        webhook_id: Filter by webhook ID (optional)
+        limit: Maximum number of records
+        offset: Offset for pagination
+    
+    Returns:
+        List of delivery log dicts
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if webhook_id:
+        cursor.execute('''
+            SELECT * FROM webhook_deliveries 
+            WHERE webhook_id = ?
+            ORDER BY delivered_at DESC 
+            LIMIT ? OFFSET ?
+        ''', (webhook_id, limit, offset))
+    else:
+        cursor.execute('''
+            SELECT * FROM webhook_deliveries 
+            ORDER BY delivered_at DESC 
+            LIMIT ? OFFSET ?
+        ''', (limit, offset))
+    
+    columns = [desc[0] for desc in cursor.description]
+    deliveries = []
+    
+    for row in cursor.fetchall():
+        delivery = dict(zip(columns, row))
+        deliveries.append(delivery)
+    
+    conn.close()
+    return deliveries
+
+
+# ==================== TEST CODE ====================
 
 if __name__ == '__main__':
     # Initialize database
