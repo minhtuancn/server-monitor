@@ -216,7 +216,12 @@ EOF
 # Check for TODO/FIXME comments
 echo "#### Code TODOs and FIXMEs:" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
-TODO_COUNT=$(grep -r "TODO\|FIXME" backend/ frontend-next/src/ 2>/dev/null | wc -l || echo "0")
+# Count TODO/FIXME occurrences in code (not lines)
+if [ -d "backend" ] && [ -d "frontend-next/src" ]; then
+  TODO_COUNT=$(grep -roh "TODO\|FIXME" backend/ frontend-next/src/ 2>/dev/null | wc -l || echo "0")
+else
+  TODO_COUNT="0"
+fi
 echo "Found **${TODO_COUNT}** TODO/FIXME comments in code" >> "$REPORT_FILE"
 echo "" >> "$REPORT_FILE"
 

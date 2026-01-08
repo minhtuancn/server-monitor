@@ -54,7 +54,7 @@ async function captureScreenshots() {
 
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Playwright/1.40.0 Screenshot Bot',
+    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) Playwright Screenshot Bot',
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
   });

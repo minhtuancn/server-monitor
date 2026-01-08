@@ -417,7 +417,7 @@ jobs:
       
       - name: Install Playwright
         run: |
-          npm install -g playwright
+          npm install playwright@latest
           npx playwright install chromium
           npx playwright install-deps chromium
       
@@ -477,10 +477,31 @@ jobs:
       - name: Stop services
         if: always()
         run: |
-          pkill -f "python.*central_api" || true
-          pkill -f "python.*websocket_server" || true
-          pkill -f "python.*terminal" || true
-          pkill -f "node.*next" || true
+          # Stop all services using PID files if they exist, otherwise use pkill
+          if [ -f /tmp/central-api.pid ]; then
+            kill $(cat /tmp/central-api.pid) 2>/dev/null || true
+          else
+            pkill -f "python.*central_api\.py" || true
+          fi
+          
+          if [ -f /tmp/websocket.pid ]; then
+            kill $(cat /tmp/websocket.pid) 2>/dev/null || true
+          else
+            pkill -f "python.*websocket_server\.py" || true
+          fi
+          
+          if [ -f /tmp/terminal.pid ]; then
+            kill $(cat /tmp/terminal.pid) 2>/dev/null || true
+          else
+            pkill -f "python.*terminal\.py" || true
+          fi
+          
+          if [ -f /tmp/frontend.pid ]; then
+            kill $(cat /tmp/frontend.pid) 2>/dev/null || true
+          else
+            pkill -f "next.*start" || true
+          fi
+          
           sleep 3
       
       - name: Upload screenshots
