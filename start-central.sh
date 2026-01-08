@@ -15,21 +15,40 @@ if [ "$EUID" -eq 0 ]; then
    echo "⚠️  Warning: Running as root. Consider using a non-root user."
 fi
 
+# Navigate to script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
+
+# Check for virtual environment and activate it
+if [ -d "$SCRIPT_DIR/venv" ]; then
+    echo "✅ Found virtual environment, activating..."
+    source "$SCRIPT_DIR/venv/bin/activate"
+    PYTHON_CMD="python3"
+elif [ -d "$SCRIPT_DIR/.venv" ]; then
+    echo "✅ Found virtual environment (.venv), activating..."
+    source "$SCRIPT_DIR/.venv/bin/activate"
+    PYTHON_CMD="python3"
+else
+    echo "⚠️  No virtual environment found. Using system Python."
+    echo "   For Python 3.12+, create a venv first: python3 -m venv venv"
+    PYTHON_CMD="python3"
+fi
+
 # Navigate to backend directory
-cd "$(dirname "$0")/backend" || exit 1
+cd "$SCRIPT_DIR/backend" || exit 1
 
 # Check Python3
-if ! command -v python3 &> /dev/null; then
+if ! command -v $PYTHON_CMD &> /dev/null; then
     echo "❌ Python3 is not installed"
     exit 1
 fi
 
-echo "✅ Python3 found: $(python3 --version)"
+echo "✅ Python3 found: $($PYTHON_CMD --version)"
 
 # Check paramiko
-if ! python3 -c "import paramiko" 2>/dev/null; then
+if ! $PYTHON_CMD -c "import paramiko" 2>/dev/null; then
     echo "📦 Installing required dependencies..."
-    pip3 install -r requirements.txt || {
+    pip install -r requirements.txt || {
         echo "❌ Failed to install dependencies"
         exit 1
     }
@@ -50,7 +69,7 @@ echo "✅ Port $PORT is available"
 
 # Initialize database
 echo "📊 Initializing database..."
-python3 database.py || {
+$PYTHON_CMD database.py || {
     echo "⚠️  Warning: Database initialization returned non-zero"
 }
 
@@ -77,4 +96,4 @@ echo "🚀 Starting Central Monitoring Server..."
 echo ""
 
 # Start the server
-python3 central_api.py
+$PYTHON_CMD central_api.py

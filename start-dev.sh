@@ -25,6 +25,22 @@ echo -e "${BLUE}║      Server Monitor Dashboard - Development Environment     
 echo -e "${BLUE}╚══════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Check for virtual environment and activate it
+if [ -d "$DEV_DIR/venv" ]; then
+    echo -e "${GREEN}Found virtual environment, activating...${NC}"
+    source "$DEV_DIR/venv/bin/activate"
+    PYTHON_CMD="python3"
+elif [ -d "$DEV_DIR/.venv" ]; then
+    echo -e "${GREEN}Found virtual environment (.venv), activating...${NC}"
+    source "$DEV_DIR/.venv/bin/activate"
+    PYTHON_CMD="python3"
+else
+    echo -e "${YELLOW}No virtual environment found. Using system Python.${NC}"
+    echo -e "${YELLOW}For Python 3.12+, consider creating a venv: python3 -m venv venv${NC}"
+    PYTHON_CMD="python3"
+fi
+echo ""
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
     echo -e "${YELLOW}⚠️  Not running as root. Some features may not work.${NC}"
@@ -103,7 +119,7 @@ echo ""
 # Step 5: Start backend API
 echo -e "${BLUE}===> Step 5: Starting Backend API...${NC}"
 cd $DEV_DIR/backend/
-python3 central_api.py > $DEV_DIR/logs/api.log 2>&1 &
+$PYTHON_CMD central_api.py > $DEV_DIR/logs/api.log 2>&1 &
 API_PID=$!
 echo $API_PID > $DEV_DIR/api.pid
 echo -e "${GREEN}✓ API started (PID: $API_PID)${NC}"
@@ -128,7 +144,7 @@ echo ""
 # Step 6: Start web server
 echo -e "${BLUE}===> Step 6: Starting Web Server...${NC}"
 cd $DEV_DIR/frontend/
-python3 -m http.server $WEB_PORT > $DEV_DIR/logs/web.log 2>&1 &
+$PYTHON_CMD -m http.server $WEB_PORT > $DEV_DIR/logs/web.log 2>&1 &
 WEB_PID=$!
 echo $WEB_PID > $DEV_DIR/web.pid
 echo -e "${GREEN}✓ Web server started (PID: $WEB_PID)${NC}"

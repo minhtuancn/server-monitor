@@ -32,6 +32,32 @@ echo -e "${BLUE}║   Server Monitor Dashboard v4.1 - Start Services          �
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Check for virtual environment and activate it
+if [ -d "$BASE_DIR/venv" ]; then
+    echo -e "${GREEN}Found virtual environment, activating...${NC}"
+    source "$BASE_DIR/venv/bin/activate"
+    PYTHON_CMD="python3"
+elif [ -d "$BASE_DIR/.venv" ]; then
+    echo -e "${GREEN}Found virtual environment (.venv), activating...${NC}"
+    source "$BASE_DIR/.venv/bin/activate"
+    PYTHON_CMD="python3"
+else
+    echo -e "${YELLOW}No virtual environment found. Using system Python.${NC}"
+    echo -e "${YELLOW}For Python 3.12+, consider creating a venv: python3 -m venv venv${NC}"
+    PYTHON_CMD="python3"
+fi
+
+# Check if .env file exists
+if [ ! -f "$BASE_DIR/.env" ]; then
+    echo -e "${YELLOW}WARNING: .env file not found!${NC}"
+    echo -e "${YELLOW}Please create .env file with required keys. See .env.example${NC}"
+    echo -e "${YELLOW}Generate keys with:${NC}"
+    echo -e "  python3 -c \"import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))\" >> .env"
+    echo -e "  python3 -c \"import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(24))\" >> .env"
+    echo -e "  python3 -c \"import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))\" >> .env"
+    echo ""
+fi
+
 # Create directories if they don't exist
 mkdir -p "$LOGS_DIR"
 mkdir -p "$DATA_DIR"
@@ -109,7 +135,7 @@ start_service() {
 # Initialize database
 echo -e "${BLUE}Initializing database...${NC}"
 cd "$BACKEND_DIR"
-python3 -c "import database; database.init_database()" 2>/dev/null || echo -e "${YELLOW}  Database already initialized${NC}"
+$PYTHON_CMD -c "import database; database.init_database()" 2>/dev/null || echo -e "${YELLOW}  Database already initialized${NC}"
 
 # Stop existing services
 echo ""
@@ -125,7 +151,7 @@ echo -e "${BLUE}Starting services...${NC}"
 # Start Central API
 start_service \
     "Central API" \
-    "python3 backend/central_api.py" \
+    "$PYTHON_CMD backend/central_api.py" \
     "$BASE_DIR/api.pid" \
     "$LOGS_DIR/central_api.log" \
     $API_PORT \
@@ -134,7 +160,7 @@ start_service \
 # Start WebSocket Server
 start_service \
     "WebSocket Server" \
-    "python3 websocket_server.py" \
+    "$PYTHON_CMD websocket_server.py" \
     "$BASE_DIR/websocket.pid" \
     "$LOGS_DIR/websocket.log" \
     $WEBSOCKET_PORT
@@ -143,7 +169,7 @@ start_service \
 if [ -f "$BACKEND_DIR/terminal.py" ]; then
     start_service \
         "Terminal Server" \
-        "python3 terminal.py" \
+        "$PYTHON_CMD terminal.py" \
         "$BASE_DIR/terminal.pid" \
         "$LOGS_DIR/terminal.log" \
         $TERMINAL_PORT
@@ -152,7 +178,7 @@ fi
 # Start Frontend Server
 start_service \
     "Frontend Server" \
-    "python3 -m http.server $FRONTEND_PORT" \
+    "$PYTHON_CMD -m http.server $FRONTEND_PORT" \
     "$BASE_DIR/web.pid" \
     "$LOGS_DIR/web.log" \
     $FRONTEND_PORT \
