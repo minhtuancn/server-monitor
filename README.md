@@ -148,10 +148,18 @@ python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(24))
 python3 -c "import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))" >> .env
 # Lưu ý: Nếu chạy lại script này, hãy xóa các dòng cũ trong .env trước
 
-# 4. Cài đặt backend dependencies
-cd backend
-pip3 install -r requirements.txt
-cd ..
+# 4. Tạo Python virtual environment và cài đặt backend dependencies
+# Tạo virtual environment (khuyến nghị cho Python 3.12+)
+python3 -m venv venv
+
+# Kích hoạt virtual environment
+# Trên Linux/macOS:
+source venv/bin/activate
+# Trên Windows:
+# venv\Scripts\activate
+
+# Cài đặt dependencies trong virtual environment
+pip install -r backend/requirements.txt
 
 # 5. Cài đặt frontend dependencies (Next.js)
 cd frontend-next
@@ -171,7 +179,8 @@ EOF
 **Cách 1: Sử dụng script tự động (Khuyến nghị)**
 
 ```bash
-# Terminal 1: Khởi động backend services
+# Terminal 1: Kích hoạt virtual environment và khởi động backend services
+source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
 ./start-all.sh
 
 # Terminal 2: Khởi động frontend Next.js
@@ -182,6 +191,9 @@ npm run dev
 **Cách 2: Khởi động từng service riêng (để debug)**
 
 ```bash
+# Đảm bảo virtual environment đã được kích hoạt
+source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
+
 # Terminal 1: Backend API
 cd backend
 python3 central_api.py
@@ -262,9 +274,20 @@ sudo lsof -ti:9083 | xargs kill -9
 
 **Lỗi: Module not found**
 ```bash
+# Đảm bảo virtual environment đã được kích hoạt
+source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
+
 # Cài lại dependencies
-cd backend && pip3 install -r requirements.txt
-cd ../frontend-next && npm install
+pip install -r backend/requirements.txt
+cd frontend-next && npm install
+```
+
+**Lỗi: externally-managed-environment (Python 3.12+)**
+```bash
+# Giải pháp: Sử dụng virtual environment
+python3 -m venv venv
+source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
+pip install -r backend/requirements.txt
 ```
 
 **Database bị lỗi**
@@ -353,16 +376,18 @@ For development or if you prefer manual control:
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
+# Create Python virtual environment (recommended for Python 3.12+)
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
 # Install backend dependencies
-cd backend
-pip3 install -r requirements.txt
+pip install -r backend/requirements.txt
 
 # Install test dependencies (optional)
-cd ../tests
-pip3 install -r requirements.txt
+pip install -r tests/requirements.txt
 
 # Install frontend dependencies
-cd ../frontend-next
+cd frontend-next
 npm ci
 
 # Configure environment

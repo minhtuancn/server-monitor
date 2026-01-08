@@ -233,26 +233,37 @@ For development or custom deployments:
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
-# 2. Install dependencies
-pip3 install -r backend/requirements.txt
+# 2. Create Python virtual environment (recommended for Python 3.12+)
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# 3. Configure environment
+# 3. Install dependencies
+pip install -r backend/requirements.txt
+
+# 4. Configure environment
 cp .env.example .env
 # Edit .env with secure values
 
-# 4. Initialize database
+# 5. Initialize database
 cd backend
 python3 -c "import database; database.init_database()"
 
-# 5. Start services
+# 6. Start services
 cd ..
 ./start-all.sh  # backend + websocket + terminal
 
-# 6. Start Next.js frontend (port 9081)
+# 7. Start Next.js frontend (port 9081)
 cd frontend-next
 npm install
 npm run build
 npm run start  # Production mode on port 9081
+```
+
+**Note:** Always activate the virtual environment before running Python scripts:
+```bash
+source venv/bin/activate  # On Linux/macOS
+# OR
+venv\Scripts\activate  # On Windows
 ```
 
 **Frontend Development Mode:**
