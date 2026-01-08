@@ -63,6 +63,7 @@ jobs:
     name: Static Analysis & Linting
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    continue-on-error: true
     permissions:
       contents: read
     
@@ -165,6 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: audit-static-checks
+    if: always()
+    continue-on-error: true
     permissions:
       contents: read
     
@@ -205,11 +208,12 @@ jobs:
         run: |
           cd tests
           echo "=== Running All Tests ===" | tee test-results.txt
-          python -m pytest --tb=short -v 2>&1 | tee -a test-results.txt || {
+          if python -m pytest --tb=short -v 2>&1 | tee -a test-results.txt; then
+            echo "TEST_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
             echo "TEST_RESULT=⚠️ SOME FAILED" >> $GITHUB_ENV
             echo "Some tests failed - this may be expected" | tee -a test-results.txt
-          }
-          echo "TEST_RESULT=✅ PASSED" >> $GITHUB_ENV
+          fi
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -232,6 +236,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: unit-integration-tests
+    if: always()
+    continue-on-error: true
     permissions:
       contents: read
     
@@ -326,16 +332,17 @@ jobs:
           
           # Run smoke tests
           echo "=== Running Smoke Tests ===" | tee smoke-results.txt
-          ./scripts/smoke.sh \
+          if ./scripts/smoke.sh \
             --base-url "${{ github.event.inputs.base_url }}" \
             --api-url "http://localhost:9083" \
             --auth-user "${{ github.event.inputs.smoke_auth_user }}" \
             --auth-pass "${{ github.event.inputs.smoke_auth_pass }}" \
-            --verbose 2>&1 | tee -a smoke-results.txt || {
+            --verbose 2>&1 | tee -a smoke-results.txt; then
+            echo "SMOKE_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
             echo "SMOKE_RESULT=⚠️ SOME FAILED" >> $GITHUB_ENV
             echo "Some smoke tests failed" | tee -a smoke-results.txt
-          }
-          echo "SMOKE_RESULT=✅ PASSED" >> $GITHUB_ENV
+          fi
       
       - name: Collect service logs
         if: always()
@@ -382,7 +389,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: boot-smoke-tests
-    if: ${{ github.event.inputs.include_ui_screenshots == 'true' }}
+    if: always() && github.event.inputs.include_ui_screenshots == 'true'
+    continue-on-error: true
     permissions:
       contents: read
     
@@ -468,11 +476,12 @@ jobs:
           AUTH_PASS: ${{ github.event.inputs.smoke_auth_pass }}
           OUTPUT_DIR: docs/screenshots
         run: |
-          node scripts/ui-snapshots.mjs 2>&1 | tee screenshot-results.txt || {
+          if node scripts/ui-snapshots.mjs 2>&1 | tee screenshot-results.txt; then
+            echo "SCREENSHOT_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
             echo "SCREENSHOT_RESULT=⚠️ SOME FAILED" >> $GITHUB_ENV
             echo "Some screenshots failed"
-          }
-          echo "SCREENSHOT_RESULT=✅ PASSED" >> $GITHUB_ENV
+          fi
       
       - name: Stop services
         if: always()
@@ -529,6 +538,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [audit-static-checks, unit-integration-tests]
+    if: always()
+    continue-on-error: true
     permissions:
       contents: read
     
@@ -564,8 +575,8 @@ jobs:
     name: Generate Review Report
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [audit-static-checks, unit-integration-tests, boot-smoke-tests, doc-consistency-check]
-    if: always() && (needs.audit-static-checks.result != 'cancelled' || needs.unit-integration-tests.result != 'cancelled' || needs.boot-smoke-tests.result != 'cancelled' || needs.doc-consistency-check.result != 'cancelled')
+    needs: [audit-static-checks, unit-integration-tests, boot-smoke-tests, ui-screenshots, doc-consistency-check]
+    if: always()
     permissions:
       contents: read
     
@@ -582,18 +593,59 @@ jobs:
         continue-on-error: true
       
       - name: Prepare results for report
+        env:
+          AUDIT_RESULT: ${{ needs.audit-static-checks.result }}
+          TESTS_RESULT: ${{ needs.unit-integration-tests.result }}
+          SMOKE_JOB_RESULT: ${{ needs.boot-smoke-tests.result }}
+          SCREENSHOTS_RESULT: ${{ needs.ui-screenshots.result }}
+          DOCS_RESULT: ${{ needs.doc-consistency-check.result }}
         run: |
           # Copy results to expected locations
           cp artifacts/lint-results/lint-results.txt . || touch lint-results.txt
           cp artifacts/test-results/test-results.txt . || touch test-results.txt
           cp artifacts/smoke-test-results/smoke-results.txt . || touch smoke-results.txt
           
-          # Set environment variables for report generation
-          echo "LINT_RESULT=${LINT_RESULT:-⚠️ UNKNOWN}" >> $GITHUB_ENV
-          echo "TEST_RESULT=${TEST_RESULT:-⚠️ UNKNOWN}" >> $GITHUB_ENV
-          echo "BUILD_RESULT=${BUILD_RESULT:-⚠️ UNKNOWN}" >> $GITHUB_ENV
-          echo "SMOKE_RESULT=${SMOKE_RESULT:-⚠️ UNKNOWN}" >> $GITHUB_ENV
-          echo "SCREENSHOT_RESULT=${SCREENSHOT_RESULT:-⚠️ SKIPPED}" >> $GITHUB_ENV
+          # Determine job statuses from needs context
+          echo "Setting job statuses from needs context..."
+          
+          # Map job result to display status
+          map_result() {
+            case "$1" in
+              "success") echo "✅ PASSED" ;;
+              "failure") echo "❌ FAILED" ;;
+              "cancelled") echo "🚫 CANCELLED" ;;
+              "skipped") echo "⏭️ SKIPPED" ;;
+              *) echo "⚠️ UNKNOWN" ;;
+            esac
+          }
+          
+          echo "LINT_RESULT=$(map_result "$AUDIT_RESULT")" >> $GITHUB_ENV
+          echo "TEST_RESULT=$(map_result "$TESTS_RESULT")" >> $GITHUB_ENV
+          echo "SMOKE_RESULT=$(map_result "$SMOKE_JOB_RESULT")" >> $GITHUB_ENV
+          echo "SCREENSHOT_RESULT=$(map_result "$SCREENSHOTS_RESULT")" >> $GITHUB_ENV
+          echo "BUILD_RESULT=$(map_result "$SMOKE_JOB_RESULT")" >> $GITHUB_ENV
+          
+          # Track failed jobs for issue creation
+          FAILED_JOBS=""
+          [ "$AUDIT_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}audit-static-checks,"
+          [ "$TESTS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}unit-integration-tests,"
+          [ "$SMOKE_JOB_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}boot-smoke-tests,"
+          [ "$SCREENSHOTS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}ui-screenshots,"
+          [ "$DOCS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}doc-consistency-check,"
+          
+          # Remove trailing comma
+          FAILED_JOBS="${FAILED_JOBS%,}"
+          echo "FAILED_JOBS=$FAILED_JOBS" >> $GITHUB_ENV
+          
+          # Determine if any job failed
+          if [ -n "$FAILED_JOBS" ]; then
+            echo "HAS_FAILURES=true" >> $GITHUB_ENV
+          else
+            echo "HAS_FAILURES=false" >> $GITHUB_ENV
+          fi
+          
+          echo "Job results: audit=$AUDIT_RESULT tests=$TESTS_RESULT smoke=$SMOKE_JOB_RESULT screenshots=$SCREENSHOTS_RESULT docs=$DOCS_RESULT"
+          echo "Failed jobs: $FAILED_JOBS"
       
       - name: Generate review report
         env:
@@ -623,10 +675,9 @@ jobs:
     name: Create PR & Issue
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [generate-report]
+    needs: [generate-report, audit-static-checks, unit-integration-tests, boot-smoke-tests, ui-screenshots, doc-consistency-check]
     if: |
       always() && 
-      needs.generate-report.result != 'failure' &&
       (github.event.inputs.create_pr == 'true' || github.event.inputs.create_issue == 'true')
     permissions:
       contents: write
@@ -640,14 +691,60 @@ jobs:
           ref: ${{ github.event.inputs.ref || 'main' }}
           fetch-depth: 0
       
+      - name: Compute job statuses
+        env:
+          AUDIT_RESULT: ${{ needs.audit-static-checks.result }}
+          TESTS_RESULT: ${{ needs.unit-integration-tests.result }}
+          SMOKE_RESULT: ${{ needs.boot-smoke-tests.result }}
+          SCREENSHOTS_RESULT: ${{ needs.ui-screenshots.result }}
+          DOCS_RESULT: ${{ needs.doc-consistency-check.result }}
+          REPORT_RESULT: ${{ needs.generate-report.result }}
+        run: |
+          # Track failed jobs for issue creation
+          FAILED_JOBS=""
+          [ "$AUDIT_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- audit-static-checks (❌ FAILED)\n"
+          [ "$TESTS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- unit-integration-tests (❌ FAILED)\n"
+          [ "$SMOKE_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- boot-smoke-tests (❌ FAILED)\n"
+          [ "$SCREENSHOTS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- ui-screenshots (❌ FAILED)\n"
+          [ "$DOCS_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- doc-consistency-check (❌ FAILED)\n"
+          [ "$REPORT_RESULT" = "failure" ] && FAILED_JOBS="${FAILED_JOBS}- generate-report (❌ FAILED)\n"
+          
+          # Also track cancelled jobs
+          [ "$AUDIT_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}- audit-static-checks (🚫 CANCELLED)\n"
+          [ "$TESTS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}- unit-integration-tests (🚫 CANCELLED)\n"
+          [ "$SMOKE_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}- boot-smoke-tests (🚫 CANCELLED)\n"
+          [ "$SCREENSHOTS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}- ui-screenshots (🚫 CANCELLED)\n"
+          [ "$DOCS_RESULT" = "cancelled" ] && FAILED_JOBS="${FAILED_JOBS}- doc-consistency-check (🚫 CANCELLED)\n"
+          
+          echo "FAILED_JOBS<<EOF" >> $GITHUB_ENV
+          echo -e "$FAILED_JOBS" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          
+          # Determine if any job failed
+          if [ -n "$FAILED_JOBS" ]; then
+            echo "HAS_FAILURES=true" >> $GITHUB_ENV
+          else
+            echo "HAS_FAILURES=false" >> $GITHUB_ENV
+          fi
+          
+          echo "Job results: audit=$AUDIT_RESULT tests=$TESTS_RESULT smoke=$SMOKE_RESULT screenshots=$SCREENSHOTS_RESULT docs=$DOCS_RESULT report=$REPORT_RESULT"
+      
       - name: Download review report
         uses: actions/download-artifact@v4
         with:
           name: review-report
           path: docs/
+        continue-on-error: true
       
-      - name: Download screenshots
-        if: ${{ github.event.inputs.include_ui_screenshots == 'true' }}
+      - name: Download screenshots (best-effort)
+        if: github.event.inputs.include_ui_screenshots == 'true'
+        run: |
+          # Check if ui-screenshots artifact exists before attempting download
+          echo "Attempting to download ui-screenshots artifact..."
+        continue-on-error: true
+      
+      - name: Download screenshots artifact
+        if: github.event.inputs.include_ui_screenshots == 'true'
         uses: actions/download-artifact@v4
         with:
           name: ui-screenshots
@@ -749,16 +846,31 @@ jobs:
 
           **Generated by:** Manual Project Review & Release Audit workflow"
 
+          # Ensure labels exist before creating PR
+          echo "Ensuring labels exist..."
+          for label in automation documentation; do
+            if ! gh label list --limit 100 | grep -q "^$label"; then
+              echo "Creating label: $label"
+              gh label create "$label" --description "Auto-created by workflow" --color "0E8A16" 2>/dev/null || true
+            fi
+          done
+          
+          # Try to create PR with labels, fallback to no labels if it fails
           if gh pr create \
             --title "${{ github.event.inputs.pr_title }}" \
             --body "$PR_BODY" \
             --base "${{ github.event.inputs.ref || 'main' }}" \
             --head "${{ env.BRANCH_NAME }}" \
-            --label "automation,documentation"; then
-            echo "✅ PR created successfully"
+            --label "automation,documentation" 2>/dev/null; then
+            echo "✅ PR created successfully with labels"
+          elif gh pr create \
+            --title "${{ github.event.inputs.pr_title }}" \
+            --body "$PR_BODY" \
+            --base "${{ github.event.inputs.ref || 'main' }}" \
+            --head "${{ env.BRANCH_NAME }}"; then
+            echo "✅ PR created successfully (without labels)"
           else
-            echo "❌ PR creation failed"
-            exit 1
+            echo "⚠️ PR creation failed, but continuing workflow"
           fi
           
           # Get PR number
@@ -767,32 +879,54 @@ jobs:
           echo "PR_URL=$(gh pr view $PR_NUMBER --json url --jq '.url')" >> $GITHUB_ENV
       
       - name: Create Follow-up Issue
-        if: ${{ github.event.inputs.create_issue == 'true' }}
+        if: github.event.inputs.create_issue == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          HAS_FAILURES: ${{ env.HAS_FAILURES }}
+          FAILED_JOBS: ${{ env.FAILED_JOBS }}
+          ISSUE_LABELS: ${{ github.event.inputs.issue_labels }}
+          REF: ${{ github.event.inputs.ref || 'main' }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          ISSUE_TITLE="Automated Review Follow-ups for ${{ github.event.inputs.ref || 'main' }} ($(date +%Y-%m-%d))"
+          ISSUE_TITLE="Automated Review Follow-ups for ${REF} ($(date +%Y-%m-%d))"
           
-          ISSUE_BODY="## 📋 Automated Review Follow-ups
+          # Build failed jobs section if there are failures
+          FAILED_JOBS_SECTION=""
+          if [ "${HAS_FAILURES}" = "true" ] && [ -n "${FAILED_JOBS}" ]; then
+            FAILED_JOBS_SECTION=$(cat <<'FAILED_EOF'
+          ### ❌ Failed/Cancelled Jobs
+          
+          FAILED_EOF
+          )
+            FAILED_JOBS_SECTION="${FAILED_JOBS_SECTION}
+          ${FAILED_JOBS}
+          > ⚠️ The above jobs failed or were cancelled. Please review the workflow run for details.
+          
+          "
+          fi
+          
+          ISSUE_BODY=$(cat <<EOF
+          ## 📋 Automated Review Follow-ups
 
           This issue tracks follow-up actions from the automated project review.
 
           ### 🔗 Links
 
           - **Review Report:** [docs/REVIEW_REPORT.md](./docs/REVIEW_REPORT.md)
-          - **Workflow Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          - **Artifacts:** [Download](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
-          "
+          - **Workflow Run:** [#${RUN_NUMBER}](${RUN_URL})
+          - **Artifacts:** [Download](${RUN_URL})
+          EOF
+          )
           
           if [ -n "${PR_URL:-}" ]; then
-            ISSUE_BODY="$ISSUE_BODY
-          - **Related PR:** ${PR_URL}
-          "
+            ISSUE_BODY="${ISSUE_BODY}
+          - **Related PR:** ${PR_URL}"
           fi
           
-          ISSUE_BODY="$ISSUE_BODY
+          ISSUE_BODY="${ISSUE_BODY}
 
-          ### ✅ Review Checklist
+          ${FAILED_JOBS_SECTION}### ✅ Review Checklist
 
           #### High Priority
           - [ ] Address any failing tests
@@ -830,24 +964,41 @@ jobs:
 
           ### 📊 Quick Stats
 
-          - **Ref:** \`${{ github.event.inputs.ref || 'main' }}\`
-          - **Review Date:** $(date -u +"%Y-%m-%d")
-          - **Workflow Run:** #${{ github.run_number }}
+          - **Ref:** \`${REF}\`
+          - **Review Date:** $(date -u +\"%Y-%m-%d\")
+          - **Workflow Run:** #${RUN_NUMBER}
 
           ---
 
           **Auto-generated by:** Manual Project Review & Release Audit workflow"
 
+          # Ensure labels exist before creating issue
+          echo "Ensuring issue labels exist..."
+          IFS=',' read -ra LABELS <<< "${ISSUE_LABELS}"
+          for label in "${LABELS[@]}"; do
+            label=$(echo "$label" | xargs) # trim whitespace
+            if [ -n "$label" ] && ! gh label list --limit 100 | grep -q "^$label"; then
+              echo "Creating label: $label"
+              gh label create "$label" --description "Auto-created by workflow" --color "1D76DB" 2>/dev/null || true
+            fi
+          done
+          
+          # Try to create issue with labels, fallback to no labels if it fails
           if gh issue create \
             --title "$ISSUE_TITLE" \
             --body "$ISSUE_BODY" \
-            --label "${{ github.event.inputs.issue_labels }}"; then
-            echo "✅ Issue created successfully"
+            --label "${ISSUE_LABELS}" 2>/dev/null; then
+            echo "✅ Issue created successfully with labels"
+            ISSUE_URL=$(gh issue list --limit 1 --state open --json url --jq '.[0].url')
+            echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
+          elif gh issue create \
+            --title "$ISSUE_TITLE" \
+            --body "$ISSUE_BODY"; then
+            echo "✅ Issue created successfully (without labels)"
             ISSUE_URL=$(gh issue list --limit 1 --state open --json url --jq '.[0].url')
             echo "ISSUE_URL=$ISSUE_URL" >> $GITHUB_ENV
           else
-            echo "❌ Issue creation failed"
-            exit 1
+            echo "⚠️ Issue creation failed, but continuing workflow"
           fi
       
       - name: Final Summary
