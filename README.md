@@ -721,6 +721,23 @@ Use the comprehensive smoke test checklist:
 - Production build test
 - Build artifact verification
 
+**Manual Project Review** (.github/workflows/manual-project-review.yml):
+- Comprehensive project audit workflow (manual trigger)
+- Static analysis, security scanning, and linting
+- Full test suite execution with coverage
+- Build validation and smoke testing
+- UI screenshot capture with Playwright
+- Documentation consistency checks
+- Automatic PR and issue creation
+- Detailed review report generation
+
+To run the manual review workflow:
+1. Go to **Actions** → **Manual Project Review & Release Audit**
+2. Click **Run workflow**
+3. Configure options (ref, screenshots, PR/issue creation)
+4. Review the generated report in `docs/REVIEW_REPORT.md`
+5. Check artifacts for detailed results and screenshots
+
 ---
 
 ## 📈 Performance

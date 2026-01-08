@@ -4,12 +4,13 @@ This document explains all GitHub Actions workflows for the `server-monitor` pro
 
 ## Overview
 
-The project uses 5 workflows organized by purpose:
+The project uses 6 workflows organized by purpose:
 1. **Backend CI** - Fast Python linting and testing
 2. **Frontend CI** - Fast Next.js linting, type checking, and building
 3. **CodeQL Analysis** - Deep security analysis (main branch + nightly)
 4. **Security Scan** - Dependency audits and security scanning
 5. **Dependency Review** - PR-only dependency vulnerability checks
+6. **Manual Project Review** - Comprehensive project audit (manual trigger)
 
 ## Workflow Details
 
@@ -213,6 +214,103 @@ When you open a pull request, expect these checks:
 | **Total** | - | **5-10 min** | Fast feedback |
 
 **Note**: CodeQL and full security scans run only on `main` branch and nightly to avoid slowing down PR workflows.
+
+---
+
+### 6. Manual Project Review & Release Audit (`manual-project-review.yml`)
+
+**Purpose**: Comprehensive project audit for releases and major milestones
+
+**Triggers**:
+- Manual workflow dispatch only (not automatic)
+
+**What it does**:
+1. **Static Analysis & Linting** (15 min):
+   - Python linting (flake8)
+   - Security scanning (bandit)
+   - Frontend ESLint and TypeScript checking
+   - OpenAPI specification validation
+
+2. **Unit & Integration Tests** (20 min):
+   - Runs full pytest test suite
+   - Generates test coverage reports
+
+3. **Boot & Smoke Testing** (25 min):
+   - Starts all backend services (API, WebSocket, Terminal)
+   - Builds and starts Next.js frontend
+   - Runs comprehensive smoke tests
+   - Collects service logs
+
+4. **UI Screenshot Capture** (20 min):
+   - Captures screenshots of key pages using Playwright
+   - Saves to `docs/screenshots/` for documentation
+   - Generates screenshot summary
+
+5. **Documentation Consistency** (10 min):
+   - Validates all documentation files exist
+   - Checks for broken internal links
+   - Validates YAML syntax
+
+6. **Generate Review Report** (10 min):
+   - Aggregates all results
+   - Creates comprehensive `docs/REVIEW_REPORT.md`
+   - Includes findings, suggestions, and checklists
+
+7. **Create PR & Issue** (10 min):
+   - Creates automation branch with review results
+   - Opens PR with findings
+   - Creates follow-up issue with action items
+
+**Features**:
+- ✅ Fully configurable inputs (ref, PR/issue creation, screenshots)
+- ✅ Comprehensive artifact collection
+- ✅ Automatic PR and issue creation
+- ✅ GitHub Step Summary for quick review
+- ✅ Copilot Agent integration prompts
+
+**Run via GitHub UI**:
+1. Go to **Actions** → **Manual Project Review & Release Audit**
+2. Click **Run workflow**
+3. Configure options:
+   - `ref`: Branch/tag to review (default: main)
+   - `create_pr`: Create PR with results (default: true)
+   - `create_issue`: Create follow-up issue (default: true)
+   - `include_ui_screenshots`: Capture screenshots (default: true)
+   - Authentication credentials for smoke tests
+4. Click **Run workflow**
+
+**Run via GitHub CLI**:
+```bash
+# Run with defaults
+gh workflow run manual-project-review.yml
+
+# Run with custom ref
+gh workflow run manual-project-review.yml --ref develop
+
+# Run without PR/issue creation
+gh workflow run manual-project-review.yml \
+  -f create_pr=false \
+  -f create_issue=false
+```
+
+**Expected duration**: 60-90 minutes (varies based on enabled features)
+
+**Artifacts generated**:
+- lint-results (30 days retention)
+- test-results (30 days retention)
+- smoke-test-results (30 days retention)
+- ui-screenshots (30 days retention)
+- doc-check-results (30 days retention)
+- review-report (90 days retention)
+
+**When to use**:
+- Before major releases
+- After significant feature additions
+- Monthly/quarterly maintenance reviews
+- When updating documentation
+- Before security audits
+
+**Documentation**: See [docs/MANUAL_REVIEW_WORKFLOW_GUIDE.md](MANUAL_REVIEW_WORKFLOW_GUIDE.md) for complete guide.
 
 ---
 
