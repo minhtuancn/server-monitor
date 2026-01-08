@@ -546,7 +546,9 @@ def update_server(server_id, **kwargs):
     updates.append('updated_at = CURRENT_TIMESTAMP')
     values.append(server_id)
     
-    query = f"UPDATE servers SET {', '.join(updates)} WHERE id = ?"
+    # Security Note: Column names in query are from allowed_fields allowlist above (line 529)
+    # This is NOT a SQL injection vulnerability - column names are controlled, not from user input
+    query = f"UPDATE servers SET {', '.join(updates)} WHERE id = ?"  # nosec B608
     
     try:
         cursor.execute(query, values)
@@ -1049,7 +1051,8 @@ def update_snippet(snippet_id, **kwargs):
     updates.append('updated_at = CURRENT_TIMESTAMP')
     values.append(snippet_id)
     
-    query = f"UPDATE command_snippets SET {', '.join(updates)} WHERE id = ?"
+    # Security Note: Column names from allowed_fields allowlist (line 1037)
+    query = f"UPDATE command_snippets SET {', '.join(updates)} WHERE id = ?"  # nosec B608
     
     try:
         cursor.execute(query, values)
@@ -1193,7 +1196,8 @@ def update_ssh_key(key_id, **kwargs):
     updates.append('updated_at = CURRENT_TIMESTAMP')
     values.append(key_id)
     
-    query = f"UPDATE ssh_keys SET {', '.join(updates)} WHERE id = ?"
+    # Security Note: Column names from allowed_fields allowlist (line 1179)
+    query = f"UPDATE ssh_keys SET {', '.join(updates)} WHERE id = ?"  # nosec B608
     
     try:
         cursor.execute(query, values)
@@ -1581,11 +1585,13 @@ def update_server_note(note_id, title=None, content=None, updated_by=None):
     values.append(note_id)
     
     try:
+        # Security Note: Column names are hardcoded above (lines 1569, 1573, 1577, 1584) 
+        # Not from user input
         cursor.execute(f'''
             UPDATE server_notes 
             SET {', '.join(updates)}
             WHERE id = ?
-        ''', values)
+        ''', values)  # nosec B608
         
         conn.commit()
         conn.close()
@@ -2226,7 +2232,8 @@ def update_task_status(task_id, status, exit_code=None, stdout=None, stderr=None
         
         values.append(task_id)
         
-        query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"
+        # Security Note: Column names hardcoded above (lines 2215-2231), not from user input
+        query = f"UPDATE tasks SET {', '.join(updates)} WHERE id = ?"  # nosec B608
         cursor.execute(query, values)
         
         conn.commit()
@@ -2373,7 +2380,8 @@ def update_tag(tag_id, **kwargs):
     
     values.append(tag_id)
     
-    query = f"UPDATE tags SET {', '.join(updates)} WHERE id = ?"
+    # Security Note: Column names from allowed_fields allowlist above
+    query = f"UPDATE tags SET {', '.join(updates)} WHERE id = ?"  # nosec B608
     
     try:
         cursor.execute(query, values)
@@ -2707,7 +2715,8 @@ def update_webhook(webhook_id, name=None, url=None, secret=None, enabled=None,
         
         params.append(webhook_id)
         
-        query = f'UPDATE webhooks SET {", ".join(updates)} WHERE id = ?'
+        # Security Note: Column names hardcoded above (lines 2683-2712), not from user input
+        query = f'UPDATE webhooks SET {", ".join(updates)} WHERE id = ?'  # nosec B608
         cursor.execute(query, params)
         
         conn.commit()

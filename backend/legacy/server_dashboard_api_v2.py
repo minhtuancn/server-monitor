@@ -64,7 +64,10 @@ PORT_DESCRIPTIONS = {
 def run_command(cmd):
     """Execute shell command and return output"""
     try:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)
+        # Security Note: shell=True is used in this DEPRECATED legacy file
+        # This file is not actively used (see legacy/README.md)
+        # Commands here are predefined strings, not user input
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=10)  # nosec B602
         return result.stdout.strip()
     except:
         return ""

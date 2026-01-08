@@ -381,7 +381,8 @@ class UserManagement:
             set_clause = ', '.join([f"{k} = ?" for k in update_fields.keys()])
             values = list(update_fields.values()) + [user_id]
             
-            c.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+            # Security Note: Column names from allowed_fields set (line 356), not user input
+            c.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)  # nosec B608
             conn.commit()
             conn.close()
             

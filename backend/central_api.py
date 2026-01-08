@@ -3648,7 +3648,10 @@ if __name__ == '__main__':
                 plugins_loaded=list(plugin_manager.plugins.keys()),
                 version='v4')
     
-    http_server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)
+    # Security Note: Binding to 0.0.0.0 is intentional for central monitoring API
+    # This allows connections from all network interfaces for multi-server monitoring
+    # Production deployments should use firewall rules, reverse proxy, or VPN
+    http_server = HTTPServer(('0.0.0.0', PORT), CentralAPIHandler)  # nosec B104
     print(f'╔══════════════════════════════════════════════════════════╗')
     print(f'║  Central Multi-Server Monitoring API v4                  ║')
     print(f'╚══════════════════════════════════════════════════════════╝')

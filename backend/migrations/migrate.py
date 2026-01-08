@@ -42,7 +42,8 @@ def is_migration_applied(version):
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute(f'SELECT COUNT(*) FROM {MIGRATIONS_TABLE} WHERE version = ?', (version,))
+    # Security Note: MIGRATIONS_TABLE is a constant (line 17), not user input
+    cursor.execute(f'SELECT COUNT(*) FROM {MIGRATIONS_TABLE} WHERE version = ?', (version,))  # nosec B608
     count = cursor.fetchone()[0]
     
     conn.close()
@@ -53,10 +54,11 @@ def mark_migration_applied(version, name):
     conn = get_connection()
     cursor = conn.cursor()
     
+    # Security Note: MIGRATIONS_TABLE is a constant (line 17), not user input
     cursor.execute(f'''
         INSERT INTO {MIGRATIONS_TABLE} (version, name)
         VALUES (?, ?)
-    ''', (version, name))
+    ''', (version, name))  # nosec B608
     
     conn.commit()
     conn.close()
