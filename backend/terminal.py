@@ -535,8 +535,6 @@ def graceful_shutdown():
     - Mark sessions as interrupted in database
     - Close WebSocket server
     """
-    global ws_server
-    
     logger.info('Received shutdown signal, shutting down gracefully')
     print(f'\n\n🛑 Shutting down terminal server gracefully...')
     

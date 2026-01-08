@@ -843,7 +843,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         memory_percent = system_metrics.get('memory', {}).get('percent', 0)
                         disk_percent = system_metrics.get('disk', {}).get('percent', 0)
                         
-                        metrics = {
+                        server_metrics = {
                             'cpu': cpu_usage,
                             'memory': memory_percent,
                             'disk': disk_percent
@@ -853,7 +853,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         alerts = alert_manager.check_server_thresholds(
                             server_id=server_id,
                             server_name=server['name'],
-                            metrics=metrics
+                            metrics=server_metrics
                         )
                         
                         # Add alert info to response (optional)
@@ -921,7 +921,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         memory_percent = system_metrics.get('memory', {}).get('percent', 0)
                         disk_percent = system_metrics.get('disk', {}).get('percent', 0)
                         
-                        metrics = {
+                        server_metrics = {
                             'cpu': cpu_usage,
                             'memory': memory_percent,
                             'disk': disk_percent
@@ -931,7 +931,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         alert_manager.check_server_thresholds(
                             server_id=server['id'],
                             server_name=server['name'],
-                            metrics=metrics
+                            metrics=server_metrics
                         )
                     except Exception as e:
                         print(f"Alert checking error for server {server['id']}: {e}")
@@ -3545,8 +3545,6 @@ def graceful_shutdown(signum, frame):
     - Flush logs
     - Shutdown HTTP server
     """
-    global http_server
-    
     logger.info('Received shutdown signal', signal=signum)
     print(f'\n\n🛑 Received shutdown signal {signum}, shutting down gracefully...')
     

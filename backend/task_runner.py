@@ -10,6 +10,7 @@ import queue
 import time
 import sys
 import os
+import socket
 from datetime import datetime
 import io
 

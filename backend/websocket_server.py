@@ -259,8 +259,6 @@ async def main():
     """
     Start WebSocket server
     """
-    global ws_server
-    
     # Initialize database
     db.init_database()
     
@@ -298,8 +296,6 @@ def graceful_shutdown():
     - Close SSH connections
     - Flush logs
     """
-    global ws_server
-    
     logger.info('Received shutdown signal, shutting down gracefully')
     print(f'\n\n🛑 Shutting down WebSocket monitoring server gracefully...')
     
