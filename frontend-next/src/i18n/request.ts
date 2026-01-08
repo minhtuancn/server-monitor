@@ -17,7 +17,8 @@ function loadMessages(locale: string) {
 }
 
 export default getRequestConfig(async ({ locale }) => {
-  const normalizedLocale = locales.includes(locale) ? locale : defaultLocale;
+  // In Next.js 15+, locale can be undefined
+  const normalizedLocale = locale != null && locales.includes(locale) ? locale : defaultLocale;
   return {
     locale: normalizedLocale,
     messages: loadMessages(normalizedLocale),
