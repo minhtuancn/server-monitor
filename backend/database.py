@@ -2866,7 +2866,7 @@ def get_active_terminal_sessions_count():
     Returns:
         int: Number of active sessions
     """
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -2886,7 +2886,7 @@ def get_task_stats():
     Returns:
         dict: Task stats with 'queued' and 'running' keys
     """
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -2912,7 +2912,7 @@ def get_webhook_delivery_stats():
     Returns:
         dict: Delivery stats with 'success' and 'failed' keys
     """
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     cursor = conn.cursor()
     
     cursor.execute("""
