@@ -48,6 +48,7 @@ jobs:
 
       - name: Run pip-audit on backend
         id: pip-audit-backend
+        continue-on-error: true
         run: |
           echo "# Python Backend Dependencies Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -93,7 +94,6 @@ EOF
             fi
             echo "status=failure" >> $GITHUB_OUTPUT
           fi
-        continue-on-error: true
 
       - name: Upload pip-audit results
         if: always()
@@ -131,6 +131,7 @@ EOF
 
       - name: Run npm audit
         id: npm-audit
+        continue-on-error: true
         run: |
           echo "# Node.js Frontend Dependencies Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -187,7 +188,6 @@ EOF
             fi
             echo "status=warning" >> $GITHUB_OUTPUT
           fi
-        continue-on-error: true
 
       - name: Upload npm audit results
         if: always()
