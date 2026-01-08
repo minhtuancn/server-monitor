@@ -10,7 +10,26 @@
 # - Database is writable
 # - Core API endpoints are responding
 #
-# Usage: ./scripts/smoke.sh [--verbose]
+# Usage: 
+#   ./scripts/smoke.sh [OPTIONS]
+#
+# Options:
+#   --verbose                 Enable verbose output
+#   --base-url URL           Base URL for frontend (default: http://localhost:9081)
+#   --api-url URL            API URL (default: http://localhost:9083)
+#   --auth-user USER         Username for authenticated tests
+#   --auth-pass PASS         Password for authenticated tests
+#   --skip-port-check        Skip port availability checks (for remote testing)
+#
+# Examples:
+#   # Local testing
+#   ./scripts/smoke.sh --verbose
+#
+#   # Staging environment testing
+#   ./scripts/smoke.sh --base-url https://staging.example.com --api-url https://staging.example.com/api
+#
+#   # Authenticated testing
+#   ./scripts/smoke.sh --auth-user admin --auth-pass secret123 --verbose
 ###############################################################################
 
 set -euo pipefail
@@ -22,10 +41,74 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Verbose mode
+# Default configuration
 VERBOSE=false
-if [[ "$1" == "--verbose" ]]; then
-    VERBOSE=true
+BASE_URL="http://localhost:9081"
+API_URL="http://localhost:9083"
+AUTH_USER=""
+AUTH_PASS=""
+AUTH_TOKEN=""
+SKIP_PORT_CHECK=false
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --verbose)
+            VERBOSE=true
+            shift
+            ;;
+        --base-url)
+            BASE_URL="$2"
+            shift 2
+            ;;
+        --api-url)
+            API_URL="$2"
+            shift 2
+            ;;
+        --auth-user)
+            AUTH_USER="$2"
+            shift 2
+            ;;
+        --auth-pass)
+            AUTH_PASS="$2"
+            shift 2
+            ;;
+        --skip-port-check)
+            SKIP_PORT_CHECK=true
+            shift
+            ;;
+        --help)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --verbose              Enable verbose output"
+            echo "  --base-url URL         Base URL for frontend (default: http://localhost:9081)"
+            echo "  --api-url URL          API URL (default: http://localhost:9083)"
+            echo "  --auth-user USER       Username for authenticated tests"
+            echo "  --auth-pass PASS       Password for authenticated tests"
+            echo "  --skip-port-check      Skip port availability checks"
+            echo "  --help                 Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 --verbose"
+            echo "  $0 --base-url https://staging.example.com --api-url https://staging.example.com"
+            echo "  $0 --auth-user admin --auth-pass secret --verbose"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Auto-detect remote testing
+if [[ "$API_URL" != "http://localhost:"* ]] && [[ "$API_URL" != "http://127.0.0.1:"* ]]; then
+    SKIP_PORT_CHECK=true
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "ℹ Remote URL detected, skipping port checks"
+    fi
 fi
 
 # Test counters
@@ -85,9 +168,14 @@ check_http() {
     local url="$1"
     local expected_code="$2"
     local test_name="$3"
+    local extra_args="${4:-}"
     
     local response_code
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    if [[ -n "$extra_args" ]]; then
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" $extra_args "$url" 2>/dev/null || echo "000")
+    else
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+    fi
     
     if [[ "$response_code" == "$expected_code" ]]; then
         print_test "$test_name" "PASS" "HTTP $response_code"
@@ -103,9 +191,14 @@ check_json_response() {
     local url="$1"
     local expected_key="$2"
     local test_name="$3"
+    local extra_args="${4:-}"
     
     local response
-    response=$(curl -s "$url" 2>/dev/null || echo "{}")
+    if [[ -n "$extra_args" ]]; then
+        response=$(curl -s $extra_args "$url" 2>/dev/null || echo "{}")
+    else
+        response=$(curl -s "$url" 2>/dev/null || echo "{}")
+    fi
     
     if echo "$response" | grep -q "\"$expected_key\""; then
         print_test "$test_name" "PASS" "Response contains '$expected_key'"
@@ -114,6 +207,36 @@ check_json_response() {
         print_test "$test_name" "FAIL" "Response missing '$expected_key' key"
         if [[ "$VERBOSE" == "true" ]]; then
             echo "  └─ Response: $response"
+        fi
+        return 1
+    fi
+}
+
+# Function to authenticate and get token
+authenticate() {
+    if [[ -z "$AUTH_USER" ]] || [[ -z "$AUTH_PASS" ]]; then
+        return 1
+    fi
+    
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "ℹ Authenticating as $AUTH_USER..."
+    fi
+    
+    local response
+    response=$(curl -s -X POST "$API_URL/api/auth/login" \
+        -H "Content-Type: application/json" \
+        -d "{\"username\":\"$AUTH_USER\",\"password\":\"$AUTH_PASS\"}" 2>/dev/null || echo "{}")
+    
+    AUTH_TOKEN=$(echo "$response" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "✓ Authentication successful"
+        fi
+        return 0
+    else
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "⚠ Authentication failed"
         fi
         return 1
     fi
@@ -128,6 +251,21 @@ echo "╔═══════════════════════�
 echo "║     Server Monitor Dashboard - Smoke Test Suite         ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
+
+# Display test configuration
+if [[ "$VERBOSE" == "true" ]]; then
+    echo "📋 Test Configuration:"
+    echo "  Frontend URL: $BASE_URL"
+    echo "  API URL:      $API_URL"
+    echo "  Auth User:    ${AUTH_USER:-<none>}"
+    echo "  Port Checks:  $([ "$SKIP_PORT_CHECK" = true ] && echo "disabled" || echo "enabled")"
+    echo ""
+fi
+
+# Attempt authentication if credentials provided
+if [[ -n "$AUTH_USER" ]] && [[ -n "$AUTH_PASS" ]]; then
+    authenticate || true
+fi
 
 # Check for required tools
 echo "🔧 Checking prerequisites..."
@@ -155,28 +293,32 @@ fi
 echo ""
 echo "📡 Testing service ports..."
 
-# Test service ports
-if command -v nc &> /dev/null; then
-    check_port 9081 "Frontend (Next.js)"
-    check_port 9083 "Central API"
-    check_port 9084 "Terminal WebSocket"
-    check_port 9085 "Monitoring WebSocket"
+# Test service ports (only for localhost)
+if [[ "$SKIP_PORT_CHECK" == "false" ]]; then
+    if command -v nc &> /dev/null; then
+        check_port 9081 "Frontend (Next.js)"
+        check_port 9083 "Central API"
+        check_port 9084 "Terminal WebSocket"
+        check_port 9085 "Monitoring WebSocket"
+    else
+        print_test "Port checks" "WARN" "netcat not available, skipping port checks"
+    fi
 else
-    print_test "Port checks" "WARN" "netcat not available, skipping port checks"
+    print_test "Port checks" "INFO" "Skipped (remote testing mode)"
 fi
 
 echo ""
 echo "🔍 Testing health endpoints..."
 
 # Test observability endpoints (Phase 6)
-check_http "http://localhost:9083/api/health" "200" "Health endpoint (liveness)"
-check_json_response "http://localhost:9083/api/health" "status" "Health endpoint structure"
+check_http "$API_URL/api/health" "200" "Health endpoint (liveness)"
+check_json_response "$API_URL/api/health" "status" "Health endpoint structure"
 
-check_http "http://localhost:9083/api/ready" "200" "Readiness endpoint"
-check_json_response "http://localhost:9083/api/ready" "status" "Readiness endpoint structure"
+check_http "$API_URL/api/ready" "200" "Readiness endpoint"
+check_json_response "$API_URL/api/ready" "status" "Readiness endpoint structure"
 
 # Test metrics endpoint (should require auth or be localhost)
-METRICS_RESPONSE=$(curl -s http://localhost:9083/api/metrics 2>/dev/null || echo "{}")
+METRICS_RESPONSE=$(curl -s "$API_URL/api/metrics" 2>/dev/null || echo "{}")
 if echo "$METRICS_RESPONSE" | grep -q "uptime_seconds\|error"; then
     print_test "Metrics endpoint" "PASS" "Metrics endpoint is responding"
 else
@@ -184,21 +326,21 @@ else
 fi
 
 # Test public endpoints (should work without auth)
-check_http "http://localhost:9083/api/stats/overview" "200" "Stats overview endpoint"
-check_json_response "http://localhost:9083/api/stats/overview" "total_servers" "Stats overview structure"
+check_http "$API_URL/api/stats/overview" "200" "Stats overview endpoint"
+check_json_response "$API_URL/api/stats/overview" "total_servers" "Stats overview structure"
 
 # Test OpenAPI documentation
-check_http "http://localhost:9083/docs" "200" "Swagger UI endpoint"
-check_http "http://localhost:9083/api/openapi.yaml" "200" "OpenAPI spec endpoint"
+check_http "$API_URL/docs" "200" "Swagger UI endpoint"
+check_http "$API_URL/api/openapi.yaml" "200" "OpenAPI spec endpoint"
 
 # Test frontend
-check_http "http://localhost:9081" "200" "Frontend homepage"
+check_http "$BASE_URL" "200" "Frontend homepage"
 
 echo ""
 echo "🔐 Testing authentication endpoints..."
 
 # Test auth endpoints (without credentials - should return 401 or 400)
-AUTH_RESPONSE=$(curl -s -X POST http://localhost:9083/api/auth/login \
+AUTH_RESPONSE=$(curl -s -X POST "$API_URL/api/auth/login" \
     -H "Content-Type: application/json" \
     -d '{}' 2>/dev/null || echo '{"error":"request failed"}')
 
@@ -209,13 +351,27 @@ else
 fi
 
 # Test auth verify (should return 401 without token)
-check_http "http://localhost:9083/api/auth/verify" "401" "Auth verify endpoint (no token)"
+check_http "$API_URL/api/auth/verify" "401" "Auth verify endpoint (no token)"
+
+# If authenticated, test protected endpoints
+if [[ -n "$AUTH_TOKEN" ]]; then
+    echo ""
+    echo "🔑 Testing authenticated endpoints..."
+    
+    # Test auth verify with token
+    AUTH_HEADER="-H \"Authorization: Bearer $AUTH_TOKEN\""
+    check_http "$API_URL/api/auth/verify" "200" "Auth verify endpoint (with token)" "$AUTH_HEADER"
+    
+    # Test audit export endpoints (admin only)
+    check_http "$API_URL/api/export/audit/csv" "200" "Audit CSV export endpoint" "$AUTH_HEADER"
+    check_http "$API_URL/api/export/audit/json" "200" "Audit JSON export endpoint" "$AUTH_HEADER"
+fi
 
 echo ""
 echo "📊 Testing database connectivity..."
 
 # Test that endpoints requiring database are responding
-SERVERS_RESPONSE=$(curl -s http://localhost:9083/api/servers 2>/dev/null || echo '{"error":"request failed"}')
+SERVERS_RESPONSE=$(curl -s "$API_URL/api/servers" 2>/dev/null || echo '{"error":"request failed"}')
 
 if echo "$SERVERS_RESPONSE" | grep -q "servers"; then
     print_test "Database read (servers list)" "PASS" "Database is readable"
@@ -224,7 +380,7 @@ else
 fi
 
 # Check recent activity endpoint
-ACTIVITY_RESPONSE=$(curl -s "http://localhost:9083/api/activity/recent?limit=5" 2>/dev/null || echo '{"error":"request failed"}')
+ACTIVITY_RESPONSE=$(curl -s "$API_URL/api/activity/recent?limit=5" 2>/dev/null || echo '{"error":"request failed"}')
 
 if echo "$ACTIVITY_RESPONSE" | grep -q "activities\|error.*Authentication"; then
     print_test "Recent activity endpoint" "PASS" "Endpoint is responding"
@@ -236,11 +392,11 @@ echo ""
 echo "🎯 Testing core API endpoints..."
 
 # Test various endpoints for basic connectivity
-check_http "http://localhost:9083/api/roles" "401" "Roles endpoint (requires auth)"
-check_http "http://localhost:9083/api/ssh/pubkey" "200" "SSH pubkey endpoint"
+check_http "$API_URL/api/roles" "401" "Roles endpoint (requires auth)"
+check_http "$API_URL/api/ssh/pubkey" "200" "SSH pubkey endpoint"
 
 # Test BFF proxy (if frontend is running)
-BFF_RESPONSE=$(curl -s http://localhost:9081/api/auth/session 2>/dev/null || echo "")
+BFF_RESPONSE=$(curl -s "$BASE_URL/api/auth/session" 2>/dev/null || echo "")
 if [[ -n "$BFF_RESPONSE" ]]; then
     print_test "BFF proxy endpoint" "PASS" "Next.js BFF is responding"
 else
@@ -261,29 +417,48 @@ echo -e "  ${GREEN}Tests passed:${NC}      $TESTS_PASSED"
 echo -e "  ${RED}Tests failed:${NC}      $TESTS_FAILED"
 echo ""
 
+# Calculate success rate
+if [[ $TESTS_RUN -gt 0 ]]; then
+    SUCCESS_RATE=$(( (TESTS_PASSED * 100) / TESTS_RUN ))
+    echo "  Success rate:      ${SUCCESS_RATE}%"
+    echo ""
+fi
+
 if [[ $TESTS_FAILED -eq 0 ]]; then
     echo -e "${GREEN}✓ All smoke tests passed!${NC}"
     echo ""
     echo "The system appears to be running correctly. You can access:"
-    echo "  • Frontend:      http://localhost:9081"
-    echo "  • API Docs:      http://localhost:9083/docs"
-    echo "  • Central API:   http://localhost:9083"
+    echo "  • Frontend:      $BASE_URL"
+    echo "  • API Docs:      $API_URL/docs"
+    echo "  • Central API:   $API_URL"
     echo ""
     exit 0
 else
     echo -e "${RED}✗ Some smoke tests failed!${NC}"
     echo ""
     echo "Troubleshooting steps:"
-    echo "  1. Ensure all services are running:"
-    echo "     ./start-all.sh"
-    echo ""
-    echo "  2. Check service logs for errors"
-    echo ""
-    echo "  3. Verify database is initialized:"
-    echo "     cd backend && python -c 'import database; database.init_database()'"
-    echo ""
-    echo "  4. Check port conflicts:"
-    echo "     netstat -tlnp | grep -E '9081|9083|9084|9085'"
+    if [[ "$SKIP_PORT_CHECK" == "false" ]]; then
+        echo "  1. Ensure all services are running:"
+        echo "     ./start-all.sh"
+        echo ""
+        echo "  2. Check service logs for errors"
+        echo ""
+        echo "  3. Verify database is initialized:"
+        echo "     cd backend && python -c 'import database; database.init_database()'"
+        echo ""
+        echo "  4. Check port conflicts:"
+        echo "     netstat -tlnp | grep -E '9081|9083|9084|9085'"
+    else
+        echo "  1. Verify the URLs are correct:"
+        echo "     Frontend: $BASE_URL"
+        echo "     API:      $API_URL"
+        echo ""
+        echo "  2. Check network connectivity to the server"
+        echo ""
+        echo "  3. Verify services are running on the remote server"
+        echo ""
+        echo "  4. Check firewall rules allow access to ports"
+    fi
     echo ""
     echo "  5. Run in verbose mode for more details:"
     echo "     $0 --verbose"
