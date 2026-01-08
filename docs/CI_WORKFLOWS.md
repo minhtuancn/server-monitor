@@ -267,6 +267,23 @@ When you open a pull request, expect these checks:
 - ✅ Automatic PR and issue creation
 - ✅ GitHub Step Summary for quick review
 - ✅ Copilot Agent integration prompts
+- ✅ **Resilient execution** - always creates report + issue even if jobs fail
+- ✅ **Optional screenshots** - workflow continues if ui-screenshots artifact is missing
+- ✅ **Auto-creates labels** - creates missing labels or falls back to no labels
+
+**Resilience & Error Handling**:
+
+The Manual Project Review workflow is designed to be resilient:
+
+1. **Job Failures**: All main jobs (`audit-static-checks`, `unit-integration-tests`, `boot-smoke-tests`, `ui-screenshots`, `doc-consistency-check`) use `continue-on-error: true`. This ensures the pipeline continues even if individual jobs fail.
+
+2. **Report Generation**: The `generate-report` job always runs (`if: always()`) and uses `needs.<job>.result` to accurately capture each job's status. The report includes the true status of each job.
+
+3. **Issue Creation**: When jobs fail, the created issue includes a "Failed/Cancelled Jobs" section listing all failed or cancelled jobs with links to the workflow run for debugging.
+
+4. **Missing Artifacts**: The `ui-screenshots` artifact download uses `continue-on-error: true`, so if screenshots fail or are skipped, the workflow continues without failing.
+
+5. **Missing Labels**: Before creating PRs/Issues, the workflow attempts to create any missing labels. If label creation fails, it falls back to creating the PR/Issue without labels rather than failing the workflow.
 
 **Run via GitHub UI**:
 1. Go to **Actions** → **Manual Project Review & Release Audit**

@@ -11,9 +11,12 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 # Set plugin environment
+# Use a mock URL that won't make actual network calls in CI
+# The webhook plugin should handle connection errors gracefully
 os.environ['PLUGINS_ENABLED'] = 'true'
 os.environ['PLUGINS_ALLOWLIST'] = 'webhook'
-os.environ['PLUGIN_WEBHOOK_CONFIG'] = '{"url":"https://httpbin.org/post","timeout":5}'
+# Use localhost URL to avoid network calls - the plugin should handle failures gracefully
+os.environ['PLUGIN_WEBHOOK_CONFIG'] = '{"url":"http://localhost:19999/webhook","timeout":1}'
 
 from plugin_system import get_plugin_manager
 from event_model import Event, EventTypes, create_event, EventSeverity
