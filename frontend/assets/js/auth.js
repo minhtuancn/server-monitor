@@ -12,6 +12,23 @@ class AuthManager {
   }
 
   /**
+   * Get API base URL with proper protocol handling
+   */
+  getApiBaseUrl() {
+    // Allow override via window.API_BASE_URL
+    if (window.API_BASE_URL) {
+      return window.API_BASE_URL;
+    }
+    
+    // Auto-detect based on current location
+    const protocol = window.location.protocol; // http: or https:
+    const hostname = window.location.hostname;
+    
+    // Use same protocol as the frontend, with API port 9083
+    return `${protocol}//${hostname}:9083`;
+  }
+
+  /**
    * Get token from localStorage
    */
   getToken() {
@@ -120,7 +137,7 @@ class AuthManager {
    */
   async login(username, password) {
     try {
-      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
+      const API_BASE = this.getApiBaseUrl();
 
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
@@ -167,7 +184,7 @@ class AuthManager {
    */
   async logout(redirect = true) {
     try {
-      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
+      const API_BASE = this.getApiBaseUrl();
 
       // Call logout API if token exists
       if (this.token) {
@@ -257,7 +274,7 @@ class AuthManager {
    */
   async updateUserSettings(settings) {
     try {
-      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
+      const API_BASE = this.getApiBaseUrl();
 
       const response = await fetch(`${API_BASE}/api/v1/user/settings`, {
         method: 'PUT',
@@ -299,7 +316,7 @@ class AuthManager {
     }
 
     try {
-      const API_BASE = window.API_BASE_URL || `http://${window.location.hostname}:9083`;
+      const API_BASE = this.getApiBaseUrl();
 
       const response = await fetch(`${API_BASE}/api/v1/user/validate`, {
         headers: {
