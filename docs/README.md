@@ -13,22 +13,21 @@ Last Updated: 2026-01-09
 **Quick Start & Installation**
 
 - [/README.md](/README.md) — Project overview, quick navigation
-- [QUICK_START.md](getting-started/QUICK_START.md) — Local development setup
-- [/CUSTOM-DOMAIN-GUIDE.md](/CUSTOM-DOMAIN-GUIDE.md) — Deploy with custom domain (mon.go7s.net)
-- [/HTTPS-SETUP.md](/HTTPS-SETUP.md) — SSL/TLS certificate setup
+- [QUICK_START.md](getting-started/QUICK_START.md) — Local development setup (5 min)
+- [FIRST_RUN.md](getting-started/FIRST_RUN.md) — First-run setup wizard
+- [TROUBLESHOOTING.md](getting-started/TROUBLESHOOTING.md) — Common issues & solutions
+- [CUSTOM_DOMAIN.md](operations/CUSTOM_DOMAIN.md) — Deploy with custom domain (mon.go7s.net)
+- [HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL/TLS certificate setup
+- [DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment guide
 - [DOCKER.md](getting-started/DOCKER.md) — Docker Compose setup (future)
-- [/DEPLOYMENT.md](/DEPLOYMENT.md) — Production deployment guide
 
 **Configuration**
 
 - [/backend/.env.example](/backend/.env.example) — Backend environment variables
 - [/frontend-next/.env.example](/frontend-next/.env.example) — Frontend environment variables
-- [MULTI-SERVER-GUIDE.md](getting-started/MULTI-SERVER-GUIDE.md) — Managing multiple servers
-
-**First Steps**
-
-- [FIRST_RUN.md](getting-started/FIRST_RUN.md) — First-run admin setup wizard
-- [TROUBLESHOOTING.md](getting-started/TROUBLESHOOTING.md) — Common issues & solutions
+- [MULTI_SERVER.md](getting-started/MULTI_SERVER.md) — Managing multiple servers
+- [QUICK_REFERENCE.md](getting-started/QUICK_REFERENCE.md) — Quick reference guide
+- [OFFLINE_MODE.md](operations/OFFLINE_MODE.md) — Running without internet
 
 ---
 
@@ -36,7 +35,7 @@ Last Updated: 2026-01-09
 
 **System Design**
 
-- [/ARCHITECTURE.md](/ARCHITECTURE.md) — High-level system architecture
+- [ARCHITECTURE.md](architecture/ARCHITECTURE.md) — High-level system architecture
 - [COMPONENTS.md](architecture/COMPONENTS.md) — Component descriptions
 - [EVENT_MODEL.md](architecture/EVENT_MODEL.md) — Event-driven architecture
 - [PLUGIN_SYSTEM.md](architecture/PLUGIN_SYSTEM.md) — Plugin architecture
@@ -55,10 +54,10 @@ Last Updated: 2026-01-09
 **For Developers**
 
 - [/AGENTS.md](/AGENTS.md) — **AI Agent workflow rules** (must-read!)
-- [/CONTRIBUTING.md](/CONTRIBUTING.md) — How to contribute
+- [CONTRIBUTING.md](templates/CONTRIBUTING.md) — How to contribute
 - [CODE_STYLE.md](development/CODE_STYLE.md) — Coding standards
 - [TESTING.md](development/TESTING.md) — Testing strategy
-- [/TEST_GUIDE.md](/TEST_GUIDE.md) — Running tests
+- [TEST_GUIDE.md](operations/TEST_GUIDE.md) — Running tests
 
 **Backend (Python)**
 
@@ -81,17 +80,17 @@ Last Updated: 2026-01-09
 
 **Running in Production**
 
-- [BACKUP_RESTORE.md](operations/BACKUP_RESTORE.md) — Database backups
-- [LOGGING.md](operations/LOGGING.md) — Log management
-- [MONITORING.md](operations/MONITORING.md) — Monitoring the monitor
-- [UPGRADE_ROLLBACK.md](operations/UPGRADE_ROLLBACK.md) — Version upgrades
+- [BACKUP_RESTORE.md](operations/BACKUP_RESTORE.md) — Database backups & recovery
+- [LOGGING.md](operations/LOGGING.md) — Log management & monitoring
+- [UPGRADE_ROLLBACK.md](operations/UPGRADE_ROLLBACK.md) — Version upgrades & rollback
+- [DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment details
+- [SMOKE_TEST.md](operations/SMOKE_TEST.md) — Smoke testing checklist
 
-**CI/CD**
+**CI/CD & Release**
 
-- [/docs/CI_WORKFLOWS.md](CI_WORKFLOWS.md) — GitHub Actions workflows
+- [CI_WORKFLOWS.md](CI_WORKFLOWS.md) — GitHub Actions workflows
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — How to release
 - [STAGING_CHECKLIST.md](STAGING_CHECKLIST.md) — Pre-release checklist
-- [/SMOKE_TEST_CHECKLIST.md](/SMOKE_TEST_CHECKLIST.md) — Smoke testing
 
 ---
 
@@ -99,15 +98,15 @@ Last Updated: 2026-01-09
 
 **Security Model**
 
-- [/SECURITY.md](/SECURITY.md) — Security policy & reporting
+- [SECURITY.md](security/SECURITY.md) — Security policy & vulnerability reporting
+- [PRODUCTION_SECURITY.md](security/PRODUCTION_SECURITY.md) — Production hardening checklist
+- [HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL certificate setup
 - [SECURITY_MODEL.md](security/SECURITY_MODEL.md) — Authentication & authorization
-- [SECURITY_SCANNING.md](SECURITY_SCANNING.md) — Security scanning tools
 - [SSH_KEY_MANAGEMENT.md](security/SSH_KEY_MANAGEMENT.md) — SSH key vault
 - [WEBHOOKS_SECURITY.md](security/WEBHOOKS_SECURITY.md) — Webhook HMAC & SSRF
 
-**Best Practices**
+**Configuration**
 
-- [PRODUCTION_SECURITY.md](security/PRODUCTION_SECURITY.md) — Hardening checklist
 - [CORS.md](security/CORS.md) — CORS configuration
 - [RATE_LIMITING.md](security/RATE_LIMITING.md) — API rate limits
 
@@ -124,10 +123,10 @@ Last Updated: 2026-01-09
 
 **Release Notes**
 
-- [/CHANGELOG.md](/CHANGELOG.md) — All releases changelog
-- [RELEASE_NOTES_v2.3.0.md](product/RELEASE_NOTES_v2.3.0.md)
-- [RELEASE_NOTES_v2.2.0.md](product/RELEASE_NOTES_v2.2.0.md)
-- [RELEASE_NOTES_v2.1.0.md](product/RELEASE_NOTES_v2.1.0.md)
+- [CHANGELOG.md](product/CHANGELOG.md) — All releases changelog
+- [RELEASE_NOTES_v2.3.0.md](product/RELEASE_NOTES_v2.3.0.md) — Version 2.3.0
+- [RELEASE_NOTES_v2.2.0.md](product/RELEASE_NOTES_v2.2.0.md) — Version 2.2.0
+- [RELEASE_NOTES_v2.1.0.md](product/RELEASE_NOTES_v2.1.0.md) — Version 2.1.0
 
 ---
 
@@ -135,7 +134,8 @@ Last Updated: 2026-01-09
 
 **For AI Agents & Contributors**
 
-- [AGENT_STATUS_REPORT.md](templates/AGENT_STATUS_REPORT.md) — Report format after completing work
+- [CONTRIBUTING.md](templates/CONTRIBUTING.md) — Contributing guidelines
+- [AGENT_STATUS_REPORT.md](templates/AGENT_STATUS_REPORT.md) — Report format after work
 - [PR_CHECKLIST.md](templates/PR_CHECKLIST.md) — Pull request checklist
 - [ISSUE_TEMPLATE_AGENT_TASK.md](templates/ISSUE_TEMPLATE_AGENT_TASK.md) — Issue template for agents
 - [REVIEW_REPORT.template.md](REVIEW_REPORT.template.md) — Code review template
@@ -177,24 +177,24 @@ Last Updated: 2026-01-09
 
 ### "I want to deploy to production"
 
-1. [/CUSTOM-DOMAIN-GUIDE.md](/CUSTOM-DOMAIN-GUIDE.md) — Custom domain setup
-2. [/HTTPS-SETUP.md](/HTTPS-SETUP.md) — SSL certificates
-3. [/DEPLOYMENT.md](/DEPLOYMENT.md) — Production deployment
+1. [operations/CUSTOM_DOMAIN.md](operations/CUSTOM_DOMAIN.md) — Custom domain setup
+2. [security/HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL certificates
+3. [operations/DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment
 4. [security/PRODUCTION_SECURITY.md](security/PRODUCTION_SECURITY.md) — Security hardening
-5. [/SMOKE_TEST_CHECKLIST.md](/SMOKE_TEST_CHECKLIST.md) — Verify deployment
+5. [operations/SMOKE_TEST.md](operations/SMOKE_TEST.md) — Verify deployment
 
 ### "I want to understand the codebase"
 
-1. [/ARCHITECTURE.md](/ARCHITECTURE.md) — System design
+1. [architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) — System design
 2. [/backend/README.md](/backend/README.md) — Backend overview
 3. [/frontend-next/README.md](/frontend-next/README.md) — Frontend overview
-4. [API_REFERENCE.md](backend/API_REFERENCE.md) — API endpoints
-5. [/docs/openapi.yaml](openapi.yaml) — OpenAPI spec
+4. [backend/API_REFERENCE.md](backend/API_REFERENCE.md) — API endpoints
+5. [openapi.yaml](openapi.yaml) — OpenAPI spec
 
 ### "I want to add a feature"
 
-1. Check [/docs/product/ROADMAP.md](product/ROADMAP.md) — Is it planned?
-2. Check [/docs/product/TASKS.md](product/TASKS.md) — Already in backlog?
+1. Check [product/ROADMAP.md](product/ROADMAP.md) — Is it planned?
+2. Check [product/TASKS.md](product/TASKS.md) — Already in backlog?
 3. Create issue using [templates/ISSUE_TEMPLATE_AGENT_TASK.md](templates/ISSUE_TEMPLATE_AGENT_TASK.md)
 4. Follow [/AGENTS.md](/AGENTS.md) workflow rules
 5. Submit PR with [templates/PR_CHECKLIST.md](templates/PR_CHECKLIST.md)
@@ -246,30 +246,32 @@ vim docs/README.md
 
 ---
 
-## 🗑️ Cleanup Candidates
+## 🗑️ Archive & Historical Files
 
-The following root-level files are candidates for consolidation or archiving:
+The following files have been moved to `docs/archive/` (historical reference):
 
-### Consolidate into docs/
+### Implementation Summaries (Archived)
 
-- [ ] `README-MULTI-SERVER.md` → `docs/getting-started/MULTI-SERVER.md`
-- [ ] `ENTERPRISE_ROADMAP.md` → Merge into `docs/product/ROADMAP.md`
-- [ ] `VIETNAMESE_SUMMARY.md` → Extract unique content, archive rest
-- [ ] `UPDATE_SUMMARY_VI.md` → Merge into Vietnamese docs
+- `PHASE2_COMPLETION_REPORT.md` → `docs/archive/`
+- `PHASE3_COMPLETION_SUMMARY.md` → `docs/archive/`
+- `PHASE6_COMPLETION_SUMMARY.md` → `docs/archive/`
+- `PHASE6_IMPLEMENTATION_SUMMARY.md` → `docs/archive/`
+- `PHASE8_PROGRESS.md` → `docs/archive/`
+- `DEVELOPMENT-COMPLETION-SUMMARY.md` → `docs/archive/`
+- `ENTERPRISE_SUMMARY.md` → `docs/archive/`
+- `SESSION-COMPLETION-REPORT.txt` → `docs/archive/`
+- `PR_SUMMARY.md` → `docs/archive/`
+- `VIETNAMESE_SUMMARY.md` → `docs/archive/`
+- `UPDATE_SUMMARY_VI.md` → `docs/archive/`
+- `ENTERPRISE_ROADMAP.md` → `docs/archive/`
+- `README_v2.3.0.md` → `docs/archive/`
 
-### Archive Historical Summaries
+### Legacy Guides (Archived)
 
-- [ ] `PHASE*_SUMMARY.md` — Move to `docs/archive/` (historical reference)
-- [ ] `*_COMPLETION_*.md` — Move to `docs/archive/`
-- [ ] `SESSION-*.md` — Move to `docs/archive/`
-- [ ] `FEATURES-TEST-REPORT.md` — Move to `docs/archive/`
+- `MULTI_SERVER_GUIDE_OLD.md` → `docs/archive/` (replaced by `docs/getting-started/MULTI_SERVER.md`)
+- `UPGRADE_GUIDE_OLD.md` → `docs/archive/` (replaced by `docs/operations/UPGRADE_ROLLBACK.md`)
 
-### Update Stubs
-
-- [ ] `/ROADMAP.md` → Stub linking to `docs/product/ROADMAP.md`
-- [ ] `/TODO-IMPROVEMENTS.md` → Stub linking to `docs/product/TASKS.md`
-
-**Note**: Before deleting, ensure unique content is migrated and links are updated!
+**All files preserved for historical reference but no longer in main documentation tree.**
 
 ---
 
@@ -307,8 +309,8 @@ The following root-level files are candidates for consolidation or archiving:
 
 - **Found a bug?** → Create issue with [templates/ISSUE_TEMPLATE_AGENT_TASK.md](templates/ISSUE_TEMPLATE_AGENT_TASK.md)
 - **Have a question?** → Check [TROUBLESHOOTING.md](getting-started/TROUBLESHOOTING.md) first
-- **Want to contribute?** → Read [/CONTRIBUTING.md](/CONTRIBUTING.md)
-- **Security issue?** → See [/SECURITY.md](/SECURITY.md) for reporting
+- **Want to contribute?** → Read [templates/CONTRIBUTING.md](templates/CONTRIBUTING.md)
+- **Security issue?** → See [security/SECURITY.md](security/SECURITY.md) for reporting
 
 ---
 
