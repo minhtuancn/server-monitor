@@ -93,7 +93,7 @@ curl http://localhost:9083/api/remote/stats/all | jq
 
 ```
 /opt/server-monitor-dev/
-├── 📄 README-MULTI-SERVER.md      ← This file
+├── 📄 docs/getting-started/MULTI_SERVER.md      ← This file
 ├── 📄 MULTI-SERVER-GUIDE.md       ← Detailed guide
 ├── 📄 SUMMARY.md                   ← Development summary
 ├── 📄 INSTALL.txt                  ← Quick install

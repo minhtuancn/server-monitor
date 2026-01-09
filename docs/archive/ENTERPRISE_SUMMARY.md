@@ -532,7 +532,7 @@ Compose:
 
 ### Để bắt đầu development:
 
-1. **Review Roadmap**: Đọc [ENTERPRISE_ROADMAP.md](ENTERPRISE_ROADMAP.md)
+1. **Review Roadmap**: Đọc [ENTERPRISE_ROADMAP.md](ENTERPRISE_ROADMAP.md) (archived - see [docs/product/ROADMAP.md](../product/ROADMAP.md) for current roadmap)
 
 2. **Priority Features**: Chọn features quan trọng nhất để implement trước
 
