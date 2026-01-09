@@ -39,11 +39,18 @@ RATE_LIMIT_LOGIN = RATE_LIMIT_CI_UNLIMITED if IS_CI_ENVIRONMENT else RATE_LIMIT_
 RATE_LIMIT_LOGIN_WINDOW = 300  # 5 minutes
 
 # CORS configuration
+# Base allowed origins
 ALLOWED_ORIGINS = [
     'http://172.22.0.103:9081',
     'http://localhost:9081',
-    'http://127.0.0.1:9081'
+    'http://127.0.0.1:9081',
+    'https://localhost:9081',
+    'https://127.0.0.1:9081'
 ]
+
+# Allow dynamic CORS in development (checks for specific patterns)
+# Set CORS_ALLOW_ALL=true in environment to allow all origins (development only)
+CORS_ALLOW_ALL = os.environ.get('CORS_ALLOW_ALL', '').lower() in ('true', '1', 'yes')
 
 # Rate limiting storage (in-memory for now)
 request_counts = defaultdict(lambda: {'count': 0, 'reset_time': time.time() + RATE_LIMIT_WINDOW})
@@ -148,20 +155,39 @@ class CORS:
         """Check if origin is in allowed list"""
         if not origin:
             return False
-        return origin in ALLOWED_ORIGINS or origin == '*'
+        
+        # Allow all origins if CORS_ALLOW_ALL is enabled (development mode)
+        if CORS_ALLOW_ALL:
+            return True
+            
+        # Check exact match
+        if origin in ALLOWED_ORIGINS:
+            return True
+        
+        # Allow any origin on port 9081 (frontend port) for flexibility
+        if origin.endswith(':9081'):
+            return True
+            
+        return False
     
     @staticmethod
     def get_cors_headers(origin):
         """Get CORS headers for response"""
-        # Allow specific origin or use wildcard for development
-        allowed_origin = origin if CORS.is_origin_allowed(origin) else ALLOWED_ORIGINS[0]
+        # Determine allowed origin
+        if CORS.is_origin_allowed(origin):
+            allowed_origin = origin
+        elif ALLOWED_ORIGINS:
+            allowed_origin = ALLOWED_ORIGINS[0]
+        else:
+            allowed_origin = '*'
         
         return {
             'Access-Control-Allow-Origin': allowed_origin,
             'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Expose-Headers': 'Content-Length, Content-Disposition',
-            'Access-Control-Allow-Credentials': 'true'
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+            'Access-Control-Expose-Headers': 'Content-Length, Content-Disposition, X-Request-Id',
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Max-Age': '86400'
         }
 
 
