@@ -232,7 +232,27 @@ source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
 # Terminal 2: Khởi động frontend Next.js (mở terminal mới)
 cd frontend-next
 npm run dev
+
+# (Tùy chọn) Terminal 3: Chạy warm-up để giảm lag lần đầu
+# Chạy sau khi cả frontend và backend đã khởi động
+./scripts/warmup-dev.sh
 ```
+
+**Giải thích về độ trễ lần đầu trong dev mode:**
+
+Khi chạy `npm run dev`, Next.js compile code theo yêu cầu (on-demand). Lần đầu truy cập một trang có thể mất 4-5s. Đây là **hành vi bình thường của dev mode**.
+
+- **Warm-up script**: Chạy `./scripts/warmup-dev.sh` để pre-compile các route thường dùng
+- **Test performance thật**: Dùng `npm run build && npm run start` (production mode)
+
+**Truy cập từ IP LAN (192.168.x.x, 172.x.x.x):**
+
+Nếu muốn truy cập từ thiết bị khác trong mạng LAN, thêm vào `frontend-next/.env.local`:
+```bash
+ALLOW_LAN=true
+```
+
+Sau đó restart frontend dev server. Điều này tránh cảnh báo `allowedDevOrigins` khi truy cập từ IP không phải localhost.
 
 **Cách 2: Khởi động từng service riêng (để debug)**
 

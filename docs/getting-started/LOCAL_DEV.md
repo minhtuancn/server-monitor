@@ -208,6 +208,67 @@ cd frontend-next
 npm run dev
 ```
 
+### Reducing First-Load Lag (Optional but Recommended)
+
+**Why is the first page load slow in dev mode?**
+
+Next.js development mode compiles pages on-demand (cold start). The first time you visit a page or API route, Next.js needs to:
+- Compile the TypeScript/React code
+- Bundle dependencies
+- Generate the page
+
+This can take 4-5 seconds for the initial load. **This is normal development behavior** and does not happen in production builds.
+
+**Solution 1: Use the warm-up script**
+
+After starting your dev servers, run the warm-up script to pre-compile common routes:
+
+```bash
+# From project root (run in a 3rd terminal or after services are up)
+./scripts/warmup-dev.sh
+```
+
+This will trigger compilation for:
+- Dashboard pages (English and Vietnamese)
+- Settings, Servers, Terminal, Users pages
+- Common API proxy routes
+
+**Solution 2: Test with production build**
+
+To measure real performance (without dev compilation lag):
+
+```bash
+cd frontend-next
+
+# Build production bundle (takes 1-2 minutes)
+npm run build
+
+# Start production server
+npm run start
+```
+
+Production builds are fully pre-compiled and respond instantly.
+
+**Accessing from LAN IP (e.g., 172.x.x.x)**
+
+If you need to access the dev server from other devices on your network:
+
+1. Set the `ALLOW_LAN` environment variable:
+   ```bash
+   # In frontend-next/.env.local, add:
+   ALLOW_LAN=true
+   ```
+
+2. Restart the frontend dev server
+
+3. Access using your machine's LAN IP:
+   ```
+   http://192.168.1.100:9081
+   http://172.16.0.50:9081
+   ```
+
+This prevents Next.js "allowedDevOrigins" warnings when accessing from non-localhost IPs.
+
 ### Option 2: Manual Start (For Debugging)
 
 **Terminal 1 - Central API:**

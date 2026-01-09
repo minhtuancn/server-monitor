@@ -26,6 +26,28 @@ const nextConfig = {
       },
     ];
   },
+  // Development-only: Allow access from LAN IPs to prevent warning
+  ...(process.env.NODE_ENV === "development" && {
+    experimental: {
+      allowedDevOrigins: process.env.DEV_ALLOWED_ORIGINS
+        ? process.env.DEV_ALLOWED_ORIGINS.split(",")
+        : [
+            "localhost:9081",
+            "127.0.0.1:9081",
+            // Allow common private network ranges
+            ...(process.env.ALLOW_LAN === "true"
+              ? [
+                  // 192.168.x.x (most common home networks)
+                  /^192\.168\.\d{1,3}\.\d{1,3}:9081$/,
+                  // 10.x.x.x (corporate networks)
+                  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}:9081$/,
+                  // 172.16.x.x - 172.31.x.x (docker, corporate)
+                  /^172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}:9081$/,
+                ]
+              : []),
+          ],
+    },
+  }),
 };
 
 export default withNextIntl(nextConfig);
