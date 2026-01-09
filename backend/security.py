@@ -198,14 +198,14 @@ class SecurityHeaders:
     def get_security_headers():
         """Get security headers for response"""
         return {
-            # Content Security Policy
+            # Content Security Policy - Updated for offline mode (no CDN)
             'Content-Security-Policy': (
                 "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
-                "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
-                "font-src 'self' https://cdnjs.cloudflare.com; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "font-src 'self' data:; "
                 "img-src 'self' data:; "
-                "connect-src 'self' ws://172.22.0.103:9084 ws://172.22.0.103:9085"
+                "connect-src 'self' ws: wss:"
             ),
             # Prevent clickjacking
             'X-Frame-Options': 'DENY',
