@@ -2,6 +2,31 @@
 
 Thank you for your interest in contributing to Server Monitor Dashboard! This document provides guidelines and instructions for contributing.
 
+---
+
+## 🤖 AI/Agent Contributors — START HERE!
+
+**If you're an AI coding agent (GitHub Copilot, Cursor, Windsurf, etc.), read [AGENTS.md](AGENTS.md) FIRST!**
+
+The AGENTS.md file contains critical workflow rules:
+
+- ✅ Scope & non-goals (what NOT to do)
+- ✅ How to work in this repo (testing requirements, file structure)
+- ✅ No rambling policy (PR/issue format requirements)
+- ✅ Documentation rules (where docs live)
+- ❌ Sacred code (never touch without permission)
+- 📝 PR/issue templates
+
+**Quick checklist for agents:**
+
+- [ ] Read [AGENTS.md](AGENTS.md)
+- [ ] Check [docs/product/TASKS.md](docs/product/TASKS.md) for available tasks
+- [ ] Use [issue template](docs/templates/ISSUE_TEMPLATE_AGENT_TASK.md) when creating issues
+- [ ] Use [PR checklist](docs/templates/PR_CHECKLIST.md) before submitting
+- [ ] Report back using [status report template](docs/templates/AGENT_STATUS_REPORT.md)
+
+---
+
 ## 📋 Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
