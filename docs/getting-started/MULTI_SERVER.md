@@ -10,7 +10,7 @@
 ✅ **Remote control** - Kill processes, restart services qua SSH  
 ✅ **Auto-deploy agent** - Script tự động deploy lên remote servers  
 ✅ **Alert system** - Cảnh báo khi servers offline  
-✅ **Database storage** - SQLite lưu danh sách servers  
+✅ **Database storage** - SQLite lưu danh sách servers
 
 ## 📊 Kiến trúc
 
@@ -115,6 +115,7 @@ curl http://localhost:9083/api/remote/stats/all | jq
 ## 🔧 API Endpoints
 
 ### Server Management
+
 - `GET  /api/servers` - List servers
 - `POST /api/servers` - Add server
 - `PUT  /api/servers/<id>` - Update server
@@ -122,16 +123,19 @@ curl http://localhost:9083/api/remote/stats/all | jq
 - `POST /api/servers/test` - Test SSH connection
 
 ### Remote Monitoring
+
 - `GET /api/remote/stats/<id>` - Get server stats
 - `GET /api/remote/stats/all` - Get all servers stats
 
 ### Remote Control
+
 - `POST /api/remote/action/<id>` - Execute remote action
   - Kill process: `{"action_type": "kill_process", "action_data": {"pid": "1234"}}`
   - Restart service: `{"action_type": "service_action", "action_data": {"service": "nginx", "action": "restart"}}`
   - Docker control: `{"action_type": "docker_action", "action_data": {"container": "app", "action": "restart"}}`
 
 ### Agent Management
+
 - `POST /api/remote/agent/deploy/<id>` - Deploy agent
 - `POST /api/remote/agent/start/<id>` - Start agent
 
@@ -170,11 +174,13 @@ curl http://localhost:9083/api/remote/stats/all | jq
 ## 🐛 Troubleshooting
 
 ### Paramiko not found
+
 ```bash
 pip3 install paramiko
 ```
 
 ### SSH connection failed
+
 ```bash
 # Test manually
 ssh root@192.168.1.100
@@ -184,12 +190,14 @@ ssh-copy-id root@192.168.1.100
 ```
 
 ### Port already in use
+
 ```bash
 lsof -i:9083
 kill -9 $(lsof -t -i:9083)
 ```
 
 ### Agent not running
+
 ```bash
 ssh root@192.168.1.100
 cat /tmp/agent.log
@@ -199,6 +207,7 @@ nohup python3 /opt/monitoring_agent.py > /tmp/agent.log 2>&1 &
 ## 📞 Examples
 
 ### Add multiple servers
+
 ```bash
 for i in {100..105}; do
   curl -X POST http://localhost:9083/api/servers \
@@ -213,11 +222,13 @@ done
 ```
 
 ### Get all servers status
+
 ```bash
 curl http://localhost:9083/api/servers | jq '.[] | {name, host, status}'
 ```
 
 ### Monitor all servers
+
 ```bash
 watch -n 5 'curl -s http://localhost:9083/api/remote/stats/all | jq'
 ```
@@ -259,6 +270,6 @@ Khi chạy thành công, bạn sẽ thấy:
 
 **Version**: v3.0-dev  
 **Date**: 2026-01-06  
-**Status**: Backend Complete ✅  
+**Status**: Backend Complete ✅
 
 **Created by OpenCode**

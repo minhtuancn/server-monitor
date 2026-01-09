@@ -11,21 +11,25 @@ Version upgrade procedures and rollback strategies for Server Monitor.
 ### Pre-Upgrade Checklist
 
 - [ ] **Read release notes**
+
   - Check [RELEASE_NOTES_vX.X.X.md](../product/) for breaking changes
   - Review upgrade notes for your specific version
 
 - [ ] **Backup everything**
+
   ```bash
   ./scripts/backup.sh
   # Verify backup created in backups/
   ```
 
 - [ ] **Check system requirements**
+
   - Python 3.8+ (`python3 --version`)
   - Node.js 18+ (`node --version`)
   - Disk space >1GB free (`df -h`)
 
 - [ ] **Test in staging first** (if available)
+
   - Deploy to staging environment
   - Run smoke tests
   - Verify critical functionality
@@ -141,11 +145,13 @@ sudo /opt/server-monitor/scripts/upgrade.sh v2.4.0
 ### v2.3.x → v2.4.0
 
 **Breaking Changes**:
+
 - Setup wizard replaces default admin (see [RELEASE_NOTES_v2.4.0.md](../product/RELEASE_NOTES_v2.4.0.md))
 
 **Migration Required**: No
 
 **Steps**:
+
 ```bash
 git pull origin main
 pip install -r backend/requirements.txt
@@ -154,6 +160,7 @@ npm install --prefix frontend-next
 ```
 
 **Verify**:
+
 - Login works with existing credentials
 - Setup wizard only shows for fresh installs
 
@@ -162,11 +169,13 @@ npm install --prefix frontend-next
 ### v2.2.x → v2.3.0
 
 **Breaking Changes**:
+
 - CORS configuration moved to .env (was hardcoded)
 
 **Migration Required**: Yes (`backend/migrations/003_cors_config.py`)
 
 **Steps**:
+
 ```bash
 git pull origin main
 pip install -r backend/requirements.txt
@@ -183,6 +192,7 @@ cd ..
 ```
 
 **Verify**:
+
 - Dashboard loads from allowed domains
 - CORS errors gone
 
@@ -191,11 +201,13 @@ cd ..
 ### v2.1.x → v2.2.0
 
 **Breaking Changes**:
+
 - Database schema change (new `audit_logs` table)
 
 **Migration Required**: Yes (`backend/migrations/002_audit_logs.py`)
 
 **Steps**:
+
 ```bash
 git pull origin main
 pip install -r backend/requirements.txt
@@ -209,6 +221,7 @@ cd ..
 ```
 
 **Verify**:
+
 ```bash
 sqlite3 data/servers.db "SELECT COUNT(*) FROM audit_logs;"
 # Should return 0 (empty table)
@@ -366,34 +379,40 @@ sudo systemctl status server-monitor
 ### Smoke Test Checklist
 
 - [ ] **Services running**
+
   ```bash
   lsof -i:9081,9083,9084,9085
   # Should show 4 processes
   ```
 
 - [ ] **Login works**
+
   - Go to http://localhost:9081
   - Login with existing credentials
   - Redirects to dashboard
 
 - [ ] **Dashboard loads**
+
   - Servers list visible
   - Metrics updating every 3 seconds
   - No console errors (F12)
 
 - [ ] **API functional**
+
   ```bash
   curl -H "Authorization: Bearer $TOKEN" http://localhost:9083/api/servers
   # Should return server list
   ```
 
 - [ ] **WebSocket connected**
+
   ```bash
   wscat -c ws://localhost:9085/ws/monitoring
   # Should connect without errors
   ```
 
 - [ ] **Terminal works** (if configured)
+
   - Go to Terminal page
   - Connect to a server
   - Run command: `df -h`
@@ -430,6 +449,7 @@ npm run build
 ### Blue-Green Deployment
 
 **Setup**:
+
 1. Two environments: Blue (production), Green (staging)
 2. Upgrade Green environment
 3. Test thoroughly
@@ -437,6 +457,7 @@ npm run build
 5. Keep Blue as rollback
 
 **Switch traffic** (Nginx):
+
 ```nginx
 # /etc/nginx/sites-available/server-monitor
 upstream backend {
@@ -515,6 +536,7 @@ fi
 ```
 
 **Usage**:
+
 ```bash
 ./scripts/upgrade.sh v2.4.0
 ```
@@ -528,6 +550,7 @@ fi
 **Cause**: SQL syntax incompatible with SQLite version
 
 **Solution**:
+
 ```bash
 # Check SQLite version
 sqlite3 --version  # Should be 3.35+
@@ -544,6 +567,7 @@ sudo apt install sqlite3
 **Cause**: New dependencies not installed
 
 **Solution**:
+
 ```bash
 # Backend
 cd backend && pip install -r requirements.txt
@@ -559,6 +583,7 @@ cd frontend-next && rm -rf node_modules && npm install
 **Cause**: Services still running or stale lock
 
 **Solution**:
+
 ```bash
 # Stop all services
 ./stop-all.sh
@@ -580,6 +605,7 @@ cd backend && python3 -m migrations.run
 **Cause**: Node.js version too old or cache issue
 
 **Solution**:
+
 ```bash
 cd frontend-next
 
@@ -601,6 +627,7 @@ npm run build
 **Cause**: JWT secret changed or token format changed
 
 **Solution**:
+
 ```bash
 # Check JWT_SECRET in .env
 grep JWT_SECRET backend/.env

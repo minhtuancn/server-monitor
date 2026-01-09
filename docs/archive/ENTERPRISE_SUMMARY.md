@@ -37,6 +37,7 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
 ### 📊 Roadmap chi tiết: 20 tuần, 5 phases
 
 #### **Phase 1: Foundation** (Tuần 1-4) ✅ READY
+
 Đã chuẩn bị sẵn database schema và structure:
 
 ```
@@ -44,35 +45,36 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
    - Users table với roles (admin, user, operator, auditor)
    - Password hashing
    - User profiles
-   
+
 ✅ Enhanced database schema
-   - 8 tables mới: users, system_settings, server_notes, 
+   - 8 tables mới: users, system_settings, server_notes,
      server_groups, notification_channels, saved_commands, audit_logs
-   
+
 ✅ Default admin user created
    - Username: admin
    - Password: admin123
 ```
 
 #### **Phase 2: Core Features** (Tuần 5-8)
+
 ```
 🔨 Multi-language (i18n)
    - 8 ngôn ngữ: en, vi, zh-CN, ja, ko, es, fr, de
    - Translation system
    - Date/number localization
-   
+
 🔨 SSL & Domain Management
    - Multiple domains per server
    - Let's Encrypt integration
    - Auto renewal
    - Force SSL policies
-   
+
 🔨 Notification System
    - Email (SMTP)
    - Telegram bot
    - Slack webhooks
    - Discord integration
-   
+
 🔨 Server Notes
    - Markdown editor
    - Categories & tags
@@ -80,13 +82,14 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
 ```
 
 #### **Phase 3: Advanced Features** (Tuần 9-12)
+
 ```
 🔨 Docker Management
    - Container list/start/stop/restart
    - Container logs (real-time)
    - Image & volume management
    - Docker Compose support
-   
+
 🔨 File Manager
    - Directory tree navigation
    - File CRUD operations
@@ -94,18 +97,18 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
    - File search (regex)
    - Open terminal at directory
    - Git integration
-   
+
 🔨 Log Management
    - Real-time log streaming
    - Log search & filtering
    - Pattern matching alerts
-   
+
 🔨 Enhanced Terminal
    - Saved commands/snippets
    - Command categories
    - Macro recording
    - Multi-session support
-   
+
 🔨 Service Templates
    - Web server (Nginx, Apache)
    - Laravel (PHP, MySQL, Redis)
@@ -114,6 +117,7 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
 ```
 
 #### **Phase 4: Enterprise Features** (Tuần 13-16)
+
 ```
 🔨 Windows Server Support
    - Windows service management
@@ -121,17 +125,17 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
    - Task Manager
    - PowerShell terminal
    - IIS management
-   
+
 🔨 Advanced RBAC
    - Granular permissions
    - Resource-level access
    - Permission inheritance
-   
+
 🔨 Audit System
    - Complete audit trail
    - Change tracking
    - Compliance reports
-   
+
 🔨 Custom Dashboards
    - Drag-drop widgets
    - Custom charts
@@ -139,23 +143,24 @@ Bạn muốn nâng cấp Server Monitor Dashboard lên **chuẩn enterprise** v�
 ```
 
 #### **Phase 5: Polish & Testing** (Tuần 17-20)
+
 ```
 🔨 UI/UX Refinement
    - Command palette (Ctrl+K)
    - Keyboard shortcuts
    - Mobile responsive
    - PWA support
-   
+
 🔨 Performance
    - Redis caching
    - Database optimization
    - Load testing
-   
+
 🔨 Security
    - Security audit
    - Penetration testing
    - MFA (2FA)
-   
+
 🔨 Documentation
    - API docs (Swagger)
    - User guides
@@ -194,6 +199,7 @@ Custom    -- Create custom roles
 ## 🎨 UI/UX Updates
 
 ### New Navigation Menu:
+
 ```
 📊 Dashboard
    - Overview
@@ -258,6 +264,7 @@ Custom    -- Create custom roles
 ## 🌍 Multi-Language Support
 
 ### Languages (Priority order):
+
 1. **English (en)** - Default
 2. **Vietnamese (vi)** - Tiếng Việt
 3. **Chinese (zh-CN)** - 简体中文
@@ -268,6 +275,7 @@ Custom    -- Create custom roles
 8. **German (de)** - Deutsch
 
 ### Translation Structure:
+
 ```javascript
 {
   "common": {
@@ -296,6 +304,7 @@ Custom    -- Create custom roles
 ## 🔒 Security Enhancements
 
 ### Implemented:
+
 - ✅ Password hashing (SHA256, will upgrade to bcrypt)
 - ✅ JWT tokens
 - ✅ Rate limiting
@@ -303,6 +312,7 @@ Custom    -- Create custom roles
 - ✅ Security headers
 
 ### Coming in Enterprise:
+
 - 🔨 Multi-factor authentication (TOTP)
 - 🔨 OAuth2 (Google, GitHub)
 - 🔨 IP whitelisting
@@ -316,17 +326,20 @@ Custom    -- Create custom roles
 ## 📊 System Settings Categories
 
 ### General
+
 - Site name, description, URL
 - Logo, favicon
 - Maintenance mode
 
 ### Date & Time
+
 - Timezone (with auto-sync to servers)
 - Date format (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD)
 - Time format (12h/24h)
 - First day of week
 
 ### Regional
+
 - Default language
 - Number format (1,000.00 vs 1.000,00)
 - Currency
@@ -334,6 +347,7 @@ Custom    -- Create custom roles
 - Thousands separator
 
 ### Security
+
 - Force SSL for public IPs
 - Allow HTTP for LAN
 - Session timeout
@@ -341,6 +355,7 @@ Custom    -- Create custom roles
 - MFA requirement
 
 ### UI/UX
+
 - Theme (Light, Dark, Auto)
 - Font size
 - Density (Compact, Comfortable, Spacious)
@@ -389,6 +404,7 @@ Compose:
 ## 📁 File Manager Features
 
 ### Core:
+
 ```
 ✅ Directory tree (collapsible)
 ✅ File list (table/grid view)
@@ -401,6 +417,7 @@ Compose:
 ```
 
 ### Advanced:
+
 ```
 ✅ Code editor (Monaco - VS Code engine)
 ✅ Syntax highlighting (auto-detect language)
@@ -417,6 +434,7 @@ Compose:
 ## 📢 Notification Channels
 
 ### Email (SMTP)
+
 ```javascript
 {
   "smtp_host": "smtp.gmail.com",
@@ -429,6 +447,7 @@ Compose:
 ```
 
 ### Telegram
+
 ```javascript
 {
   "bot_token": "123456:ABC-DEF1234...",
@@ -439,6 +458,7 @@ Compose:
 ```
 
 ### Slack
+
 ```javascript
 {
   "webhook_url": "https://hooks.slack.com/services/...",
@@ -449,6 +469,7 @@ Compose:
 ```
 
 ### Alert Rules Example:
+
 ```javascript
 {
   "name": "High CPU Alert",
@@ -469,6 +490,7 @@ Compose:
 ## 🪟 Windows Server Support
 
 ### Features:
+
 ```
 ✅ WMI queries (system info)
 ✅ Windows services (start/stop/restart)
@@ -483,6 +505,7 @@ Compose:
 ```
 
 ### Compatibility:
+
 - Windows Server 2016, 2019, 2022
 - Windows 10, 11 (Pro/Enterprise)
 
@@ -490,16 +513,17 @@ Compose:
 
 ## 📈 Performance Targets
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| API Response | < 200ms | < 100ms ✅ |
-| Page Load | < 2s | < 1s ✅ |
+| Metric            | Target  | Current      |
+| ----------------- | ------- | ------------ |
+| API Response      | < 200ms | < 100ms ✅   |
+| Page Load         | < 2s    | < 1s ✅      |
 | WebSocket Latency | < 100ms | 3s intervals |
-| Database Query | < 50ms | Varies |
-| Concurrent Users | 100+ | Untested |
-| Server Monitoring | 500+ | Untested |
+| Database Query    | < 50ms  | Varies       |
+| Concurrent Users  | 100+    | Untested     |
+| Server Monitoring | 500+    | Untested     |
 
 ### Optimizations Planned:
+
 - Redis caching layer
 - Database indexing
 - Query optimization
@@ -513,12 +537,14 @@ Compose:
 ## 💰 Licensing & Pricing (Suggestion)
 
 ### Open Source (Current)
+
 - GPL v3 License
 - Free forever
 - Community support
 - GitHub issues
 
 ### Enterprise Edition (Planned)
+
 - Commercial license
 - Priority support
 - Professional services
@@ -556,6 +582,7 @@ Compose:
 ## 🎉 Kết Luận
 
 Dự án đã có **foundation hoàn chỉnh** với:
+
 - ✅ Database schema enhanced
 - ✅ Enterprise roadmap định nghĩa rõ ràng
 - ✅ 5 phases implementation plan

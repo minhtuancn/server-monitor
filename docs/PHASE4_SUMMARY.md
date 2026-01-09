@@ -13,6 +13,7 @@
 Phase 4 transforms the Server Monitor Dashboard from a monitoring tool into a comprehensive **Server Management Platform** with enterprise-grade features including SSH Key Vault, Enhanced Web Terminal, Server Inventory, Task Execution, and Audit Logging.
 
 **Architecture Decision:** Extend Python Backend (Option 1)
+
 - ✅ Lower risk than Node.js microservice
 - ✅ Leverages existing stable infrastructure
 - ✅ Single language stack (Python)
@@ -29,6 +30,7 @@ Phase 4 transforms the Server Monitor Dashboard from a monitoring tool into a co
 **Documentation:** [docs/modules/SSH_KEY_VAULT.md](./modules/SSH_KEY_VAULT.md)
 
 **Achievements:**
+
 - ✅ AES-256-GCM encryption with PBKDF2 key derivation
 - ✅ Secure database storage (keys unreadable without master key)
 - ✅ REST API endpoints with RBAC
@@ -37,6 +39,7 @@ Phase 4 transforms the Server Monitor Dashboard from a monitoring tool into a co
 - ✅ Comprehensive security documentation
 
 **Key Features:**
+
 - **Encryption:** AES-256-GCM with 12-byte IV, 16-byte auth tag
 - **Key Derivation:** PBKDF2-HMAC-SHA256 (100,000 iterations)
 - **Security:** No plaintext storage, keys never exposed via API
@@ -44,6 +47,7 @@ Phase 4 transforms the Server Monitor Dashboard from a monitoring tool into a co
 - **UI:** Key management interface with validation
 
 **Database Schema:**
+
 ```sql
 CREATE TABLE ssh_keys (
     id TEXT PRIMARY KEY,
@@ -63,6 +67,7 @@ CREATE TABLE ssh_keys (
 ```
 
 **API Endpoints:**
+
 - `GET /api/ssh-keys` - List keys (metadata only)
 - `GET /api/ssh-keys/{id}` - Get key details
 - `POST /api/ssh-keys` - Create encrypted key
@@ -77,6 +82,7 @@ CREATE TABLE ssh_keys (
 **Documentation:** [docs/modules/WEB_TERMINAL.md](./modules/WEB_TERMINAL.md)
 
 **Achievements:**
+
 - ✅ SSH Key Vault integration in terminal
 - ✅ Session tracking with database persistence
 - ✅ Audit logging for all terminal access
@@ -86,6 +92,7 @@ CREATE TABLE ssh_keys (
 - ✅ API endpoints for session management
 
 **Key Features:**
+
 - **SSH Key Auth:** Terminal can use encrypted keys from vault
 - **Session Tracking:** All sessions logged with metadata
 - **Audit Trail:** Complete log of terminal access
@@ -94,6 +101,7 @@ CREATE TABLE ssh_keys (
 - **RBAC:** Operators see only their own sessions
 
 **Database Schema:**
+
 ```sql
 CREATE TABLE terminal_sessions (
     id TEXT PRIMARY KEY,
@@ -120,11 +128,13 @@ CREATE TABLE audit_logs (
 ```
 
 **API Endpoints:**
+
 - `GET /api/terminal/sessions` - List sessions (filtered by role)
 - `POST /api/terminal/sessions/{id}/stop` - Stop session
 - `GET /api/audit-logs` - View audit logs (admin only)
 
 **Audit Actions Tracked:**
+
 - `terminal.open` - Terminal session opened
 - `terminal.close` - Terminal session closed
 - `terminal.stop` - Session stopped via API
@@ -133,6 +143,7 @@ CREATE TABLE audit_logs (
 - `server.delete` - Server deleted
 
 **Pending Work:**
+
 - [ ] Frontend UI for SSH key selection in terminal
 - [ ] Admin dashboard for session management
 - [ ] Audit log viewer UI
@@ -147,6 +158,7 @@ CREATE TABLE audit_logs (
 **Priority:** Medium
 
 **Planned Features:**
+
 - Agentless inventory collection via SSH
 - System information (OS, kernel, CPU, RAM, disk)
 - Package/application inventory
@@ -155,6 +167,7 @@ CREATE TABLE audit_logs (
 - API endpoints for refresh/query
 
 **Database Schema (Draft):**
+
 ```sql
 CREATE TABLE server_inventory_snapshots (
     id TEXT PRIMARY KEY,
@@ -169,6 +182,7 @@ CREATE TABLE server_inventory_snapshots (
 ```
 
 **API Endpoints (Draft):**
+
 - `POST /api/servers/{id}/inventory/refresh` - Trigger collection
 - `GET /api/servers/{id}/inventory/latest` - Get latest snapshot
 - `GET /api/servers/{id}/inventory/history` - Get history
@@ -182,6 +196,7 @@ CREATE TABLE server_inventory_snapshots (
 **Priority:** High
 
 **Planned Features:**
+
 - Task queue system
 - Remote command execution via SSH
 - Status tracking (queued/running/success/failed/timeout)
@@ -191,6 +206,7 @@ CREATE TABLE server_inventory_snapshots (
 - Audit logging for all commands
 
 **Database Schema (Draft):**
+
 ```sql
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY,
@@ -209,12 +225,14 @@ CREATE TABLE tasks (
 ```
 
 **API Endpoints (Draft):**
+
 - `POST /api/tasks` - Create and queue task
 - `GET /api/tasks` - List tasks (filtered)
 - `GET /api/tasks/{id}` - Get task details
 - `POST /api/tasks/{id}/cancel` - Cancel running task
 
 **Security Considerations:**
+
 - Command validation and sanitization
 - Dangerous command warnings
 - Rate limiting per user
@@ -230,11 +248,13 @@ CREATE TABLE tasks (
 **Priority:** Low
 
 **Current State:**
+
 - Basic notes already implemented
 - `server_notes` table exists
 - Markdown support with SimpleMDE
 
 **Planned Enhancements:**
+
 - Version history for notes
 - Tags/labels system for servers
 - Server filtering by tags
@@ -243,6 +263,7 @@ CREATE TABLE tasks (
 - Search functionality
 
 **Database Schema (Draft):**
+
 ```sql
 CREATE TABLE server_tags (
     id TEXT PRIMARY KEY,
@@ -271,11 +292,13 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 **Priority:** Medium
 
 **Current State:**
+
 - ✅ Audit logs table implemented
 - ✅ Basic audit logging for terminal/keys/servers
 - ✅ API endpoint for querying logs
 
 **Planned Enhancements:**
+
 - Admin UI for viewing audit logs
 - Advanced filtering and search
 - Export to CSV/JSON
@@ -284,6 +307,7 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 - Alert notifications for critical actions
 
 **UI Components (Draft):**
+
 - Audit log viewer (table with filters)
 - Export dialog
 - Retention policy configuration
@@ -294,6 +318,7 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 ## Technical Stack
 
 ### Backend
+
 - **Language:** Python 3.10+
 - **Web Framework:** http.server (built-in)
 - **Database:** SQLite 3
@@ -302,6 +327,7 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 - **WebSocket:** websockets
 
 ### Frontend
+
 - **Framework:** Next.js 14 with App Router
 - **Language:** TypeScript
 - **UI Library:** Material-UI (MUI) v5
@@ -315,24 +341,28 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 ## Security Architecture
 
 ### Authentication & Authorization
+
 - **JWT Tokens:** HttpOnly cookies
 - **RBAC Roles:** admin, operator, viewer (user)
 - **Session Management:** Token expiration, refresh
 - **Password Hashing:** SHA256 (legacy, consider bcrypt upgrade)
 
 ### Data Encryption
+
 - **SSH Keys:** AES-256-GCM with PBKDF2 key derivation
 - **Master Key:** Environment variable (`KEY_VAULT_MASTER_KEY`)
 - **IV Generation:** Random 12 bytes per encryption
 - **Auth Tag:** 16 bytes for integrity verification
 
 ### Audit Logging
+
 - **Append-Only:** No updates or deletes allowed
 - **Indexed:** Fast queries on user_id, action, created_at
 - **Metadata:** JSON field for flexible data
 - **Coverage:** All sensitive operations logged
 
 ### Network Security
+
 - **CORS:** Configurable origins
 - **Rate Limiting:** Per-user limits
 - **Input Validation:** All user inputs sanitized
@@ -344,12 +374,14 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 ## Deployment Architecture
 
 ### Services (systemd)
+
 1. **server-monitor-api** - Backend API (port 9083)
 2. **server-monitor-ws** - WebSocket monitoring (port 9085)
 3. **server-monitor-terminal** - Terminal WebSocket (port 9084)
 4. **server-monitor-frontend** - Next.js frontend (port 9081)
 
 ### Directory Structure
+
 ```
 /opt/server-monitor/
 ├── backend/
@@ -373,6 +405,7 @@ ALTER TABLE server_notes ADD COLUMN updated_by INTEGER;
 ```
 
 ### Environment Variables
+
 ```bash
 # Database
 DB_PATH=/opt/server-monitor/data/servers.db
@@ -394,6 +427,7 @@ FRONTEND_PORT=9081
 ## Testing Strategy
 
 ### Unit Tests
+
 - [x] Crypto vault (9/9 passing)
 - [ ] Session management
 - [ ] Audit logging
@@ -401,6 +435,7 @@ FRONTEND_PORT=9081
 - [ ] Terminal session lifecycle
 
 ### Integration Tests
+
 - [ ] Terminal with SSH key vault
 - [ ] Session cleanup
 - [ ] Audit log creation
@@ -408,12 +443,14 @@ FRONTEND_PORT=9081
 - [ ] API endpoints
 
 ### End-to-End Tests
+
 - [ ] Complete terminal session flow
 - [ ] SSH key creation and usage
 - [ ] Audit log viewing
 - [ ] Multi-user scenarios
 
 ### Security Tests
+
 - [ ] Encryption/decryption
 - [ ] RBAC bypass attempts
 - [ ] Input validation
@@ -425,21 +462,25 @@ FRONTEND_PORT=9081
 ## Performance Considerations
 
 ### Database Optimization
+
 - Indexes on frequently queried columns
 - Pagination for large result sets
 - Connection pooling (future)
 
 ### Memory Management
+
 - SSH keys decrypted only when needed
 - Keys held in memory briefly
 - Automatic cleanup on session end
 
 ### Concurrency
+
 - Current: ~50 concurrent terminal sessions
 - With optimization: 100+ sessions
 - WebSocket per-session model
 
 ### Scalability Path
+
 1. Add connection pooling
 2. Implement caching layer (Redis)
 3. Load balancing across instances
@@ -449,18 +490,18 @@ FRONTEND_PORT=9081
 
 ## Documentation Status
 
-| Document | Status | Location |
-|----------|--------|----------|
-| Architecture Overview | ✅ Complete | ARCHITECTURE.md |
-| Security Guide | ✅ Updated | SECURITY.md |
-| Deployment Guide | ✅ Complete | DEPLOYMENT.md |
-| Installation Guide | ✅ Complete | docs/INSTALLER.md |
-| SSH Key Vault | ✅ Complete | docs/modules/SSH_KEY_VAULT.md |
-| Web Terminal | ✅ Complete | docs/modules/WEB_TERMINAL.md |
-| Server Inventory | ⏳ Pending | docs/modules/INVENTORY.md |
-| Task Execution | ⏳ Pending | docs/modules/TASKS.md |
-| Changelog | ✅ Updated | CHANGELOG.md |
-| README | ✅ Updated | README.md |
+| Document              | Status      | Location                      |
+| --------------------- | ----------- | ----------------------------- |
+| Architecture Overview | ✅ Complete | ARCHITECTURE.md               |
+| Security Guide        | ✅ Updated  | SECURITY.md                   |
+| Deployment Guide      | ✅ Complete | DEPLOYMENT.md                 |
+| Installation Guide    | ✅ Complete | docs/INSTALLER.md             |
+| SSH Key Vault         | ✅ Complete | docs/modules/SSH_KEY_VAULT.md |
+| Web Terminal          | ✅ Complete | docs/modules/WEB_TERMINAL.md  |
+| Server Inventory      | ⏳ Pending  | docs/modules/INVENTORY.md     |
+| Task Execution        | ⏳ Pending  | docs/modules/TASKS.md         |
+| Changelog             | ✅ Updated  | CHANGELOG.md                  |
+| README                | ✅ Updated  | README.md                     |
 
 ---
 
@@ -468,49 +509,53 @@ FRONTEND_PORT=9081
 
 ### Code Changes (Phase 4 Modules 1-2)
 
-| Metric | Module 1 | Module 2 | Total |
-|--------|----------|----------|-------|
-| Lines of code added | ~750 | ~850 | ~1,600 |
-| New files | 3 | 1 doc | 4 |
-| Modified files | 5 | 3 | 8 |
-| Database tables | 1 | 2 | 3 |
-| API endpoints | 4 | 3 | 7 |
-| Unit tests | 9 | 0* | 9 |
-| Documentation pages | 1 | 1 | 2 |
+| Metric              | Module 1 | Module 2 | Total  |
+| ------------------- | -------- | -------- | ------ |
+| Lines of code added | ~750     | ~850     | ~1,600 |
+| New files           | 3        | 1 doc    | 4      |
+| Modified files      | 5        | 3        | 8      |
+| Database tables     | 1        | 2        | 3      |
+| API endpoints       | 4        | 3        | 7      |
+| Unit tests          | 9        | 0\*      | 9      |
+| Documentation pages | 1        | 1        | 2      |
 
-*Module 2 tests pending
+\*Module 2 tests pending
 
 ### Feature Coverage
 
-| Feature | Module 1 | Module 2 | Module 3 | Module 4 | Module 5 | Module 6 |
-|---------|----------|----------|----------|----------|----------|----------|
-| Backend | ✅ 100% | ✅ 100% | ⏳ 0% | ⏳ 0% | ⏳ 0% | 🔄 50% |
-| API | ✅ 100% | ✅ 100% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ✅ 100% |
-| Frontend | ✅ 100% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ⏳ 0% |
-| Tests | ✅ 100% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ⏳ 0% |
-| Docs | ✅ 100% | ✅ 100% | ⏳ 0% | ⏳ 0% | ⏳ 0% | ⏳ 0% |
+| Feature  | Module 1 | Module 2 | Module 3 | Module 4 | Module 5 | Module 6 |
+| -------- | -------- | -------- | -------- | -------- | -------- | -------- |
+| Backend  | ✅ 100%  | ✅ 100%  | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | 🔄 50%   |
+| API      | ✅ 100%  | ✅ 100%  | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ✅ 100%  |
+| Frontend | ✅ 100%  | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    |
+| Tests    | ✅ 100%  | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    |
+| Docs     | ✅ 100%  | ✅ 100%  | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    | ⏳ 0%    |
 
 ---
 
 ## Next Steps
 
 ### Immediate (Current Sprint)
+
 1. ✅ Complete Module 2 backend
 2. ✅ Document Module 2
 3. 🔄 Implement Module 2 frontend
 4. ⏳ Write comprehensive tests
 
 ### Short Term (Next Sprint)
+
 1. Complete Module 2 frontend and tests
 2. Begin Module 3 (Server Inventory)
 3. Update installer scripts if needed
 
 ### Medium Term (2-3 Sprints)
+
 1. Complete Module 3 (Inventory)
 2. Complete Module 4 (Task Execution)
 3. Enhance Module 6 (Audit UI)
 
 ### Long Term (Future)
+
 1. Complete Module 5 (Notes/Tags)
 2. Performance optimization
 3. Enhanced RBAC
@@ -520,19 +565,20 @@ FRONTEND_PORT=9081
 
 ## Risks & Mitigation
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Breaking existing features | High | Comprehensive testing, gradual rollout |
-| Performance degradation | Medium | Load testing, optimization |
-| Security vulnerabilities | High | Code review, security scanning |
-| Data loss | High | Backups, soft deletes, audit trail |
-| User adoption | Medium | Documentation, training, gradual rollout |
+| Risk                       | Impact | Mitigation                               |
+| -------------------------- | ------ | ---------------------------------------- |
+| Breaking existing features | High   | Comprehensive testing, gradual rollout   |
+| Performance degradation    | Medium | Load testing, optimization               |
+| Security vulnerabilities   | High   | Code review, security scanning           |
+| Data loss                  | High   | Backups, soft deletes, audit trail       |
+| User adoption              | Medium | Documentation, training, gradual rollout |
 
 ---
 
 ## Success Criteria
 
 ### Phase 4 Overall
+
 - [ ] All 6 modules implemented
 - [ ] Comprehensive test coverage (>80%)
 - [ ] Documentation complete and accurate
@@ -541,6 +587,7 @@ FRONTEND_PORT=9081
 - [ ] Backward compatible with Phase 2-3
 
 ### Module 2 Specific
+
 - [x] Backend implementation complete
 - [x] API endpoints functional
 - [x] Documentation complete
@@ -564,6 +611,7 @@ FRONTEND_PORT=9081
 ## Changelog
 
 **2026-01-07:**
+
 - ✅ Module 1 (SSH Key Vault) complete
 - ✅ Module 2 (Web Terminal) backend complete
 - ✅ Documentation updated
@@ -580,4 +628,4 @@ FRONTEND_PORT=9081
 
 ---
 
-*Last Updated: 2026-01-07*
+_Last Updated: 2026-01-07_
