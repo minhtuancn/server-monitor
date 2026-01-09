@@ -52,10 +52,35 @@ cd /path/to/server-monitor
 
 ### 1. Clone the Repository
 
+**If you haven't cloned the repository yet:**
+
 ```bash
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 ```
+
+**If you already have the repository (update to latest):**
+
+```bash
+cd /path/to/server-monitor  # Navigate to where you cloned it
+git pull
+```
+
+**If you want a fresh install (clean slate):**
+
+```bash
+# WARNING: This deletes your local repository and all local changes!
+cd ~
+rm -rf server-monitor
+git clone https://github.com/minhtuancn/server-monitor.git
+cd server-monitor
+```
+
+**Troubleshooting: "destination path 'server-monitor' already exists"**
+
+This error means you've already cloned the repository. You have two options:
+1. Use `cd server-monitor && git pull` to update the existing repo
+2. Use `rm -rf server-monitor` to delete it, then clone again
 
 ### 2. Create Python Virtual Environment
 
@@ -108,6 +133,12 @@ cd ..
 
 **Note**: Always return to project root after cd commands!
 
+**About npm warnings**: You might see messages like `npm warn deprecated package@version`. These are warnings, not errors:
+- Deprecated packages still work normally
+- They won't block your development or build process
+- Only worry if you see `npm ERR!` (which indicates actual errors)
+- Warnings are safe to ignore for local development
+
 ### 5. Configure Environment Variables
 
 Create the `.env` file in the project root:
@@ -135,6 +166,12 @@ NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
 NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
 EOF
 ```
+
+**Important notes about heredoc syntax:**
+- The closing `EOF` must be on its own line with no spaces before or after it
+- Use `'EOF'` (with single quotes) to prevent bash variable substitution
+- If you see your terminal "hanging" after running this command, you likely didn't close the heredoc properly
+- Press `Ctrl+C` to cancel and try again, ensuring EOF is on its own line
 
 ## Starting the Development Environment
 

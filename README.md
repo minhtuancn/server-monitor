@@ -158,6 +158,17 @@ Nếu không thấy → bạn đang ở sai thư mục! Hãy `cd` đến thư m�
 
 ```bash
 # 1. Clone repository
+# Nếu chưa có repo:
+git clone https://github.com/minhtuancn/server-monitor.git
+cd server-monitor
+
+# Nếu đã có repo (cập nhật code mới nhất):
+cd ~/server-monitor  # hoặc đường dẫn nơi bạn đã clone
+git pull
+
+# Nếu muốn cài lại sạch (xóa và clone lại):
+cd ~
+rm -rf server-monitor
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
@@ -188,12 +199,22 @@ cd frontend-next
 npm ci  # hoặc npm install
 cd ..
 
+# 📝 Lưu ý về npm warnings:
+# - Thông báo "npm warn deprecated ..." là WARNING, không phải LỖI
+# - Các deprecated packages vẫn hoạt động bình thường
+# - Chỉ có lỗi thật khi npm exit code != 0 (hiện thông báo "npm ERR!")
+# - Bạn có thể bỏ qua npm warnings khi chạy local development
+
 # 8. Tạo file cấu hình cho frontend
 cat > frontend-next/.env.local << 'EOF'
 API_PROXY_TARGET=http://localhost:9083
 NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
 NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
 EOF
+
+# ⚠️ Lưu ý về heredoc:
+# - EOF phải đứng một mình trên dòng cuối (không có khoảng trắng trước/sau)
+# - Dùng 'EOF' (có dấu ngoặc) để tránh bash thay thế biến
 ```
 
 ### Khởi Động Services Để Test
@@ -481,7 +502,7 @@ cp .env.example .env
 # Generate secure keys with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
 # Configure frontend environment
-cat > frontend-next/.env.local << EOF
+cat > frontend-next/.env.local << 'EOF'
 API_PROXY_TARGET=http://localhost:9083
 NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
 NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084

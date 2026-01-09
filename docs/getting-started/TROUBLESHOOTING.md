@@ -4,15 +4,45 @@ This guide covers common issues you might encounter when setting up or running S
 
 ## Table of Contents
 
-1. [Wrong Directory Issues](#wrong-directory-issues)
-2. [Virtual Environment Issues](#virtual-environment-issues)
-3. [Missing Dependencies](#missing-dependencies)
-4. [Port Already in Use](#port-already-in-use)
-5. [Database Issues](#database-issues)
-6. [Log File Issues](#log-file-issues)
-7. [WebSocket Connection Issues](#websocket-connection-issues)
-8. [Frontend Build Issues](#frontend-build-issues)
-9. [Permission Issues](#permission-issues)
+1. [Clone/Repository Issues](#clonerepository-issues)
+2. [Wrong Directory Issues](#wrong-directory-issues)
+3. [Virtual Environment Issues](#virtual-environment-issues)
+4. [Missing Dependencies](#missing-dependencies)
+5. [npm Warnings](#npm-warnings)
+6. [Environment File Creation Issues](#environment-file-creation-issues)
+7. [Port Already in Use](#port-already-in-use)
+8. [Database Issues](#database-issues)
+9. [Log File Issues](#log-file-issues)
+10. [WebSocket Connection Issues](#websocket-connection-issues)
+11. [Frontend Build Issues](#frontend-build-issues)
+12. [Permission Issues](#permission-issues)
+
+---
+
+## Clone/Repository Issues
+
+### Symptom: `fatal: destination path 'server-monitor' already exists`
+
+**Cause**: You're trying to clone into a directory that already exists.
+
+**Solution**:
+
+```bash
+# Option 1: Update the existing repository (RECOMMENDED)
+cd server-monitor
+git pull
+
+# Option 2: Clone to a different directory
+git clone https://github.com/minhtuancn/server-monitor.git server-monitor-new
+cd server-monitor-new
+
+# Option 3: Delete and re-clone (WARNING: loses local changes!)
+rm -rf server-monitor
+git clone https://github.com/minhtuancn/server-monitor.git
+cd server-monitor
+```
+
+**Best Practice**: If you already have the repo, use `git pull` to update instead of cloning again.
 
 ---
 
@@ -164,6 +194,100 @@ npm ci
 npm install
 
 cd ..
+```
+
+---
+
+## npm Warnings
+
+### Symptom: `npm warn deprecated package@version` during npm install
+
+**Cause**: Some packages in the dependency tree are marked as deprecated by their maintainers.
+
+**Is this a problem?**: **NO!** These are warnings, not errors.
+
+**Explanation**:
+- Deprecated packages still function correctly
+- They won't prevent your application from running
+- npm only shows these as informational warnings
+- You only have a real problem if you see `npm ERR!` (not `npm warn`)
+
+**Example of normal warnings (safe to ignore)**:
+```
+npm warn deprecated inflight@1.0.6: This module is not supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated @humanwhocodes/config-array@0.11.14: Use @eslint/config-array instead
+```
+
+**When to worry**:
+```
+npm ERR! code ERESOLVE
+npm ERR! ERESOLVE unable to resolve dependency tree
+```
+
+**Action**: Only investigate if:
+- `npm install` exits with non-zero status code
+- You see `npm ERR!` messages
+- Your application fails to start due to missing packages
+
+**Solution**: For local development, you can safely ignore npm warnings. For production, consider updating dependencies periodically.
+
+---
+
+## Environment File Creation Issues
+
+### Symptom: Terminal "hangs" after running heredoc command, or `.env.local` has wrong content
+
+**Cause**: Incorrect heredoc syntax when creating `frontend-next/.env.local`.
+
+**Common mistakes**:
+1. Not closing the heredoc with `EOF`
+2. Having spaces/tabs before the closing `EOF`
+3. Using `EOF` without quotes (causes variable expansion)
+4. Typo in closing delimiter (e.g., `EOFT` instead of `EOF`)
+
+**Correct syntax**:
+
+```bash
+cat > frontend-next/.env.local << 'EOF'
+API_PROXY_TARGET=http://localhost:9083
+NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+EOF
+```
+
+**Key points**:
+- Use `'EOF'` with single quotes to prevent bash variable expansion
+- The closing `EOF` must be on its own line
+- No spaces or tabs before `EOF`
+- No text after `EOF` on that line
+
+**If terminal is hanging**:
+
+```bash
+# Press Ctrl+C to cancel the command
+# Then re-run with correct syntax
+
+# Verify the file was created correctly:
+cat frontend-next/.env.local
+
+# Should show exactly:
+# API_PROXY_TARGET=http://localhost:9083
+# NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085
+# NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084
+```
+
+**Alternative method (if heredoc is problematic)**:
+
+```bash
+# Create file manually with echo
+echo "API_PROXY_TARGET=http://localhost:9083" > frontend-next/.env.local
+echo "NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085" >> frontend-next/.env.local
+echo "NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084" >> frontend-next/.env.local
+
+# Or use a text editor
+nano frontend-next/.env.local
+# Then paste the content and save with Ctrl+O, Exit with Ctrl+X
 ```
 
 ---
