@@ -98,14 +98,15 @@ fi
 echo ""
 
 # Step 3: Update API URL in frontend
-echo -e "${BLUE}===> Step 3: Configuring frontend...${NC}"
-cd $DEV_DIR/frontend/
-if grep -q "const API_URL = 'http://172.22.0.103:8083'" dashboard.html; then
-    sed -i "s|const API_URL = 'http://172.22.0.103:8083'|const API_URL = 'http://172.22.0.103:$API_PORT'|" dashboard.html
-    echo -e "${GREEN}✓ Frontend API URL updated${NC}"
-else
-    echo -e "${YELLOW}⚠️  Frontend already configured${NC}"
+echo -e "${BLUE}===> Step 3: Configuring Next.js frontend...${NC}"
+cd $DEV_DIR/frontend-next/
+if [ ! -f ".env.local" ]; then
+    cp .env.example .env.local
+    echo -e "${GREEN}✓ Created .env.local${NC}"
 fi
+# Update API proxy target
+sed -i "s|API_PROXY_TARGET=.*|API_PROXY_TARGET=http://localhost:$API_PORT|" .env.local
+echo -e "${GREEN}✓ Next.js frontend configured${NC}"
 echo ""
 
 # Step 4: Create necessary directories
@@ -119,6 +120,7 @@ echo ""
 # Step 5: Start backend API
 echo -e "${BLUE}===> Step 5: Starting Backend API...${NC}"
 cd $DEV_DIR/backend/
+export SKIP_DEFAULT_ADMIN=${SKIP_DEFAULT_ADMIN:-true}
 $PYTHON_CMD central_api.py > $DEV_DIR/logs/api.log 2>&1 &
 API_PID=$!
 echo $API_PID > $DEV_DIR/api.pid
@@ -141,13 +143,13 @@ else
 fi
 echo ""
 
-# Step 6: Start web server
-echo -e "${BLUE}===> Step 6: Starting Web Server...${NC}"
-cd $DEV_DIR/frontend/
-$PYTHON_CMD -m http.server $WEB_PORT > $DEV_DIR/logs/web.log 2>&1 &
+# Step 6: Start Next.js development server
+echo -e "${BLUE}===> Step 6: Starting Next.js Development Server...${NC}"
+cd $DEV_DIR/frontend-next/
+npm run dev > $DEV_DIR/logs/web.log 2>&1 &
 WEB_PID=$!
 echo $WEB_PID > $DEV_DIR/web.pid
-echo -e "${GREEN}✓ Web server started (PID: $WEB_PID)${NC}"
+echo -e "${GREEN}✓ Next.js dev server started (PID: $WEB_PID)${NC}"
 echo -e "  Log: $DEV_DIR/logs/web.log"
 echo -e "  URL: http://172.22.0.103:$WEB_PORT"
 echo ""
@@ -158,23 +160,23 @@ echo -e "${GREEN}║                  🎉 Development Server Started! 🎉     
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${BLUE}📊 Access URLs:${NC}"
-echo -e "  Dashboard:  ${GREEN}http://172.22.0.103:$WEB_PORT/dashboard.html${NC}"
-echo -e "  API:        ${GREEN}http://172.22.0.103:$API_PORT/api/all${NC}"
-echo -e "  API Health: ${GREEN}http://172.22.0.103:$API_PORT/api/health${NC}"
+echo -e "  Next.js App: ${GREEN}http://172.22.0.103:$WEB_PORT${NC}"
+echo -e "  API:         ${GREEN}http://172.22.0.103:$API_PORT/api/all${NC}"
+echo -e "  API Health:  ${GREEN}http://172.22.0.103:$API_PORT/api/health${NC}"
 echo ""
 echo -e "${BLUE}📝 Logs:${NC}"
-echo -e "  API:  tail -f $DEV_DIR/logs/api.log"
-echo -e "  Web:  tail -f $DEV_DIR/logs/web.log"
+echo -e "  API:     tail -f $DEV_DIR/logs/api.log"
+echo -e "  Next.js: tail -f $DEV_DIR/logs/web.log"
 echo ""
 echo -e "${BLUE}🔧 PIDs:${NC}"
-echo -e "  API:  $API_PID (saved to $DEV_DIR/api.pid)"
-echo -e "  Web:  $WEB_PID (saved to $DEV_DIR/web.pid)"
+echo -e "  API:     $API_PID (saved to $DEV_DIR/api.pid)"
+echo -e "  Next.js: $WEB_PID (saved to $DEV_DIR/web.pid)"
 echo ""
 echo -e "${BLUE}🛑 Stop servers:${NC}"
 echo -e "  bash $DEV_DIR/stop-dev.sh"
 echo -e "  Or manually: kill $API_PID $WEB_PID"
 echo ""
-echo -e "${YELLOW}⚠️  Note: This is DEVELOPMENT mode, not for production use!${NC}"
-echo -e "${YELLOW}⚠️  Production servers are still running on ports 8081, 8083${NC}"
+echo -e "${YELLOW}⚠️  Note: This is DEVELOPMENT mode with Next.js, not for production!${NC}"
+echo -e "${YELLOW}⚠️  For production, use: npm run build && npm start${NC}"
 echo ""
 echo -e "${GREEN}Happy Developing! 🚀${NC}"

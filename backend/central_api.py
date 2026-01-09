@@ -264,6 +264,19 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         path = parsed.path
         query = parse_qs(parsed.query)
         
+        # ==================== SETUP (PUBLIC) ====================
+        if path == '/api/setup/status':
+            # Public endpoint: check if initial admin setup is required
+            try:
+                users = user_mgr.get_all_users()
+                needs_setup = len(users) == 0
+                self._set_headers()
+                self.wfile.write(json.dumps({'needs_setup': needs_setup}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+            return
+        
         # ==================== OBSERVABILITY ENDPOINTS ====================
         
         if path == '/api/health':
@@ -1705,6 +1718,51 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                                 'error': 'Invalid port number'
                             }).encode())
                             return
+        
+        # ==================== SETUP (PUBLIC) ====================
+        
+        if path == '/api/setup/initialize':
+            # Create first admin user without authentication (only allowed when no users exist)
+            try:
+                users = user_mgr.get_all_users()
+                if len(users) > 0:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Setup already completed'}).encode())
+                    self._finish_request(400)
+                    return
+                required = ['username', 'email', 'password']
+                if not data or not all(k in data for k in required):
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'Missing required fields'}).encode())
+                    self._finish_request(400)
+                    return
+                success, message, user_id = user_mgr.create_user(
+                    username=data['username'],
+                    email=data['email'],
+                    password=data['password'],
+                    role='admin',
+                    avatar_url=data.get('avatar_url')
+                )
+                if success:
+                    user = user_mgr.get_user(user_id)
+                    token = security.AuthMiddleware.generate_token({
+                        'user_id': user['id'],
+                        'username': user['username'],
+                        'role': user['role'],
+                        'permissions': user.get('permissions', [])
+                    })
+                    self._set_headers(201)
+                    self.wfile.write(json.dumps({'success': True, 'user': user, 'token': token}).encode())
+                    self._finish_request(201, user_id=str(user['id']))
+                else:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'success': False, 'error': message}).encode())
+                    self._finish_request(400)
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+                self._finish_request(500)
+            return
         
         # ==================== AUTHENTICATION ====================
         

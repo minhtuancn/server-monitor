@@ -48,6 +48,19 @@ ALLOWED_ORIGINS = [
     'https://127.0.0.1:9081'
 ]
 
+# Add custom domains from environment variable (e.g., ALLOWED_FRONTEND_DOMAINS=mon.go7s.net,example.com)
+CUSTOM_DOMAINS = os.environ.get('ALLOWED_FRONTEND_DOMAINS', '').split(',') if os.environ.get('ALLOWED_FRONTEND_DOMAINS') else []
+for domain in CUSTOM_DOMAINS:
+    domain = domain.strip()
+    if domain:
+        # Support both HTTP and HTTPS, with common ports
+        ALLOWED_ORIGINS.extend([
+            f'http://{domain}',
+            f'https://{domain}',
+            f'http://{domain}:9081',
+            f'https://{domain}:9081'
+        ])
+
 # Allow dynamic CORS in development (checks for specific patterns)
 # Set CORS_ALLOW_ALL=true in environment to allow all origins (development only)
 CORS_ALLOW_ALL = os.environ.get('CORS_ALLOW_ALL', '').lower() in ('true', '1', 'yes')

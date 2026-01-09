@@ -1,10 +1,10 @@
 # 🖥️ Server Monitor Dashboard v2.3
 
-**Multi-server monitoring system with modern Next.js frontend, real-time updates, web terminal, webhooks, and advanced security**
+**Multi-server monitoring system with modern Next.js 16 frontend, real-time updates, web terminal, webhooks, and advanced security**
 
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
 [![Version](https://img.shields.io/badge/version-2.3.0-blue)](https://github.com/minhtuancn/server-monitor/releases)
-[![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-black)]()
+[![Frontend](https://img.shields.io/badge/frontend-Next.js%2016-black)]()
 [![API](https://img.shields.io/badge/API-OpenAPI%203.0-brightgreen)]()
 [![Tests](https://img.shields.io/badge/tests-passing-green)]()
 [![Security](https://img.shields.io/badge/security-hardened-green)]()
@@ -13,6 +13,7 @@
 ## 🚀 Quick Navigation
 
 **Bạn muốn làm gì?**
+
 - 💻 **[Test trên máy local?](#-chạy-thử-trên-local-developmenttesting)** ← Bắt đầu từ đây!
 - 🚀 **[Deploy production?](#one-command-installation-on-linux-recommended)** ← Cài đặt tự động 1 lệnh
 - 📚 **[Xem API docs?](http://localhost:9083/docs)** ← Swagger UI
@@ -36,6 +37,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 ### 🎯 Các Phương Thức Sử Dụng
 
 1. **Local Development/Testing** 💻
+
    - Chạy trực tiếp trên máy local để phát triển và test
    - Không cần systemd hay deployment phức tạp
    - Xem hướng dẫn chi tiết tại: [Chạy Thử Trên Local](#-chạy-thử-trên-local-developmenttesting)
@@ -73,6 +75,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 ### 🎉 What's New
 
 **v2.3 (2026-01-08) - Plugin System & Webhooks:**
+
 - 🔌 **Plugin System**: Extensible architecture with event-driven plugins
 - 🔗 **Managed Webhooks**: Database-backed webhooks with UI management (Admin → Settings → Integrations)
 - 🛡️ **SSRF Protection**: Multi-layer validation blocks internal network access
@@ -83,6 +86,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🔄 **Zero Breaking Changes**: Fully backward compatible with v2.2
 
 **v2.2 (2026-01-07) - Observability & Reliability:**
+
 - 📊 **Observability**: Health checks at `/api/health` and `/api/ready`, Prometheus metrics at `/api/metrics`
 - 🔍 **Request Tracing**: Correlation IDs for end-to-end request tracking
 - 📝 **Structured Logging**: JSON logs across all services with redaction
@@ -91,6 +95,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 📤 **Audit Export**: CSV/JSON export with filtering and sanitization
 
 **v2.1 (2026-01-07) - Production Polish:**
+
 - 📚 **OpenAPI 3.0.3 Documentation**: Complete API specification with 70+ endpoints
 - 🔍 **Swagger UI**: Interactive API documentation at `/docs` endpoint
 - 🧪 **Automated Testing**: Smoke test script for deployment validation
@@ -98,6 +103,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 📖 **OSS-Ready**: Production-ready documentation for contributors
 
 **v2.0 (2026-01-07):**
+
 - ✨ **Next.js Frontend**: Complete rewrite with modern stack (Next.js 14, TypeScript, MUI)
 - 🔐 **Enhanced Security**: HttpOnly cookies, RBAC, SSRF protection, path validation
 - 🛡️ **BFF Layer**: Backend-for-Frontend with authentication proxy
@@ -108,6 +114,7 @@ Server Monitor Dashboard là hệ thống giám sát multi-server với giao di�
 - 🚀 **CI/CD**: Separate workflows for frontend and backend
 
 **Phase 4 Modules (2026-01-07):**
+
 - 🔑 **SSH Key Vault**: AES-256-GCM encrypted private key storage with PBKDF2 key derivation
 - 🖥️ **Enhanced Web Terminal**: Vault integration, session tracking, audit trail, idle timeout
 - 📦 **System Inventory**: Agentless SSH-based collection of OS, CPU, memory, disk, network info
@@ -225,22 +232,26 @@ EOF
 # Đảm bảo bạn đang ở thư mục gốc của dự án
 pwd  # Phải thấy /path/to/server-monitor
 
-# Terminal 1: Kích hoạt virtual environment và khởi động backend services
-source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
+# Khởi động tất cả services (API + WebSocket + Next.js Frontend)
 ./start-all.sh
 
-# Terminal 2: Khởi động frontend Next.js (mở terminal mới)
-cd frontend-next
-npm run dev
+# Script sẽ tự động:
+# - Kích hoạt virtual environment (nếu có)
+# - Khởi động Backend API (port 9083)
+# - Khởi động WebSocket Server (port 9085)
+# - Khởi động Terminal Server (port 9084)
+# - Khởi động Next.js Frontend (port 9081)
+# - Tự động cài đặt npm packages nếu chưa có
 
-# (Tùy chọn) Terminal 3: Chạy warm-up để giảm lag lần đầu
-# Chạy sau khi cả frontend và backend đã khởi động
-./scripts/warmup-dev.sh
+# ⏳ Chờ 10-30 giây để Next.js compile xong
+
+# Dừng tất cả services
+./stop-all.sh
 ```
 
 **Giải thích về độ trễ lần đầu trong dev mode:**
 
-Khi chạy `npm run dev`, Next.js compile code theo yêu cầu (on-demand). Lần đầu truy cập một trang có thể mất 4-5s. Đây là **hành vi bình thường của dev mode**.
+Khi chạy Next.js 16 dev mode, code compile theo yêu cầu (on-demand). Lần đầu truy cập một trang có thể mất 5-10 giây. Đây là **hành vi bình thường của dev mode**.
 
 - **Warm-up script**: Chạy `./scripts/warmup-dev.sh` để pre-compile các route thường dùng
 - **Test performance thật**: Dùng `npm run build && npm run start` (production mode)
@@ -248,6 +259,7 @@ Khi chạy `npm run dev`, Next.js compile code theo yêu cầu (on-demand). Lầ
 **Truy cập từ IP LAN (192.168.x.x, 172.x.x.x):**
 
 Nếu muốn truy cập từ thiết bị khác trong mạng LAN, thêm vào `frontend-next/.env.local`:
+
 ```bash
 ALLOW_LAN=true
 ```
@@ -284,6 +296,7 @@ Sau khi khởi động thành công:
 - 📊 **API Health**: http://localhost:9083/api/health
 
 **Đăng nhập mặc định:**
+
 - Username: `admin`
 - Password: `admin123`
 
@@ -311,6 +324,7 @@ curl http://localhost:9083/api/health
 ```
 
 **Lưu ý về logs**:
+
 - Nếu chạy bằng `./start-all.sh` → logs trong thư mục `logs/`
 - Nếu chạy manual (`python3 backend/...`) → logs hiện trên terminal
 - Nếu cài production (systemd) → dùng `sudo journalctl -u server-monitor-*`
@@ -337,6 +351,7 @@ curl http://localhost:9083/api/health
 📚 **Hướng dẫn đầy đủ**: [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md)
 
 **Lỗi: `source venv/bin/activate: No such file or directory`**
+
 ```bash
 # Nguyên nhân: Bạn chưa tạo venv hoặc đang ở sai thư mục
 # Giải pháp 1: Kiểm tra thư mục
@@ -349,6 +364,7 @@ source venv/bin/activate
 ```
 
 **Lỗi: `ModuleNotFoundError: No module named 'paramiko'` hoặc `'websockets'`**
+
 ```bash
 # Nguyên nhân: Chưa cài dependencies hoặc chưa activate venv
 # Giải pháp:
@@ -360,6 +376,7 @@ python3 -c "import paramiko; import websockets; print('OK')"
 ```
 
 **Lỗi: `cd backend: No such file or directory`**
+
 ```bash
 # Nguyên nhân: Bạn đang ở thư mục sai hoặc đã ở trong backend/ rồi
 pwd  # Kiểm tra vị trí hiện tại
@@ -373,6 +390,7 @@ cd /path/to/server-monitor
 ```
 
 **Lỗi: Port already in use**
+
 ```bash
 # Tìm và kill process đang dùng port
 lsof -ti:9081 | xargs kill
@@ -385,6 +403,7 @@ lsof -ti:9083 | xargs kill -9
 ```
 
 **Lỗi: `tail -f logs/*.log: No such file or directory`**
+
 ```bash
 # Nguyên nhân: Thư mục logs chưa tồn tại
 # Giải pháp: start-all.sh sẽ tự tạo logs/ khi chạy
@@ -398,6 +417,7 @@ mkdir -p logs
 ```
 
 **Lỗi: Module not found (sau khi cài xong)**
+
 ```bash
 # Đảm bảo virtual environment đã được kích hoạt
 source venv/bin/activate  # Hoặc venv\Scripts\activate trên Windows
@@ -408,6 +428,7 @@ cd frontend-next && npm install && cd ..
 ```
 
 **Lỗi: externally-managed-environment (Python 3.12+)**
+
 ```bash
 # Giải pháp: Sử dụng virtual environment (BẮT BUỘC cho Python 3.12+)
 python3 -m venv venv
@@ -416,6 +437,7 @@ pip install -r backend/requirements.txt
 ```
 
 **Database bị lỗi**
+
 ```bash
 # Khởi tạo lại database (từ project root)
 source venv/bin/activate
@@ -427,10 +449,11 @@ python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database
 - **Frontend**: Next.js tự động reload khi bạn sửa code (Fast Refresh)
 - **Backend**: Cần restart service sau khi sửa Python code
 - **Tip**: Để auto-restart backend khi code thay đổi, có thể dùng:
+
   ```bash
   # Cài đặt watchdog
   pip3 install watchdog
-  
+
   # Chạy với watchmedo (auto-restart khi file .py thay đổi)
   cd backend
   watchmedo auto-restart --patterns="*.py" --recursive -- python3 central_api.py
@@ -467,6 +490,7 @@ sudo bash /tmp/install.sh --ref v2.2.0
 ```
 
 **What it does:**
+
 - ✅ Installs all dependencies (Python, Node.js, system packages)
 - ✅ Creates systemd services for auto-start on boot
 - ✅ Sets up SQLite database with secure configuration
@@ -475,6 +499,7 @@ sudo bash /tmp/install.sh --ref v2.2.0
 - ✅ Ready in 3-5 minutes!
 
 **After installation:**
+
 - Access: `http://YOUR_SERVER_IP:9081`
 - Default login: `admin` / `admin123` (⚠️ change immediately!)
 - Manage: `sudo smctl status|restart|logs|update`
@@ -587,23 +612,28 @@ npm run build && npm run start  # Production
 Server Monitor Dashboard provides comprehensive API documentation via OpenAPI 3.0.3:
 
 **Swagger UI** (Interactive Documentation):
+
 ```
 http://localhost:9083/docs
 ```
+
 - Browse all 70+ API endpoints
 - View request/response schemas
 - Try out API calls directly from your browser
 - Learn authentication patterns
 
 **OpenAPI Specification** (Machine-readable):
+
 ```
 http://localhost:9083/api/openapi.yaml
 ```
+
 - Download for client code generation
 - Import into Postman, Insomnia, or other API tools
 - Generate SDK/client libraries
 
 **Key API Groups**:
+
 - **Authentication**: Login, logout, session management
 - **Servers**: CRUD operations, connection testing, monitoring
 - **SSH Keys**: Encrypted vault for private keys
@@ -617,6 +647,7 @@ http://localhost:9083/api/openapi.yaml
 - **Export**: CSV/JSON data export
 
 **Example API Call**:
+
 ```bash
 # Get authentication token
 curl -X POST http://localhost:9083/api/auth/login \
@@ -643,6 +674,7 @@ Validate your deployment with the automated smoke test script:
 ```
 
 The smoke test checks:
+
 - ✅ All services running on correct ports
 - ✅ Health endpoints responding
 - ✅ Authentication flow working
@@ -677,6 +709,7 @@ sudo smctl update
 ```
 
 The update process:
+
 - ✅ Backs up your database automatically
 - ✅ Updates code from GitHub
 - ✅ Rebuilds backend and frontend
@@ -834,17 +867,18 @@ server-monitor/
 
 ### Ports
 
-| Service | Port | Protocol | Description |
-|---------|------|----------|-------------|
-| Frontend | 9081 | HTTP | Web UI |
-| API | 9083 | HTTP | REST API |
-| Terminal | 9084 | WebSocket | SSH terminal |
-| WebSocket | 9085 | WebSocket | Real-time updates |
-| Agent (remote) | 8083 | HTTP | Monitoring agent |
+| Service        | Port | Protocol  | Description       |
+| -------------- | ---- | --------- | ----------------- |
+| Frontend       | 9081 | HTTP      | Web UI            |
+| API            | 9083 | HTTP      | REST API          |
+| Terminal       | 9084 | WebSocket | SSH terminal      |
+| WebSocket      | 9085 | WebSocket | Real-time updates |
+| Agent (remote) | 8083 | HTTP      | Monitoring agent  |
 
 ### Environment
 
 Configuration options in `.env` file:
+
 - **JWT_SECRET**: Secret key for JWT tokens (required)
 - **ENCRYPTION_KEY**: Key for SSH password encryption (required)
 - **JWT_EXPIRATION**: Token expiration in seconds (default: 86400)
@@ -861,6 +895,7 @@ Configuration options in `.env` file:
 ### Implemented (v2.0)
 
 ✅ **Authentication & Authorization**
+
 - JWT token-based authentication
 - HttpOnly cookies for token storage (XSS protection)
 - Secure cookie attributes (HttpOnly, SameSite=Lax, Secure in production)
@@ -870,6 +905,7 @@ Configuration options in `.env` file:
 - Access Denied page for unauthorized access
 
 ✅ **Backend-for-Frontend (BFF) Security**
+
 - Auth proxy layer in Next.js
 - Cookie-to-Bearer token translation
 - SSRF protection with path validation
@@ -878,16 +914,19 @@ Configuration options in `.env` file:
 - Set-cookie header filtering
 
 ✅ **Rate Limiting**
+
 - 100 requests/minute (general endpoints)
 - 5 login attempts/5 minutes
 - Automatic IP blocking after repeated failures
 
 ✅ **CORS Protection**
+
 - Whitelist specific origins only
-- No wildcard (*) in production
+- No wildcard (\*) in production
 - Proper preflight handling
 
 ✅ **Security Headers**
+
 - Content-Security-Policy
 - X-Frame-Options: DENY
 - X-Content-Type-Options: nosniff
@@ -895,6 +934,7 @@ Configuration options in `.env` file:
 - Strict-Transport-Security (HSTS)
 
 ✅ **Input Validation**
+
 - IP address validation (0-255 per octet)
 - Hostname validation (proper DNS format)
 - Port range validation (1-65535)
@@ -902,6 +942,7 @@ Configuration options in `.env` file:
 - Real-time client-side validation
 
 ✅ **WebSocket Security**
+
 - Token authentication required
 - No anonymous connections
 - Proper error handling
@@ -910,6 +951,7 @@ Configuration options in `.env` file:
 ### Security Best Practices
 
 ⚠️ **Before Production Deployment**:
+
 1. Change default admin password
 2. Enable HTTPS (use nginx/apache reverse proxy)
 3. Set up firewall rules
@@ -922,6 +964,7 @@ Configuration options in `.env` file:
 ### Threat Model
 
 **Protected Against:**
+
 - ✅ XSS (Cross-Site Scripting) - HttpOnly cookies, input sanitization
 - ✅ CSRF (Cross-Site Request Forgery) - SameSite cookies, token validation
 - ✅ SSRF (Server-Side Request Forgery) - Path validation in proxy
@@ -932,6 +975,7 @@ Configuration options in `.env` file:
 - ✅ Unauthorized Access - RBAC, middleware protection
 
 **Remaining Risks:**
+
 - ⚠️ DDoS attacks - Recommend using Cloudflare or similar
 - ⚠️ Zero-day vulnerabilities - Keep dependencies updated
 - ⚠️ Physical server access - Secure your infrastructure
@@ -941,13 +985,15 @@ Configuration options in `.env` file:
 ## 📊 API Endpoints
 
 ### Authentication
+
 ```
 POST   /api/auth/login       - Login
-POST   /api/auth/logout      - Logout  
+POST   /api/auth/logout      - Logout
 GET    /api/auth/verify      - Verify token
 ```
 
 ### Servers
+
 ```
 GET    /api/servers          - List all servers
 POST   /api/servers          - Add new server
@@ -958,6 +1004,7 @@ POST   /api/servers/:id/test - Test connection
 ```
 
 ### Monitoring
+
 ```
 GET    /api/remote/stats/:id - Get server metrics
 GET    /api/remote/stats/all - Get all servers metrics
@@ -965,6 +1012,7 @@ GET    /api/stats/overview   - Get statistics summary
 ```
 
 ### Export
+
 ```
 GET    /api/export/servers/csv      - Export servers to CSV
 GET    /api/export/servers/json     - Export servers to JSON
@@ -974,6 +1022,7 @@ GET    /api/export/alerts/csv       - Export alerts
 ```
 
 ### Email
+
 ```
 GET    /api/email/config     - Get email configuration
 POST   /api/email/config     - Update email config
@@ -1038,6 +1087,7 @@ Use the comprehensive smoke test checklist:
 ### Test Coverage
 
 **Backend:**
+
 - ✅ Authentication (5 tests)
 - ✅ CRUD operations (5 tests)
 - ✅ Export functionality (2 tests)
@@ -1050,6 +1100,7 @@ Use the comprehensive smoke test checklist:
 **Total: 23/25 tests passing (92%)**
 
 **Frontend:**
+
 - ✅ TypeScript compilation
 - ✅ ESLint checks
 - ✅ Production build verification
@@ -1058,16 +1109,19 @@ Use the comprehensive smoke test checklist:
 ### CI/CD
 
 **Backend CI** (.github/workflows/ci.yml):
+
 - Python linting (flake8)
 - Unit tests (pytest)
 - Security scan (bandit)
 
 **Frontend CI** (.github/workflows/frontend-ci.yml):
+
 - TypeScript linting (ESLint)
 - Production build test
 - Build artifact verification
 
 **Manual Project Review** (.github/workflows/manual-project-review.yml):
+
 - Comprehensive project audit workflow (manual trigger)
 - Static analysis, security scanning, and linting
 - Full test suite execution with coverage
@@ -1078,6 +1132,7 @@ Use the comprehensive smoke test checklist:
 - Detailed review report generation
 
 To run the manual review workflow:
+
 1. Go to **Actions** → **Manual Project Review & Release Audit**
 2. Click **Run workflow**
 3. Configure options (ref, screenshots, PR/issue creation)
@@ -1111,6 +1166,7 @@ To run the manual review workflow:
 Configure HTTP callbacks to receive real-time notifications when events occur in your infrastructure. Perfect for integrating with external systems like Slack, PagerDuty, or custom automation platforms.
 
 **Features:**
+
 - 📡 **Event-Driven**: Subscribe to 30+ event types (servers, tasks, users, alerts, etc.)
 - 🔐 **Secure**: HMAC-SHA256 signature verification with SSRF protection
 - 🔄 **Reliable**: Automatic retry with exponential backoff
@@ -1118,6 +1174,7 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 - 🎛️ **Flexible**: Per-webhook configuration (retry count, timeout, event filters)
 
 **Quick Start:**
+
 1. Navigate to **Settings → Webhooks** (admin only)
 2. Click **Add Webhook**
 3. Enter webhook URL and configure event types
@@ -1130,6 +1187,7 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 ## 📚 Documentation
 
 ### Getting Started
+
 - [README.md](README.md) - This file, overview and quick start
 - [docs/getting-started/LOCAL_DEV.md](docs/getting-started/LOCAL_DEV.md) - Detailed local development setup
 - [docs/getting-started/TROUBLESHOOTING.md](docs/getting-started/TROUBLESHOOTING.md) - Common issues and solutions
@@ -1137,19 +1195,23 @@ Configure HTTP callbacks to receive real-time notifications when events occur in
 - [HTTPS-SETUP.md](HTTPS-SETUP.md) - SSL/HTTPS configuration
 
 ### Architecture & Design
+
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
 - [MULTI-SERVER-GUIDE.md](MULTI-SERVER-GUIDE.md) - Multi-server setup
 
 ### Operations
+
 - [POST-PRODUCTION.md](POST-PRODUCTION.md) - Monitoring, logging, maintenance
 - [TEST_GUIDE.md](TEST_GUIDE.md) - Testing instructions
 - [docs/WORKFLOWS.md](docs/WORKFLOWS.md) - GitHub Actions workflows guide (Vietnamese)
 - [docs/WORKFLOWS_EN.md](docs/WORKFLOWS_EN.md) - GitHub Actions workflows guide (English)
 
 ### Security
+
 - [SECURITY.md](SECURITY.md) - Security guide and audit findings
 
 ### Planning
+
 - [ROADMAP.md](ROADMAP.md) - Feature roadmap
 - [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) - Action items
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
@@ -1198,6 +1260,7 @@ python3 -c "import sys; sys.path.insert(0, 'backend'); import database; database
 ## 🔄 Deployment
 
 ### Development
+
 ```bash
 ./start-all.sh
 ```
@@ -1265,6 +1328,7 @@ docker-compose up -d
 ### v2.0.0 (2026-01-07) - Next.js Migration & Security Hardening 🎉
 
 **Frontend Rewrite:**
+
 - ✨ Complete migration to Next.js 14 with App Router
 - ✨ TypeScript for type safety
 - ✨ Material-UI (MUI) for modern design system
@@ -1274,6 +1338,7 @@ docker-compose up -d
 - ✨ Dark/light theme support with next-themes
 
 **Security Enhancements:**
+
 - 🔐 HttpOnly cookies for token storage (XSS protection)
 - 🔐 RBAC (Role-Based Access Control) with middleware
 - 🔐 Access Denied page for unauthorized access
@@ -1283,18 +1348,21 @@ docker-compose up -d
 - 🔐 Secure cookie attributes (HttpOnly, SameSite, Secure)
 
 **Backend-for-Frontend (BFF):**
+
 - 🛡️ Auth proxy layer in Next.js
 - 🛡️ Cookie-to-Bearer token translation
 - 🛡️ No cookie leakage to backend
 - 🛡️ Set-cookie header filtering
 
 **WebSocket Improvements:**
+
 - 🔄 Fixed event listener memory leaks
 - 🔄 Proper cleanup on unmount
 - 🔄 Better error handling
 - 🔄 Connection status indicators
 
 **UX Improvements:**
+
 - 🎨 Global toast notification system
 - 🎨 Loading skeleton components
 - 🎨 Empty state components
@@ -1302,6 +1370,7 @@ docker-compose up -d
 - 🎨 Role-based navigation visibility
 
 **DevOps:**
+
 - 🚀 Separate CI workflow for frontend
 - 🚀 Systemd service for Next.js
 - 🚀 Comprehensive deployment documentation
@@ -1344,6 +1413,7 @@ Copyright (c) 2026 Minh Tuấn
 ## 👨‍💻 Author
 
 **Minh Tuấn**
+
 - 📧 Email: [vietkeynet@gmail.com](mailto:vietkeynet@gmail.com)
 - 📱 WhatsApp/WeChat: +84912537003
 - 🐙 GitHub: [@minhtuancn](https://github.com/minhtuancn)
@@ -1358,6 +1428,7 @@ Copyright (c) 2026 Minh Tuấn
 ## 📞 Support
 
 For issues or questions:
+
 1. Check [TROUBLESHOOTING section](#-troubleshooting)
 2. Review logs in `logs/` directory
 3. Check [TODO-IMPROVEMENTS.md](TODO-IMPROVEMENTS.md) for known issues
@@ -1368,6 +1439,7 @@ For issues or questions:
 ## 🎯 Roadmap
 
 ### ✅ Completed Features
+
 - [x] PostgreSQL support (can be configured)
 - [x] Swagger/OpenAPI documentation (v2.1+)
 - [x] Multi-user management (Phase 4+)
@@ -1376,6 +1448,7 @@ For issues or questions:
 - [x] Redis caching (cache_helper.py in v2.2+)
 
 ### v2.4.0 (Planned - Q1 2026)
+
 - [ ] Docker containerization with docker-compose
 - [ ] Enhanced monitoring dashboards with custom widgets
 - [ ] Advanced alerting rules with conditional logic
@@ -1383,6 +1456,7 @@ For issues or questions:
 - [ ] Mobile app (React Native)
 
 ### v3.0.0 (Planned - Q2 2026)
+
 - [ ] Kubernetes support
 - [ ] Advanced reporting with scheduled reports
 - [ ] Multi-tenancy support

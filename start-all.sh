@@ -21,6 +21,12 @@ BACKEND_DIR="$BASE_DIR/backend"
 LOGS_DIR="$BASE_DIR/logs"
 DATA_DIR="$BASE_DIR/data"
 
+# Custom domain configuration (optional, for production deployments)
+# Examples:
+#   CUSTOM_DOMAIN=mon.go7s.net
+#   CUSTOM_DOMAIN=monitoring.example.com
+CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
+
 # Ports (can be overridden via environment)
 FRONTEND_PORT="${FRONTEND_PORT:-9081}"
 API_PORT="${API_PORT:-9083}"
@@ -137,6 +143,12 @@ echo -e "${BLUE}Initializing database...${NC}"
 cd "$BACKEND_DIR"
 $PYTHON_CMD -c "import database; database.init_database()" 2>/dev/null || echo -e "${YELLOW}  Database already initialized${NC}"
 
+# Configure custom domain if provided
+if [ -n "$CUSTOM_DOMAIN" ]; then
+    echo -e "${BLUE}Configuring custom domain: $CUSTOM_DOMAIN${NC}"
+    export ALLOWED_FRONTEND_DOMAINS="${CUSTOM_DOMAIN}"
+fi
+
 # Stop existing services
 echo ""
 echo -e "${BLUE}Stopping existing services...${NC}"
@@ -149,6 +161,7 @@ echo ""
 echo -e "${BLUE}Starting services...${NC}"
 
 # Start Central API
+export SKIP_DEFAULT_ADMIN=${SKIP_DEFAULT_ADMIN:-true}
 start_service \
     "Central API" \
     "$PYTHON_CMD backend/central_api.py" \
@@ -175,14 +188,42 @@ if [ -f "$BACKEND_DIR/terminal.py" ]; then
         $TERMINAL_PORT
 fi
 
-# Start Frontend Server
+# Start Frontend Server (Next.js)
+echo -e "${BLUE}Starting Next.js Frontend...${NC}"
+cd "$BASE_DIR/frontend-next"
+
+# Ensure .env.local exists
+if [ ! -f ".env.local" ]; then
+    cp .env.example .env.local
+    sed -i "s|API_PROXY_TARGET=.*|API_PROXY_TARGET=http://localhost:$API_PORT|" .env.local
+fi
+
+# If custom domain is set, update WebSocket URLs
+if [ -n "$CUSTOM_DOMAIN" ]; then
+    # For custom domain, assume reverse proxy on standard HTTPS ports
+    # WebSocket URLs point to reverse proxy domain
+    sed -i "s|NEXT_PUBLIC_MONITORING_WS_URL=.*|NEXT_PUBLIC_MONITORING_WS_URL=wss://$CUSTOM_DOMAIN/ws/monitoring|" .env.local
+    sed -i "s|NEXT_PUBLIC_TERMINAL_WS_URL=.*|NEXT_PUBLIC_TERMINAL_WS_URL=wss://$CUSTOM_DOMAIN/ws/terminal|" .env.local
+    sed -i "s|NEXT_PUBLIC_DOMAIN=.*|NEXT_PUBLIC_DOMAIN=$CUSTOM_DOMAIN|" .env.local
+    sed -i "s|NODE_ENV=.*|NODE_ENV=production|" .env.local
+    # If reverse proxy is on same host, API can also go through proxy
+    # Uncomment if needed:
+    # sed -i "s|API_PROXY_TARGET=.*|API_PROXY_TARGET=https://$CUSTOM_DOMAIN/api/backend|" .env.local
+fi
+
+# Check if node_modules exists
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}Installing Next.js dependencies...${NC}"
+    npm install
+fi
+
 start_service \
-    "Frontend Server" \
-    "$PYTHON_CMD -m http.server $FRONTEND_PORT" \
+    "Next.js Frontend" \
+    "npm run dev" \
     "$BASE_DIR/web.pid" \
     "$LOGS_DIR/web.log" \
     $FRONTEND_PORT \
-    "$BASE_DIR/frontend"
+    "$BASE_DIR/frontend-next"
 
 # Summary
 echo ""
@@ -191,22 +232,31 @@ echo -e "${GREEN}║                 All Services Started!                      
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${BLUE}Access URLs:${NC}"
-echo -e "  Frontend:   ${GREEN}http://$(hostname -I | awk '{print $1}'):$FRONTEND_PORT${NC}"
-echo -e "  API:        ${GREEN}http://$(hostname -I | awk '{print $1}'):$API_PORT${NC}"
-echo -e "  WebSocket:  ${GREEN}ws://$(hostname -I | awk '{print $1}'):$WEBSOCKET_PORT${NC}"
-echo -e "  Terminal:   ${GREEN}ws://$(hostname -I | awk '{print $1}'):$TERMINAL_PORT${NC}"
+echo -e "  Next.js App: ${GREEN}http://$(hostname -I | awk '{print $1}'):$FRONTEND_PORT${NC}"
+echo -e "  API:         ${GREEN}http://$(hostname -I | awk '{print $1}'):$API_PORT${NC}"
+echo -e "  WebSocket:   ${GREEN}ws://$(hostname -I | awk '{print $1}'):$WEBSOCKET_PORT${NC}"
+echo -e "  Terminal:    ${GREEN}ws://$(hostname -I | awk '{print $1}'):$TERMINAL_PORT${NC}"
 echo ""
-echo -e "${BLUE}Default Credentials:${NC}"
-echo -e "  Username: ${GREEN}admin${NC}"
-echo -e "  Password: ${GREEN}admin123${NC}"
+
+if [ -n "$CUSTOM_DOMAIN" ]; then
+    echo -e "${BLUE}Custom Domain Configuration:${NC}"
+    echo -e "  Domain:      ${GREEN}$CUSTOM_DOMAIN${NC}"
+    echo -e "  Frontend:    ${GREEN}https://$CUSTOM_DOMAIN${NC}"
+    echo -e "  Reverse Proxy: Required (nginx/Caddy) for HTTPS and WebSocket"
+    echo -e "  See: ${YELLOW}CUSTOM-DOMAIN-GUIDE.md${NC} for setup"
+    echo ""
+fi
+
+echo -e "${BLUE}First-Run Setup:${NC}"
+echo -e "  ${GREEN}Open the Next.js app; you'll be prompted to create the first admin account.${NC}"
 echo ""
 echo -e "${BLUE}Logs Directory:${NC}"
 echo -e "  ${GREEN}$LOGS_DIR/${NC}"
 echo ""
 echo -e "${BLUE}Commands:${NC}"
-echo -e "  Stop:    ${GREEN}$BASE_DIR/stop-dev.sh${NC}"
-echo -e "  Restart: ${GREEN}$BASE_DIR/start-dev.sh${NC}"
+echo -e "  Stop:    ${GREEN}$BASE_DIR/stop-all.sh${NC}"
+echo -e "  Restart: ${GREEN}$BASE_DIR/start-all.sh${NC}"
 echo -e "  Logs:    ${GREEN}tail -f $LOGS_DIR/*.log${NC}"
 echo ""
-echo -e "${YELLOW}Note: It may take a few seconds for all services to be fully ready.${NC}"
+echo -e "${YELLOW}Note: Next.js may take 10-30 seconds to compile and be ready.${NC}"
 echo ""

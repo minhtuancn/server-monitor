@@ -85,9 +85,11 @@ class UserManagement:
                     )
                 ''')
                 
-                # Create default admin user if no users exist
+                # Create default admin user if no users exist (can be disabled via SKIP_DEFAULT_ADMIN=true)
                 c.execute("SELECT COUNT(*) FROM users")
-                if c.fetchone()[0] == 0:
+                count = c.fetchone()[0]
+                skip_default = os.environ.get('SKIP_DEFAULT_ADMIN', '').lower() in ('1', 'true', 'yes')
+                if count == 0 and not skip_default:
                     # Create default admin user
                     # SECURITY WARNING: Change this password in production!
                     # Generate a strong password or require password change on first login
@@ -107,6 +109,8 @@ class UserManagement:
                     ''', ('admin', 'admin@example.com', default_password_hash, 'admin', 1))
                     print("\n⚠️  WARNING: Default admin user created (admin/admin123)")
                     print("    CHANGE PASSWORD IMMEDIATELY in production!\n")
+                elif count == 0 and skip_default:
+                    print("\nℹ️  Initial setup detected: SKIP_DEFAULT_ADMIN=true, awaiting first-run onboarding\n")
             else:
                 # Add missing columns
                 missing_columns = required_columns - existing_columns

@@ -29,12 +29,8 @@ export default async function LocaleLayout({
   
   const messages = await getMessages();
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className="antialiased">
-        <AppProviders locale={locale} messages={messages}>
-          {children}
-        </AppProviders>
-      </body>
-    </html>
+    <AppProviders locale={locale} messages={messages}>
+      {children}
+    </AppProviders>
   );
 }

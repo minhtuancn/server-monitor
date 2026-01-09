@@ -46,8 +46,24 @@ export default async function middleware(request: NextRequest) {
   const locale = locales.includes(segments[1]) ? segments[1] : defaultLocale;
   const token = request.cookies.get("auth_token")?.value;
 
-  // Redirect to login if not authenticated
+  // When unauthenticated, check if first-run setup is required; redirect to setup
   if (!token && !isLogin && !isAccessDenied) {
+    try {
+      const statusUrl = new URL("/api/proxy/api/setup/status", request.url);
+      const statusRes = await fetch(statusUrl, { cache: "no-store" });
+      if (statusRes.ok) {
+        const { needs_setup } = await statusRes.json();
+        const alreadyOnSetup = pathname.endsWith("/setup");
+        if (needs_setup && !alreadyOnSetup) {
+          const setupUrl = request.nextUrl.clone();
+          setupUrl.pathname = `/${locale}/setup`;
+          return NextResponse.redirect(setupUrl);
+        }
+      }
+    } catch (e) {
+      // Ignore errors and fall back to login
+    }
+
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = `/${locale}/login`;
     loginUrl.searchParams.set("redirect", pathname);
