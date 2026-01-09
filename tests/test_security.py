@@ -4,6 +4,7 @@
 Test security features: rate limiting, CORS, input validation
 """
 
+import os
 import requests
 import time
 import pytest
@@ -13,6 +14,10 @@ TEST_USER = "admin"
 TEST_PASS = "admin123"
 
 
+@pytest.mark.skipif(
+    os.environ.get('CI', '').lower() in ('true', '1', 'yes'),
+    reason="Rate limiting is disabled in CI mode (CI=true)"
+)
 def test_rate_limiting():
     """Test rate limiting on general endpoints"""
     # Make many requests quickly
@@ -29,6 +34,10 @@ def test_rate_limiting():
     assert 429 in responses, "Rate limiting should block after 100 requests"
 
 
+@pytest.mark.skipif(
+    os.environ.get('CI', '').lower() in ('true', '1', 'yes'),
+    reason="Rate limiting is disabled in CI mode (CI=true)"
+)
 def test_login_rate_limiting():
     """Test rate limiting on login endpoint"""
     # Make multiple failed login attempts
