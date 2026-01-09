@@ -20,6 +20,7 @@ class APIClient {
       return window.API_BASE_URL;
     }
 
+    const protocol = window.location.protocol; // http: or https:
     const hostname = window.location.hostname;
     const port = window.location.port;
 
@@ -27,7 +28,7 @@ class APIClient {
     // Production: port 8083
     const apiPort = port === '9081' ? 9083 : 8083;
 
-    return `http://${hostname}:${apiPort}`;
+    return `${protocol}//${hostname}:${apiPort}`;
   }
 
   /**
