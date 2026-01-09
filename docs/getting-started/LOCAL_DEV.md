@@ -45,7 +45,8 @@ README.md
 If you don't see these files/directories, navigate to the project root first:
 
 ```bash
-cd /path/to/server-monitor
+cd ~/server-monitor
+# or wherever you cloned the repository
 ```
 
 ## Step-by-Step Setup
@@ -62,7 +63,7 @@ cd server-monitor
 **If you already have the repository (update to latest):**
 
 ```bash
-cd /path/to/server-monitor  # Navigate to where you cloned it
+cd ~/server-monitor  # or wherever you cloned it
 git pull
 ```
 

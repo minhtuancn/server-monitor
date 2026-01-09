@@ -162,7 +162,7 @@ Nếu không thấy → bạn đang ở sai thư mục! Hãy `cd` đến thư m�
 git clone https://github.com/minhtuancn/server-monitor.git
 cd server-monitor
 
-# Nếu đã có repo (cập nhật code mới nhất):
+# Nếu đã có repo (cập nhật mã nguồn mới nhất):
 cd ~/server-monitor  # hoặc đường dẫn nơi bạn đã clone
 git pull
 

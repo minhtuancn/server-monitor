@@ -241,10 +241,10 @@ npm ERR! ERESOLVE unable to resolve dependency tree
 **Cause**: Incorrect heredoc syntax when creating `frontend-next/.env.local`.
 
 **Common mistakes**:
-1. Not closing the heredoc with `EOF`
-2. Having spaces/tabs before the closing `EOF`
-3. Using `EOF` without quotes (causes variable expansion)
-4. Typo in closing delimiter (e.g., `EOFT` instead of `EOF`)
+- Not closing the heredoc with `EOF`
+- Having spaces/tabs before the closing `EOF`
+- Using `EOF` without quotes (causes variable expansion)
+- Typo in closing delimiter (e.g., `EOFT` instead of `EOF`)
 
 **Correct syntax**:
 
