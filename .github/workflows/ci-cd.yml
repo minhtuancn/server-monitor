@@ -599,15 +599,15 @@ jobs:
     steps:
       - name: Check test results
         run: |
-          echo \"Backend tests: ${{ needs.backend-tests.result }}\"
-          echo \"Frontend tests: ${{ needs.frontend-tests.result }}\"
-          echo \"E2E tests: ${{ needs.e2e-tests.result }}\"
+          echo "Backend tests: ${{ needs.backend-tests.result }}"
+          echo "Frontend tests: ${{ needs.frontend-tests.result }}"
+          echo "E2E tests: ${{ needs.e2e-tests.result }}"
 
-          if [[ \"${{ needs.backend-tests.result }}\" != \"success\" ||
-                \"${{ needs.frontend-tests.result }}\" != \"success\" ||
-                \"${{ needs.e2e-tests.result }}\" != \"success\" ]]; then
-            echo \"❌ Quality gate failed - one or more test suites failed\"
+          if [[ "${{ needs.backend-tests.result }}" != "success" ||
+                "${{ needs.frontend-tests.result }}" != "success" ||
+                "${{ needs.e2e-tests.result }}" != "success" ]]; then
+            echo "❌ Quality gate failed - one or more test suites failed"
             exit 1
           else
-            echo \"✅ Quality gate passed - all tests successful\"
+            echo "✅ Quality gate passed - all tests successful"
           fi
