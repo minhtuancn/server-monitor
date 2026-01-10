@@ -7,7 +7,6 @@ Integrates with plugin system and database for extensible webhook support
 
 import sys
 import os
-import json
 import hmac
 import hashlib
 import urllib.request
@@ -20,9 +19,9 @@ import time
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import database as db
-from event_model import Event
-from observability import StructuredLogger
+import database as db  # noqa: E402
+from event_model import Event  # noqa: E402
+from observability import StructuredLogger  # noqa: E402
 
 
 logger = StructuredLogger("webhook_dispatcher")
@@ -97,7 +96,7 @@ def is_safe_url(url: str) -> tuple[bool, Optional[str]]:
 
             for pattern in internal_patterns:
                 if pattern in hostname:
-                    return False, f"Internal hostname patterns are not allowed"
+                    return False, "Internal hostname patterns are not allowed"
 
         return True, None
 
@@ -244,7 +243,7 @@ def _deliver_webhook(webhook: Dict[str, Any], event: Event) -> None:
             error_body = ""
             try:
                 error_body = e.read().decode("utf-8", errors="ignore")[:1000]
-            except:
+            except Exception:  # Catch any error during error body reading
                 pass
 
             # Log failed/retrying delivery
