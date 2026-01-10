@@ -87,6 +87,12 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Settings", href: "/settings", icon: <SettingsIcon /> },
       {
+        label: "Database",
+        href: "/settings/database",
+        icon: <StorageIcon />,
+        roles: ["admin"],
+      },
+      {
         label: "Domain & SSL",
         href: "/settings/domain",
         icon: <LanguageIcon />,
@@ -237,7 +243,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <AppBar position="fixed" color="inherit" elevation={1} sx={{ zIndex: 1300 }}>
         <Toolbar sx={{ display: "flex", gap: 1 }}>
           {isMobile && (
-            <IconButton edge="start" onClick={toggleDrawer} sx={{ width: 44, height: 44 }}>
+            <IconButton 
+              edge="start" 
+              onClick={toggleDrawer} 
+              sx={{ width: 44, height: 44 }}
+              aria-label="Open navigation menu"
+            >
               <MenuIcon />
             </IconButton>
           )}
@@ -249,6 +260,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               color="inherit"
               sx={{ width: 44, height: 44 }}
+              aria-label="Toggle theme"
             >
               {muiTheme.palette.mode === "dark" ? (
                 <Brightness7Icon />
@@ -258,7 +270,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </IconButton>
           </Tooltip>
           <Tooltip title="Logout">
-            <IconButton onClick={handleLogout} color="inherit" sx={{ width: 44, height: 44 }}>
+            <IconButton 
+              onClick={handleLogout} 
+              color="inherit" 
+              sx={{ width: 44, height: 44 }}
+              aria-label="Logout"
+            >
               <LogoutIcon />
             </IconButton>
           </Tooltip>

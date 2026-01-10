@@ -497,6 +497,61 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(settings).encode())
             return
 
+        # ==================== DATABASE MANAGEMENT ====================
+        elif path == '/api/database/health':
+            # Get database health status (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            from database_manager import db_manager
+            health = db_manager.check_health()
+            self._set_headers()
+            self.wfile.write(json.dumps(health).encode())
+            return
+        
+        elif path == '/api/database/backups':
+            # List all backups (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            from database_manager import db_manager
+            backups = db_manager.list_backups()
+            self._set_headers()
+            self.wfile.write(json.dumps({'backups': backups, 'count': len(backups)}).encode())
+            return
+        
+        elif path == '/api/database/storage':
+            # Get storage statistics (admin only)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            from database_manager import db_manager
+            storage = db_manager.get_storage_stats()
+            self._set_headers()
+            self.wfile.write(json.dumps(storage).encode())
+            return
+
         # ==================== NOTIFICATION CHANNELS ====================
         elif path == '/api/notifications/channels':
             # Get notification channels status (admin only)
@@ -1974,6 +2029,44 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 'success': success,
                 'message': message
             }).encode())
+            return
+        
+        # ==================== DATABASE MANAGEMENT ====================
+        
+        elif path == '/api/database/backup':
+            # Create manual backup (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            from database_manager import db_manager
+            result = db_manager.create_backup()
+            
+            status_code = 200 if result['success'] else 500
+            self._set_headers(status_code)
+            self.wfile.write(json.dumps(result).encode())
+            return
+        
+        elif path == '/api/database/restore':
+            # Restore from backup (admin only)
+            if auth_result.get('role') not in ['admin']:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            filename = data.get('filename')
+            if not filename:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Backup filename is required'}).encode())
+                return
+            
+            from database_manager import db_manager
+            result = db_manager.restore_backup(filename)
+            
+            status_code = 200 if result['success'] else 500
+            self._set_headers(status_code)
+            self.wfile.write(json.dumps(result).encode())
             return
         
         # ==================== SERVER MANAGEMENT ====================
@@ -3505,6 +3598,27 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({'error': 'Invalid server ID'}).encode())
+        
+        # ==================== DATABASE MANAGEMENT ====================
+        
+        elif path.startswith('/api/database/backups/'):
+            # Delete backup (admin only)
+            if auth_result.get('role') != 'admin':
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Admin access required'}).encode())
+                return
+            
+            filename = path.split('/')[-1]
+            
+            from database_manager import db_manager
+            result = db_manager.delete_backup(filename)
+            
+            status_code = 200 if result['success'] else 404
+            self._set_headers(status_code)
+            self.wfile.write(json.dumps(result).encode())
+            return
+        
+        # ==================== OTHER ENDPOINTS ====================
         
         elif path.startswith('/api/snippets/'):
             # Delete snippet

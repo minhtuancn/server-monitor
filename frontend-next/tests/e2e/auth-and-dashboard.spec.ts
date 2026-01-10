@@ -92,7 +92,7 @@ test('dashboard components load and display', async ({ page }) => {
   await expect(page.getByRole('button', { name: /export json/i })).toBeVisible();
 
   // Check refresh button is present (use more specific selector)
-  await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refresh servers and stats' })).toBeVisible();
 });
 
 test('responsive design works on mobile viewport', async ({ page }) => {
@@ -108,7 +108,7 @@ test('responsive design works on mobile viewport', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
 
   // Check mobile menu button is visible
-  const menuButton = page.getByRole('button', { name: /menu/i });
+  const menuButton = page.getByRole('button', { name: 'Open navigation menu' });
   await expect(menuButton).toBeVisible();
 
   // Open mobile menu

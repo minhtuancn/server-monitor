@@ -81,7 +81,8 @@ Last Updated: 2026-01-09
 
 **Running in Production**
 
-- [BACKUP_RESTORE.md](operations/BACKUP_RESTORE.md) — Database backups & recovery
+- [DATABASE_BACKUP_RESTORE.md](operations/DATABASE_BACKUP_RESTORE.md) — **Database backups, restore, and management**
+- [BACKUP_RESTORE.md](operations/BACKUP_RESTORE.md) — Database backups & recovery (legacy)
 - [LOGGING.md](operations/LOGGING.md) — Log management & monitoring
 - [UPGRADE_ROLLBACK.md](operations/UPGRADE_ROLLBACK.md) — Version upgrades & rollback
 - [DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment details

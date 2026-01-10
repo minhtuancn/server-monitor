@@ -200,6 +200,7 @@ export default function DashboardPage() {
           <IconButton
             onClick={() => Promise.all([refetchServers(), refetchStats()])}
             sx={{ width: 44, height: 44 }}
+            aria-label="Refresh servers and stats"
           >
             <RefreshIcon />
           </IconButton>
