@@ -10,7 +10,7 @@ import time
 import uuid
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Optional, Any
 from collections import defaultdict
 
@@ -48,7 +48,7 @@ class StructuredLogger:
     def _log(self, level: str, message: str, **kwargs):
         """Internal method to output structured log entries"""
         log_entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": level,
             "service": self.service_name,
             "message": message,

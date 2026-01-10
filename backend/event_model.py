@@ -6,7 +6,7 @@ Provides standardized event structure across the system
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field, asdict
 import json
@@ -27,7 +27,7 @@ class Event:
 
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     event_type: str = ""  # e.g., 'server.created', 'task.finished', 'terminal.connect'
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     user_id: Optional[int] = None
     username: Optional[str] = None
     server_id: Optional[int] = None
@@ -57,7 +57,7 @@ class Event:
         return cls(
             event_id=audit_log.get("id", str(uuid.uuid4())),
             event_type=audit_log.get("action", ""),
-            timestamp=audit_log.get("created_at", datetime.utcnow().isoformat() + "Z"),
+            timestamp=audit_log.get("created_at", datetime.now(timezone.utc).isoformat()),
             user_id=audit_log.get("user_id"),
             target_type=audit_log.get("target_type", ""),
             target_id=str(audit_log.get("target_id", "")),

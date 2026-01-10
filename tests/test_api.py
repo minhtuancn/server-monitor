@@ -73,6 +73,9 @@ class TestAuthentication:
     
     def test_login_missing_fields(self):
         """Test login with missing fields"""
+        # Small delay to avoid rate limiting from previous tests
+        time.sleep(0.1)
+        
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={"username": TEST_USER}

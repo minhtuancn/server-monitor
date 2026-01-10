@@ -7,7 +7,7 @@ Manages server list, credentials, and monitoring history
 
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import hashlib
 import secrets
@@ -2061,7 +2061,7 @@ def add_audit_log(user_id, action, target_type, target_id, meta=None, ip=None, u
 
     try:
         log_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
         meta_json = json.dumps(meta) if meta else None
 
         cursor.execute(
@@ -2163,7 +2163,7 @@ def cleanup_old_audit_logs(days=90):
     # Calculate cutoff date
     from datetime import datetime, timedelta
 
-    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     # Delete old logs
     cursor.execute(
@@ -2207,7 +2207,7 @@ def create_terminal_session(server_id, user_id, ssh_key_id=None):
 
     try:
         session_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute(
             """
@@ -2240,7 +2240,7 @@ def end_terminal_session(session_id, status="closed"):
     cursor = conn.cursor()
 
     try:
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute(
             """
@@ -2273,7 +2273,7 @@ def update_terminal_session_activity(session_id):
     cursor = conn.cursor()
 
     try:
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute(
             """
@@ -2365,7 +2365,7 @@ def save_server_inventory(server_id, inventory_json, save_snapshot=True):
     cursor = conn.cursor()
 
     try:
-        collected_at = datetime.utcnow().isoformat() + "Z"
+        collected_at = datetime.now(timezone.utc).isoformat()
 
         # Save/update latest inventory
         cursor.execute(
@@ -2484,7 +2484,7 @@ def create_task(server_id, user_id, command, timeout_seconds=60, store_output=0)
 
     try:
         task_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         cursor.execute(
             """
@@ -2998,7 +2998,7 @@ def create_webhook(name, url, secret=None, enabled=True, event_types=None, retry
 
     try:
         webhook_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         # Convert event_types list to JSON string
         event_types_json = json.dumps(event_types) if event_types else None
@@ -3119,7 +3119,7 @@ def update_webhook(
     cursor = conn.cursor()
 
     try:
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         # Build update query dynamically
         updates = ["updated_at = ?"]
@@ -3203,7 +3203,7 @@ def update_webhook_last_triggered(webhook_id):
     cursor = conn.cursor()
 
     try:
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
         cursor.execute(
             """
             UPDATE webhooks 
@@ -3247,7 +3247,7 @@ def log_webhook_delivery(
 
     try:
         log_id = str(uuid.uuid4())
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         # Truncate response body if too large
         if response_body and len(response_body) > 10000:
@@ -3409,7 +3409,7 @@ def cleanup_old_webhook_deliveries(days=90):
     # Calculate cutoff date
     from datetime import datetime, timedelta
 
-    cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
 
     # Delete old webhook delivery logs
     cursor.execute(

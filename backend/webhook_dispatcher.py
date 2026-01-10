@@ -244,7 +244,7 @@ def _deliver_webhook(webhook: Dict[str, Any], event: Event) -> None:
             error_body = ""
             try:
                 error_body = e.read().decode("utf-8", errors="ignore")[:1000]
-            except:
+            except Exception:
                 pass
 
             # Log failed/retrying delivery

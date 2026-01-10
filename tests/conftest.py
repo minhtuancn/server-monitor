@@ -105,3 +105,53 @@ def test_credentials():
         'username': os.getenv('TEST_USER', 'admin'),
         'password': os.getenv('TEST_PASS', 'admin123')
     }
+
+
+def is_backend_running(base_url=None):
+    """
+    Check if backend API server is running
+    
+    Returns True if server responds to health check, False otherwise
+    """
+    if base_url is None:
+        base_url = os.getenv('TEST_BASE_URL', 'http://localhost:9083')
+    
+    try:
+        response = requests.get(f"{base_url}/api/health", timeout=2)
+        return response.status_code == 200
+    except (requests.ConnectionError, requests.Timeout):
+        return False
+
+
+@pytest.fixture(scope="session")
+def backend_required():
+    """
+    Fixture that skips test if backend is not running
+    
+    Use this fixture for integration tests that require backend services.
+    If backend is not reachable, the test will be skipped with a message.
+    
+    Example:
+        def test_api_endpoint(backend_required):
+            # This test will be skipped if backend is not running
+            response = requests.get("http://localhost:9083/api/servers")
+            assert response.status_code == 200
+    """
+    if not is_backend_running():
+        pytest.skip("Backend API server is not running (connection refused). "
+                   "Start services with ./start-all.sh to run integration tests.")
+    return True
+
+
+@pytest.fixture(autouse=True)
+def skip_integration_if_no_backend(request):
+    """
+    Auto-skip integration tests if backend is not running
+    
+    This fixture automatically runs before each test marked with
+    @pytest.mark.integration and skips the test if backend is not available.
+    """
+    if request.node.get_closest_marker('integration'):
+        if not is_backend_running():
+            pytest.skip("Backend not running - skipping integration test")
+
