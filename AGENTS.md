@@ -33,6 +33,7 @@ When working on this project with AI coding agents, follow these guidelines to m
 
 - `installer.sh` / systemd service files — production deployment scripts
 - Database migration scripts — risk of data loss
+- Database backup/restore scripts (`scripts/backup-database.sh`, `scripts/restore-database.sh`) — production data safety
 - `start-all.sh` / `stop-all.sh` — production start/stop orchestration
 - Authentication/JWT logic in `backend/security.py` and `backend/user_management.py`
 - WebSocket server core in `backend/websocket_server.py`
@@ -429,19 +430,69 @@ npm install -g wscat
 wscat -c ws://localhost:9085/ws/monitoring
 ```
 
-### Database Issues
+### Database Management
+
+#### Backup Database (Recommended Way)
 
 ```bash
-# Backup first!
+# Create encrypted backup with GPG (AES256)
+./scripts/backup-database.sh backup
+
+# List all backups
+./scripts/backup-database.sh list
+
+# Backups are stored in: data/backups/
+# Format: servers_db_YYYYMMDD_HHMMSS.db.gpg
+```
+
+#### Restore Database
+
+```bash
+# Restore from backup (interactive with safety confirmation)
+./scripts/restore-database.sh
+
+# Non-interactive restore (for automation)
+./scripts/restore-database.sh --backup servers_db_20260110_012354.db.gpg --yes
+
+# Auto-creates pre-restore backup and rolls back on failure
+```
+
+#### Manual Database Operations (Dev Only)
+
+```bash
+# Manual backup (unencrypted, dev only)
 cp data/servers.db data/servers.db.backup
 
 # Check schema
 sqlite3 data/servers.db ".schema"
 
+# Check integrity
+sqlite3 data/servers.db "PRAGMA integrity_check;"
+
 # Fresh start (dev only!)
 rm data/servers.db
 ./start-dev.sh  # Recreates DB
 ```
+
+#### Automated Backups
+
+```bash
+# Setup cron job (2 AM daily with 7-day retention)
+./scripts/setup-backup-automation.sh
+
+# View backup logs
+tail -f logs/backup.log
+
+# Current schedule
+crontab -l | grep backup
+```
+
+#### Database Management UI
+
+- Frontend page: `/en/settings/database`
+- Features: Health monitoring, backup/restore, storage stats
+- Admin-only access
+- Real-time status updates (30s refresh)
 
 ---
 
