@@ -15,6 +15,7 @@
 ## 🚀 Quick Start
 
 ### Local Development (5 minutes)
+
 ```bash
 # Clone repository
 git clone https://github.com/minhtuancn/server-monitor.git
@@ -30,6 +31,7 @@ open http://localhost:9081
 **First-run setup**: Create admin account at `/setup` page.
 
 ### Production Deployment (1 command)
+
 ```bash
 # One-command installation (Ubuntu/Debian)
 ./installer.sh
@@ -57,30 +59,35 @@ CUSTOM_DOMAIN=mon.go7s.net ./start-all.sh
 ## 📚 Documentation
 
 ### Getting Started
+
 - [Quick Start Guide](docs/getting-started/QUICK_START.md) — Detailed setup instructions
-- [Custom Domain Setup](CUSTOM-DOMAIN-GUIDE.md) — Deploy to mon.go7s.net or any domain
-- [HTTPS Setup](HTTPS-SETUP.md) — SSL/TLS certificates
+- [Custom Domain Setup](docs/operations/CUSTOM_DOMAIN.md) — Deploy to mon.go7s.net or any domain
+- [HTTPS Setup](docs/security/HTTPS_SETUP.md) — SSL/TLS certificates
 - [Troubleshooting](docs/getting-started/TROUBLESHOOTING.md) — Common issues
 
 ### For Developers
+
 - **[AGENTS.md](AGENTS.md)** — **AI agents start here!** Workflow rules & best practices
 - [Contributing](CONTRIBUTING.md) — How to contribute
 - [Architecture](ARCHITECTURE.md) — System design
 - [API Reference](http://localhost:9083/docs) — Swagger UI (when running)
-- [Testing](TEST_GUIDE.md) — Running tests
+- [Testing](docs/operations/TEST_GUIDE.md) — Running tests
 
 ### Operations
-- [Deployment Guide](DEPLOYMENT.md) — Production deployment
+
+- [Deployment Guide](docs/operations/DEPLOYMENT.md) — Production deployment
 - [Security Guide](SECURITY.md) — Security best practices
 - [Backup & Restore](docs/operations/BACKUP_RESTORE.md) — Database backups
-- [Upgrade Guide](UPGRADE_GUIDE.md) — Version upgrades
+- [Upgrade Guide](docs/operations/UPGRADE_ROLLBACK.md) — Version upgrades
 
 ### Planning
+
 - [Roadmap](docs/product/ROADMAP.md) — Version-based roadmap (v2.4-v3.1)
 - [Tasks](docs/product/TASKS.md) — Task backlog (Now/Next/Later)
 - [Changelog](CHANGELOG.md) — Release history
 
 ### Complete Index
+
 - **[docs/README.md](docs/README.md)** — **Complete documentation index**
 
 ---

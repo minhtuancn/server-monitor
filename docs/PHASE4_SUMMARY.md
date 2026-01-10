@@ -600,8 +600,8 @@ FRONTEND_PORT=9081
 ## References
 
 - [Project Specification](PROJECT_SPECIFICATION.md)
-- [Architecture Documentation](ARCHITECTURE.md)
-- [Security Guide](SECURITY.md)
+- [Architecture Documentation](docs/architecture/ARCHITECTURE.md)
+- [Security Guide](docs/security/SECURITY.md)
 - [Phase 2 Completion](archive/PHASE2_COMPLETION_REPORT.md)
 - [Phase 3 Completion](archive/PHASE3_COMPLETION_SUMMARY.md)
 - [GitHub Repository](https://github.com/minhtuancn/server-monitor)

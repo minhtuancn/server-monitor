@@ -432,7 +432,7 @@ crontab -e
 
 ## Resources
 
-- [Deployment Guide](../../DEPLOYMENT.md) — Production setup
+- [Deployment Guide](docs/operations/DEPLOYMENT.md) — Production setup
 - [Operations Guide](LOGGING.md) — Log management
 - [Security Guide](../security/PRODUCTION_SECURITY.md) — Production hardening
 - [Upgrade Guide](UPGRADE_ROLLBACK.md) — Version upgrades

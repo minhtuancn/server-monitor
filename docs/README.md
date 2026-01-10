@@ -19,7 +19,7 @@ Last Updated: 2026-01-09
 - [CUSTOM_DOMAIN.md](operations/CUSTOM_DOMAIN.md) — Deploy with custom domain (mon.go7s.net)
 - [HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL/TLS certificate setup
 - [DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment guide
-- [DOCKER.md](getting-started/DOCKER.md) — Docker Compose setup (future)
+- [DOCKER.md](docs/getting-started/DOCKER.md) — Docker Compose setup (future)
 
 **Configuration**
 
@@ -106,7 +106,7 @@ Last Updated: 2026-01-09
 - [HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL certificate setup
 - [SECURITY_MODEL.md](security/SECURITY_MODEL.md) — Authentication & authorization
 - [SSH_KEY_MANAGEMENT.md](security/SSH_KEY_MANAGEMENT.md) — SSH key vault
-- [WEBHOOKS_SECURITY.md](security/WEBHOOKS_SECURITY.md) — Webhook HMAC & SSRF
+- [WEBHOOKS_SECURITY.md](docs/security/SECURITY.md) — Webhook HMAC & SSRF
 
 **Configuration**
 

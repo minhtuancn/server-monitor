@@ -645,7 +645,7 @@ python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))" >>
 - [Release Notes](../product/) — Version-specific changes
 - [Backup Guide](BACKUP_RESTORE.md) — Backup procedures
 - [Troubleshooting](../getting-started/TROUBLESHOOTING.md) — Common issues
-- [Deployment Guide](../../DEPLOYMENT.md) — Production setup
+- [Deployment Guide](docs/operations/DEPLOYMENT.md) — Production setup
 - [Changelog](../../CHANGELOG.md) — All changes
 
 ---

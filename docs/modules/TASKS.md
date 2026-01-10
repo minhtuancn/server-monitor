@@ -406,7 +406,7 @@ This runs migration `007` which creates the `tasks` table and indexes.
 
 ## Related Documentation
 
-- [RBAC Guide](../SECURITY.md)
+- [RBAC Guide](docs/security/SECURITY.md)
 - [SSH Key Vault](./SSH_KEY_VAULT.md)
-- [Audit Logging](../ARCHITECTURE.md)
+- [Audit Logging](docs/architecture/ARCHITECTURE.md)
 - [API Documentation](../README.md)

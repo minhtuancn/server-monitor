@@ -71,4 +71,4 @@ server-monitor-frontend.service   # Next.js frontend on port 9081
 ## Support
 
 These files are provided for reference only. No support or updates will be provided.
-For current installations, see: [DEPLOYMENT.md](../../DEPLOYMENT.md)
+For current installations, see: [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)

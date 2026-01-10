@@ -493,7 +493,7 @@ Or:
 
 - Open an [issue](https://github.com/minhtuancn/server-monitor/issues)
 - Check [existing discussions](https://github.com/minhtuancn/server-monitor/discussions)
-- Read the [documentation](README.md)
+- Read the [documentation](docs/README.md)
 
 ---
 

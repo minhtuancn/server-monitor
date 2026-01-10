@@ -498,7 +498,7 @@ The codebase was scanned with Bandit security scanner:
 
 #### High Priority
 - [ ] Change default admin password immediately after deployment
-- [ ] Enable HTTPS in production (see [HTTPS-SETUP.md](HTTPS-SETUP.md))
+- [ ] Enable HTTPS in production (see [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md))
 - [ ] Set secure JWT_SECRET and ENCRYPTION_KEY
 
 #### Medium Priority

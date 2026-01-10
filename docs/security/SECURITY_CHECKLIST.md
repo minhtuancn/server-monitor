@@ -218,7 +218,7 @@ openssl s_client -connect your-domain.com:443 2>/dev/null | openssl x509 -noout 
 
 Ensure these documents are current:
 
-- [ ] [SECURITY.md](../SECURITY.md) - Vulnerability reporting policy
+- [ ] [SECURITY.md](docs/security/SECURITY.md) - Vulnerability reporting policy
 - [ ] [PRODUCTION_SECURITY.md](PRODUCTION_SECURITY.md) - Hardening guide
 - [ ] [HTTPS_SETUP.md](../operations/HTTPS_SETUP.md) - SSL certificate setup
 - [ ] [BACKUP_RESTORE.md](../operations/BACKUP_RESTORE.md) - Backup procedures
@@ -274,6 +274,6 @@ Ensure these documents are current:
 
 **Need Help?**
 
-- Security Policy: [SECURITY.md](../SECURITY.md)
+- Security Policy: [SECURITY.md](docs/security/SECURITY.md)
 - Production Guide: [PRODUCTION_SECURITY.md](PRODUCTION_SECURITY.md)
 - Create Security Issue: [GitHub Issues](https://github.com/minhtuancn/server-monitor/issues)

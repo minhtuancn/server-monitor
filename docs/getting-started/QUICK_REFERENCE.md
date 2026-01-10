@@ -188,9 +188,9 @@ sudo smctl restore /var/lib/server-monitor/backups/servers-LATEST.db
 ## 📚 Documentation
 
 - **Installation Guide**: [docs/INSTALLER.md](docs/INSTALLER.md)
-- **Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Deployment Guide**: [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)
 - **Post-Production**: [POST-PRODUCTION.md](POST-PRODUCTION.md)
-- **Security**: [SECURITY.md](SECURITY.md)
+- **Security**: [SECURITY.md](docs/security/SECURITY.md)
 
 ---
 

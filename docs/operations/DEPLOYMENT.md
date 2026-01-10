@@ -30,7 +30,7 @@ Before deploying to production, ensure:
 - [ ] Change default admin password (`admin123`)
 - [ ] Review CORS allowed origins in `security.py`
 - [ ] Configure firewall rules
-- [ ] Set up HTTPS (see [HTTPS-SETUP.md](HTTPS-SETUP.md))
+- [ ] Set up HTTPS (see [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md))
 
 ### Configuration
 - [ ] Create `.env` file from `.env.example`
@@ -493,7 +493,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-See [HTTPS-SETUP.md](HTTPS-SETUP.md) for detailed SSL configuration.
+See [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md) for detailed SSL configuration.
 
 ---
 

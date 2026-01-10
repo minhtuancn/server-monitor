@@ -27,6 +27,9 @@ UPDATE_INTERVAL = 3  # Update every 3 seconds
 # Store connected clients
 connected_clients = set()
 
+# Store client subscriptions (client_id -> set of server_ids)
+client_subscriptions = {}
+
 # Initialize structured logger
 logger = StructuredLogger("websocket_monitor")
 metrics = get_metrics_collector()
@@ -123,19 +126,43 @@ async def broadcast_server_stats():
                     {"type": "stats_update", "data": all_stats, "timestamp": datetime.now().isoformat()}
                 )
 
-                # Send to all clients
+                # Send to all clients (with subscription filtering)
                 disconnected = set()
                 for client in connected_clients:
                     try:
-                        await client.send(message)
-                        stats["messages_sent"] += 1
+                        # Get client subscriptions (if any)
+                        client_id = id(client)
+                        subscribed_server_ids = client_subscriptions.get(client_id, None)
+                        
+                        # If client has subscriptions, filter stats
+                        if subscribed_server_ids:
+                            filtered_stats = [
+                                stat for stat in all_stats 
+                                if stat.get("server_id") in subscribed_server_ids
+                            ]
+                            # Only send if there are matching stats
+                            if filtered_stats:
+                                filtered_message = json.dumps({
+                                    "type": "stats_update",
+                                    "data": filtered_stats,
+                                    "timestamp": datetime.now().isoformat()
+                                })
+                                await client.send(filtered_message)
+                                stats["messages_sent"] += 1
+                        else:
+                            # No subscription = send all stats
+                            await client.send(message)
+                            stats["messages_sent"] += 1
                     except websockets.exceptions.ConnectionClosed:
                         disconnected.add(client)
                     except Exception as e:
                         print(f"Error sending to client: {e}")
                         disconnected.add(client)
 
-                # Remove disconnected clients
+                # Remove disconnected clients and their subscriptions
+                for client in disconnected:
+                    client_id = id(client)
+                    client_subscriptions.pop(client_id, None)
                 connected_clients.difference_update(disconnected)
                 stats["active_connections"] = len(connected_clients)
 
@@ -195,14 +222,41 @@ async def handle_client(websocket, path):
 
                 # Handle server subscription (future feature)
                 elif data.get("type") == "subscribe":
-                    # TODO: Implement server-specific subscriptions
-                    # This will allow clients to subscribe to updates from specific servers only
+                    # Implement server-specific subscriptions
+                    # This allows clients to subscribe to updates from specific servers only
                     # Expected format: {'type': 'subscribe', 'server_ids': [1, 2, 3]}
-                    # Implementation notes:
-                    #   - Store subscriptions in-memory per WebSocket connection (no persistence)
-                    #   - Filter broadcast messages based on subscribed server IDs
-                    #   - Clear subscriptions on disconnect (ephemeral, not cross-reconnection)
-                    pass
+                    # Or: {'type': 'subscribe', 'server_ids': null} to unsubscribe (get all)
+                    
+                    server_ids = data.get("server_ids")
+                    
+                    if server_ids is None:
+                        # Unsubscribe - remove subscription (client will receive all servers)
+                        client_subscriptions.pop(client_id, None)
+                        response = {
+                            "type": "subscription_updated",
+                            "subscribed_to": "all",
+                            "message": "Unsubscribed from specific servers, receiving all updates",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    elif isinstance(server_ids, list):
+                        # Subscribe to specific servers
+                        # Convert to set for efficient lookup
+                        client_subscriptions[client_id] = set(server_ids)
+                        response = {
+                            "type": "subscription_updated",
+                            "subscribed_to": server_ids,
+                            "message": f"Subscribed to {len(server_ids)} server(s)",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        # Invalid format
+                        response = {
+                            "type": "error",
+                            "message": "Invalid subscription format. Expected {'type': 'subscribe', 'server_ids': [1, 2, 3]} or null",
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    
+                    await websocket.send(json.dumps(response))
 
             except json.JSONDecodeError:
                 error_msg = json.dumps(
@@ -222,6 +276,10 @@ async def handle_client(websocket, path):
         # Remove client from connected set
         if websocket in connected_clients:
             connected_clients.remove(websocket)
+        
+        # Clean up client subscriptions
+        client_subscriptions.pop(client_id, None)
+        
         stats["active_connections"] = len(connected_clients)
 
         # Update metrics

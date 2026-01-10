@@ -303,7 +303,7 @@ LOCAL_NETWORK_RANGE=192.168.0.0/16
 
 ## References
 
-- [HTTPS-SETUP.md](../HTTPS-SETUP.md) — SSL/TLS certificate setup
-- [DEPLOYMENT.md](../DEPLOYMENT.md) — Production deployment guide
+- [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md) — SSL/TLS certificate setup
+- [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md) — Production deployment guide
 - [backend/security.py](../backend/security.py) — CORS and security settings
 - [frontend-next/.env.example](../frontend-next/.env.example) — Frontend env vars

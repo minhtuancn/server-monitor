@@ -1096,10 +1096,10 @@ If you're still experiencing issues:
 ## 📚 Additional Resources
 
 - **Main README**: [README.md](../README.md)
-- **Deployment Guide**: [DEPLOYMENT.md](../DEPLOYMENT.md)
+- **Deployment Guide**: [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)
 - **Post-Production Guide**: [POST-PRODUCTION.md](../POST-PRODUCTION.md)
 - **Security Guide**: [SECURITY.md](../SECURITY.md)
-- **HTTPS Setup**: [HTTPS-SETUP.md](../HTTPS-SETUP.md)
+- **HTTPS Setup**: [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md)
 - **GitHub Repository**: https://github.com/minhtuancn/server-monitor
 - **Issue Tracker**: https://github.com/minhtuancn/server-monitor/issues
 

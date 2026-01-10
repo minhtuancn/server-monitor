@@ -756,7 +756,7 @@ sudo journalctl -u server-monitor-terminal -n 50 -f
 ## References
 
 - [SSH Key Vault Module](./SSH_KEY_VAULT.md)
-- [Security Guide](../SECURITY.md)
+- [Security Guide](docs/security/SECURITY.md)
 - [Architecture Documentation](../../ARCHITECTURE.md)
 - [Paramiko Documentation](https://docs.paramiko.org/)
 

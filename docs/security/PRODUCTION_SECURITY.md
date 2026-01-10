@@ -58,7 +58,7 @@ Security hardening checklist for production deployments.
 
 - [ ] **Enable HTTPS**
 
-  - Use Let's Encrypt certificate (see [HTTPS-SETUP.md](../../HTTPS-SETUP.md))
+  - Use Let's Encrypt certificate (see [HTTPS-SETUP.md](docs/security/HTTPS_SETUP.md))
   - Or use reverse proxy (Nginx/Caddy) with SSL
   - No mixed content (all resources over HTTPS)
 
@@ -529,7 +529,7 @@ curl -I https://mon.yourdomain.com
 ## Resources
 
 - [Security Policy](../../SECURITY.md) — Vulnerability reporting
-- [HTTPS Setup](../../HTTPS-SETUP.md) — SSL certificate setup
+- [HTTPS Setup](docs/security/HTTPS_SETUP.md) — SSL certificate setup
 - [Nginx Proxy](../../NGINX_PROXY_GUIDE.md) — Reverse proxy configuration
 - [Backup Guide](../operations/BACKUP_RESTORE.md) — Backup procedures
 - [Troubleshooting](../getting-started/TROUBLESHOOTING.md) — Common issues

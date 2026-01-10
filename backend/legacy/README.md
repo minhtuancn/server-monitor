@@ -93,5 +93,5 @@ These references indicate that code from another project was accidentally includ
 These files are provided for reference only. No support or updates will be provided.
 For current system documentation, see:
 - [ARCHITECTURE.md](../../ARCHITECTURE.md)
-- [DEPLOYMENT.md](../../DEPLOYMENT.md)
+- [DEPLOYMENT.md](docs/operations/DEPLOYMENT.md)
 - [README.md](../../README.md)

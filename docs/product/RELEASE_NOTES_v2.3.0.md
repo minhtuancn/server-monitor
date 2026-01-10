@@ -610,7 +610,7 @@ See [CHANGELOG.md](CHANGELOG.md#230---2026-01-08) for complete list of changes.
 ## 📞 Support
 
 - **Issues:** [GitHub Issues](https://github.com/minhtuancn/server-monitor/issues)
-- **Documentation:** [Project README](README.md)
+- **Documentation:** [Project README](docs/README.md)
 - **API Docs:** http://localhost:9083/docs
 
 ---
