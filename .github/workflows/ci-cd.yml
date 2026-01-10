@@ -263,6 +263,7 @@ jobs:
           ENCRYPTION_KEY: test-encryption-key-ci
 
       - name: Run Lighthouse CI
+        if: ${{ secrets.LHCI_GITHUB_APP_TOKEN != '' }}
         run: lhci autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
