@@ -28,16 +28,11 @@ UPDATE_INTERVAL = 3  # Update every 3 seconds
 connected_clients = set()
 
 # Initialize structured logger
-logger = StructuredLogger('websocket_monitor')
+logger = StructuredLogger("websocket_monitor")
 metrics = get_metrics_collector()
 
 # Statistics for monitoring
-stats = {
-    'total_clients': 0,
-    'active_connections': 0,
-    'messages_sent': 0,
-    'uptime': datetime.now()
-}
+stats = {"total_clients": 0, "active_connections": 0, "messages_sent": 0, "uptime": datetime.now()}
 
 # Global server for graceful shutdown
 ws_server = None
@@ -60,7 +55,7 @@ async def broadcast_server_stats():
             all_stats = []
 
             for server in servers:
-                server_id = server['id']
+                server_id = server["id"]
 
                 # Skip if no clients are connected
                 if not connected_clients:
@@ -74,64 +69,66 @@ async def broadcast_server_stats():
 
                     # Get remote stats via SSH
                     result = ssh.get_remote_agent_data(
-                        host=server_detail['host'],
-                        port=server_detail['port'],
-                        username=server_detail['username'],
-                        key_path=server_detail.get('ssh_key_path'),
-                        password=server_detail.get('ssh_password'),
-                        agent_port=server_detail.get('agent_port', 8083)
+                        host=server_detail["host"],
+                        port=server_detail["port"],
+                        username=server_detail["username"],
+                        key_path=server_detail.get("ssh_key_path"),
+                        password=server_detail.get("ssh_password"),
+                        agent_port=server_detail.get("agent_port", 8083),
                     )
 
-                    if result['success']:
+                    if result["success"]:
                         # Add server ID and update status
-                        data = result['data']
-                        data['server_id'] = server_id
-                        data['server_name'] = server_detail['name']
-                        data['status'] = 'online'
-                        data['timestamp'] = datetime.now().isoformat()
+                        data = result["data"]
+                        data["server_id"] = server_id
+                        data["server_name"] = server_detail["name"]
+                        data["status"] = "online"
+                        data["timestamp"] = datetime.now().isoformat()
 
                         all_stats.append(data)
 
                         # Update server status in database
-                        db.update_server_status(server_id, 'online')
+                        db.update_server_status(server_id, "online")
 
                     else:
                         # Server is offline or agent not responding
-                        all_stats.append({
-                            'server_id': server_id,
-                            'server_name': server_detail['name'],
-                            'status': 'offline',
-                            'error': result.get('error', 'Connection failed'),
-                            'timestamp': datetime.now().isoformat()
-                        })
+                        all_stats.append(
+                            {
+                                "server_id": server_id,
+                                "server_name": server_detail["name"],
+                                "status": "offline",
+                                "error": result.get("error", "Connection failed"),
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                        )
 
                         # Update server status in database
-                        db.update_server_status(server_id, 'offline')
+                        db.update_server_status(server_id, "offline")
 
                 except Exception as e:
                     print(f"Error fetching stats for server {server_id}: {e}")
-                    all_stats.append({
-                        'server_id': server_id,
-                        'server_name': server.get('name', 'Unknown'),
-                        'status': 'error',
-                        'error': str(e),
-                        'timestamp': datetime.now().isoformat()
-                    })
+                    all_stats.append(
+                        {
+                            "server_id": server_id,
+                            "server_name": server.get("name", "Unknown"),
+                            "status": "error",
+                            "error": str(e),
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
 
             # Broadcast to all connected clients
             if connected_clients and all_stats:
-                message = json.dumps({
-                    'type': 'stats_update',
-                    'data': all_stats,
-                    'timestamp': datetime.now().isoformat()
-                })
+                message = json.dumps(
+                    {"type": "stats_update", "data": all_stats, "timestamp": datetime.now().isoformat()}
+                )
 
                 # Send to all clients
                 disconnected = set()
                 for client in connected_clients:
                     try:
                         await client.send(message)
-                        stats['messages_sent'] += 1
+                        stats["messages_sent"] += 1
                     except websockets.exceptions.ConnectionClosed:
                         disconnected.add(client)
                     except Exception as e:
@@ -140,7 +137,7 @@ async def broadcast_server_stats():
 
                 # Remove disconnected clients
                 connected_clients.difference_update(disconnected)
-                stats['active_connections'] = len(connected_clients)
+                stats["active_connections"] = len(connected_clients)
 
         except Exception as e:
             print(f"Error in broadcast loop: {e}")
@@ -155,14 +152,12 @@ async def handle_client(websocket, path):
     """
     client_id = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
 
-    logger.info('WebSocket monitoring client connected',
-                client_id=client_id,
-                path=path)
+    logger.info("WebSocket monitoring client connected", client_id=client_id, path=path)
 
     # Add client to connected set
     connected_clients.add(websocket)
-    stats['total_clients'] += 1
-    stats['active_connections'] = len(connected_clients)
+    stats["total_clients"] += 1
+    stats["active_connections"] = len(connected_clients)
 
     # Update metrics
     metrics.websocket_connections = len(connected_clients)
@@ -172,13 +167,15 @@ async def handle_client(websocket, path):
 
     try:
         # Send welcome message
-        welcome_msg = json.dumps({
-            'type': 'connection',
-            'status': 'connected',
-            'message': 'Connected to monitoring WebSocket server',
-            'update_interval': UPDATE_INTERVAL,
-            'timestamp': datetime.now().isoformat()
-        })
+        welcome_msg = json.dumps(
+            {
+                "type": "connection",
+                "status": "connected",
+                "message": "Connected to monitoring WebSocket server",
+                "update_interval": UPDATE_INTERVAL,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
         await websocket.send(welcome_msg)
 
         # Listen for messages from client
@@ -187,20 +184,17 @@ async def handle_client(websocket, path):
                 data = json.loads(message)
 
                 # Handle ping/pong for keep-alive
-                if data.get('type') == 'ping':
-                    pong_msg = json.dumps({
-                        'type': 'pong',
-                        'timestamp': datetime.now().isoformat()
-                    })
+                if data.get("type") == "ping":
+                    pong_msg = json.dumps({"type": "pong", "timestamp": datetime.now().isoformat()})
                     await websocket.send(pong_msg)
 
                 # Handle request for immediate update
-                elif data.get('type') == 'request_update':
+                elif data.get("type") == "request_update":
                     # This will be handled by the broadcast loop
                     pass
 
                 # Handle server subscription (future feature)
-                elif data.get('type') == 'subscribe':
+                elif data.get("type") == "subscribe":
                     # TODO: Implement server-specific subscriptions
                     # This will allow clients to subscribe to updates from specific servers only
                     # Expected format: {'type': 'subscribe', 'server_ids': [1, 2, 3]}
@@ -211,36 +205,33 @@ async def handle_client(websocket, path):
                     pass
 
             except json.JSONDecodeError:
-                error_msg = json.dumps({
-                    'type': 'error',
-                    'message': 'Invalid JSON message',
-                    'timestamp': datetime.now().isoformat()
-                })
+                error_msg = json.dumps(
+                    {"type": "error", "message": "Invalid JSON message", "timestamp": datetime.now().isoformat()}
+                )
                 await websocket.send(error_msg)
             except Exception as e:
                 print(f"Error processing client message: {e}")
 
     except websockets.exceptions.ConnectionClosed:
-        logger.info('WebSocket monitoring client disconnected',
-                    client_id=client_id)
+        logger.info("WebSocket monitoring client disconnected", client_id=client_id)
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Client disconnected: {client_id}")
     except Exception as e:
-        logger.error('WebSocket monitoring client error',
-                     client_id=client_id,
-                     error=str(e))
+        logger.error("WebSocket monitoring client error", client_id=client_id, error=str(e))
         print(f"Error with client {client_id}: {e}")
     finally:
         # Remove client from connected set
         if websocket in connected_clients:
             connected_clients.remove(websocket)
-        stats['active_connections'] = len(connected_clients)
+        stats["active_connections"] = len(connected_clients)
 
         # Update metrics
         metrics.websocket_connections = len(connected_clients)
 
-        logger.info('WebSocket monitoring client cleanup complete',
-                    client_id=client_id,
-                    active_connections=len(connected_clients))
+        logger.info(
+            "WebSocket monitoring client cleanup complete",
+            client_id=client_id,
+            active_connections=len(connected_clients),
+        )
         print(f"Active connections: {stats['active_connections']}")
 
 
@@ -251,7 +242,7 @@ async def stats_reporter():
     while True:
         await asyncio.sleep(60)  # Report every minute
 
-        uptime = datetime.now() - stats['uptime']
+        uptime = datetime.now() - stats["uptime"]
         hours = uptime.total_seconds() / 3600
 
         print("\n=== WebSocket Server Stats ===")
@@ -269,10 +260,9 @@ async def main():
     # Initialize database
     db.init_database()
 
-    logger.info('Starting WebSocket Monitoring Server',
-                port=PORT,
-                update_interval_seconds=UPDATE_INTERVAL,
-                version='Phase 6')
+    logger.info(
+        "Starting WebSocket Monitoring Server", port=PORT, update_interval_seconds=UPDATE_INTERVAL, version="Phase 6"
+    )
 
     print(f"\n{'='*60}")
     print("  WebSocket Monitoring Server v1.0")
@@ -290,16 +280,15 @@ async def main():
     #   - Use firewall rules (iptables/ufw) to restrict access to trusted IPs
     #   - Consider network segmentation to isolate the service
     #   - Set WEBSOCKET_BIND_HOST=127.0.0.1 for localhost-only access in development
-    bind_host = os.getenv('WEBSOCKET_BIND_HOST', '0.0.0.0')  # nosec B104
-    async with websockets.serve(handle_client, bind_host, PORT):  # nosec B104 - bind address is configurable for production use
+    bind_host = os.getenv("WEBSOCKET_BIND_HOST", "0.0.0.0")  # nosec B104
+    async with websockets.serve(
+        handle_client, bind_host, PORT
+    ):  # nosec B104 - bind address is configurable for production use
         print(f"WebSocket server listening on ws://{bind_host}:{PORT}")
         print("Waiting for clients to connect...\n")
 
         # Run broadcast and stats reporter concurrently
-        await asyncio.gather(
-            broadcast_server_stats(),
-            stats_reporter()
-        )
+        await asyncio.gather(broadcast_server_stats(), stats_reporter())
 
 
 def graceful_shutdown():
@@ -309,17 +298,17 @@ def graceful_shutdown():
     - Close SSH connections
     - Flush logs
     """
-    logger.info('Received shutdown signal, shutting down gracefully')
-    print('\n\n🛑 Shutting down WebSocket monitoring server gracefully...')
+    logger.info("Received shutdown signal, shutting down gracefully")
+    print("\n\n🛑 Shutting down WebSocket monitoring server gracefully...")
 
     try:
         # Close all connected clients
-        logger.info(f'Closing {len(connected_clients)} active WebSocket connections')
+        logger.info(f"Closing {len(connected_clients)} active WebSocket connections")
         for client in list(connected_clients):
             try:
                 asyncio.create_task(client.close())
             except Exception as e:
-                logger.error('Error closing WebSocket client', error=str(e))
+                logger.error("Error closing WebSocket client", error=str(e))
 
         connected_clients.clear()
 
@@ -327,17 +316,17 @@ def graceful_shutdown():
         try:
             ssh.ssh_pool.close_all()
         except Exception as e:
-            logger.error('Failed to close SSH connections', error=str(e))
+            logger.error("Failed to close SSH connections", error=str(e))
 
-        logger.info('WebSocket monitoring server shutdown complete')
-        print('✓ WebSocket monitoring server shutdown complete')
+        logger.info("WebSocket monitoring server shutdown complete")
+        print("✓ WebSocket monitoring server shutdown complete")
 
     except Exception as e:
-        logger.error('Error during graceful shutdown', error=str(e))
-        print(f'⚠️  Error during shutdown: {e}')
+        logger.error("Error during graceful shutdown", error=str(e))
+        print(f"⚠️  Error during shutdown: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Setup signal handlers
     def signal_handler(signum, frame):
         graceful_shutdown()
@@ -351,6 +340,6 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         graceful_shutdown()
     except Exception as e:
-        logger.error('WebSocket monitoring server fatal error', error=str(e))
+        logger.error("WebSocket monitoring server fatal error", error=str(e))
         print(f"Fatal error: {e}")
         sys.exit(1)
