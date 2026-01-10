@@ -61,6 +61,10 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+markers = [
+    "unit: Unit tests that don't require external services",
+    "integration: Integration tests that require API server at localhost:9083",
+]
 
 [tool.flake8]
 max-line-length = 150
