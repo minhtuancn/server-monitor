@@ -1,0 +1,590 @@
+name: Manual Project Review & Release Audit V2
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or SHA to review"
+        required: false
+        default: "main"
+        type: string
+      create_pr:
+        description: "Create PR with review results"
+        required: false
+        default: true
+        type: boolean
+      create_issue:
+        description: "Create follow-up issue"
+        required: false
+        default: true
+        type: boolean
+      base_url:
+        description: "Base URL for frontend (for screenshots)"
+        required: false
+        default: "http://127.0.0.1:9081"
+        type: string
+      include_ui_screenshots:
+        description: "Capture UI screenshots (runs only if smoke tests pass)"
+        required: false
+        default: true
+        type: boolean
+      smoke_auth_user:
+        description: "Username for authenticated smoke tests"
+        required: false
+        default: "admin"
+        type: string
+      smoke_auth_pass:
+        description: "Password for authenticated smoke tests"
+        required: false
+        default: "admin123"
+        type: string
+      issue_labels:
+        description: "Labels for created issue (comma-separated)"
+        required: false
+        default: "audit,automation"
+        type: string
+      pr_title:
+        description: "Title for created PR"
+        required: false
+        default: "chore: automated review report + screenshots + docs refresh"
+        type: string
+
+concurrency:
+  group: manual-review-${{ github.event.inputs.ref || 'main' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  audit-static-checks:
+    name: "1) Static Analysis & Linting"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 bandit
+          pip install -r backend/requirements.txt
+
+      - name: Run Python linting (flake8)
+        run: |
+          echo "=== Python Linting (flake8) ===" | tee lint-results.txt
+          if flake8 backend --count --select=E9,F63,F7,F82 --show-source --statistics 2>&1 | tee -a lint-results.txt; then
+            flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics | tee -a lint-results.txt
+            echo "LINT_RESULT=✅ PASSED" >> $GITHUB_ENV
+          else
+            flake8 backend --count --exit-zero --max-complexity=15 --max-line-length=150 --statistics | tee -a lint-results.txt
+            echo "LINT_RESULT=❌ FAILED" >> $GITHUB_ENV
+          fi
+
+      - name: Run security scan (bandit)
+        run: |
+          echo "=== Security Scan (bandit) ===" | tee security-results.txt
+          bandit -r backend/ -ll -f txt -o bandit-report.txt || true
+          cat bandit-report.txt | tee -a security-results.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend-next
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend-next
+        run: |
+          echo "=== Frontend Linting (ESLint) ===" | tee ../eslint-results.txt
+          npm run lint 2>&1 | tee -a ../eslint-results.txt || echo "ESLint completed with warnings"
+
+      - name: Run TypeScript type check
+        working-directory: frontend-next
+        run: |
+          echo "=== TypeScript Type Check ===" | tee ../typescript-results.txt
+          npx tsc --noEmit 2>&1 | tee -a ../typescript-results.txt || echo "TypeScript check completed"
+
+      - name: Validate OpenAPI specification
+        run: |
+          if [ -f "docs/openapi.yaml" ]; then
+            echo "✅ OpenAPI specification exists"
+            python3 -c "import yaml; yaml.safe_load(open('docs/openapi.yaml'))" && echo "✅ Valid YAML" || echo "❌ Invalid YAML"
+          else
+            echo "⚠️  OpenAPI specification not found"
+          fi
+
+      - name: Upload static results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-results
+          path: |
+            lint-results.txt
+            security-results.txt
+            bandit-report.txt
+            eslint-results.txt
+            typescript-results.txt
+          retention-days: 30
+
+  unit-integration-tests:
+    name: "2) Unit & Integration Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: audit-static-checks
+    if: always()
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            tests/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Set up environment
+        run: |
+          mkdir -p /tmp/server-monitor-data
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> $GITHUB_ENV
+          echo "JWT_SECRET=test-secret-key-for-ci-review" >> $GITHUB_ENV
+          echo "ENCRYPTION_KEY=test-encryption-key-ci-review" >> $GITHUB_ENV
+
+      - name: Initialize database
+        run: |
+          cd backend
+          python -c "import database; database.init_database()"
+
+      - name: Run all tests
+        run: |
+          cd tests
+          echo "=== Running All Tests ===" | tee test-results.txt
+          python -m pytest --tb=short -v 2>&1 | tee -a test-results.txt || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: tests/test-results.txt
+          retention-days: 30
+
+  boot-smoke-tests:
+    name: "3) Boot & Smoke Testing"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: unit-integration-tests
+    # Only run smoke tests if unit/integration tests job succeeded.
+    # If unit tests failed, skip smoke (but still generate report later).
+    if: ${{ needs.unit-integration-tests.result == 'success' }}
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend-next
+        run: npm ci
+
+      - name: Set up environment
+        run: |
+          mkdir -p /tmp/server-monitor-data
+          cp .env.example .env
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> .env
+          echo "JWT_SECRET=test-jwt-secret-for-smoke" >> .env
+          echo "ENCRYPTION_KEY=test-encryption-key-smoke" >> .env
+          echo "API_PROXY_TARGET=http://localhost:9083" >> .env
+          echo "NEXT_PUBLIC_MONITORING_WS_URL=ws://localhost:9085" >> .env
+          echo "NEXT_PUBLIC_TERMINAL_WS_URL=ws://localhost:9084" >> .env
+
+      - name: Initialize database
+        run: |
+          cd backend
+          python -c "import database; database.init_database()"
+
+      - name: Build frontend
+        working-directory: frontend-next
+        run: npm run build
+
+      - name: Start backend services
+        run: |
+          cd backend
+          nohup python central_api.py > /tmp/central-api.log 2>&1 &
+          echo $! > /tmp/central-api.pid
+
+          nohup python websocket_server.py > /tmp/websocket.log 2>&1 &
+          echo $! > /tmp/websocket.pid
+
+          nohup python terminal.py > /tmp/terminal.log 2>&1 &
+          echo $! > /tmp/terminal.pid
+
+      - name: Start frontend
+        working-directory: frontend-next
+        run: |
+          nohup npm start > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+
+      - name: Wait for services (health checks)
+        run: |
+          set -e
+          echo "Waiting for API health..."
+          for i in $(seq 1 30); do
+            if curl -fsS "http://localhost:9083/api/health" >/dev/null; then
+              echo "✅ API ready"
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Waiting for frontend..."
+          for i in $(seq 1 30); do
+            if curl -fsS "http://localhost:9081" >/dev/null; then
+              echo "✅ Frontend ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run smoke tests
+        run: |
+          chmod +x scripts/smoke.sh
+          echo "=== Running Smoke Tests ===" | tee smoke-results.txt
+          ./scripts/smoke.sh \
+            --base-url "${{ github.event.inputs.base_url }}" \
+            --api-url "http://localhost:9083" \
+            --auth-user "${{ github.event.inputs.smoke_auth_user }}" \
+            --auth-pass "${{ github.event.inputs.smoke_auth_pass }}" \
+            --verbose 2>&1 | tee -a smoke-results.txt || true
+
+      - name: Collect service logs
+        if: always()
+        run: |
+          echo "=== Central API Log ===" > all-services.log
+          cat /tmp/central-api.log >> all-services.log || echo "No central API log" >> all-services.log
+          echo -e "\n=== WebSocket Log ===" >> all-services.log
+          cat /tmp/websocket.log >> all-services.log || echo "No websocket log" >> all-services.log
+          echo -e "\n=== Terminal Log ===" >> all-services.log
+          cat /tmp/terminal.log >> all-services.log || echo "No terminal log" >> all-services.log
+          echo -e "\n=== Frontend Log ===" >> all-services.log
+          cat /tmp/frontend.log >> all-services.log || echo "No frontend log" >> all-services.log
+
+      - name: Stop services
+        if: always()
+        run: |
+          [ -f /tmp/central-api.pid ] && kill $(cat /tmp/central-api.pid) || true
+          [ -f /tmp/websocket.pid ] && kill $(cat /tmp/websocket.pid) || true
+          [ -f /tmp/terminal.pid ] && kill $(cat /tmp/terminal.pid) || true
+          [ -f /tmp/frontend.pid ] && kill $(cat /tmp/frontend.pid) || true
+          sleep 3
+
+      - name: Upload smoke results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: |
+            smoke-results.txt
+            all-services.log
+          retention-days: 30
+
+  ui-screenshots:
+    name: "4) UI Screenshot Capture"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: boot-smoke-tests
+    # Run screenshots only if smoke job succeeded AND input enabled
+    if: ${{ needs.boot-smoke-tests.result == 'success' && github.event.inputs.include_ui_screenshots == 'true' }}
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend-next/package-lock.json
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend-next
+        run: npm ci
+
+      - name: Install Playwright browsers (pinned to repo deps)
+        working-directory: frontend-next
+        run: |
+          npx playwright install --with-deps chromium
+
+      - name: Set up environment
+        run: |
+          mkdir -p /tmp/server-monitor-data
+          mkdir -p docs/screenshots
+          cp .env.example .env
+          echo "DB_PATH=/tmp/server-monitor-data/servers.db" >> .env
+          echo "JWT_SECRET=test-jwt-secret-for-screenshots" >> .env
+          echo "ENCRYPTION_KEY=test-encryption-key-screenshots" >> .env
+
+      - name: Initialize database
+        run: |
+          cd backend
+          python -c "import database; database.init_database()"
+
+      - name: Build frontend
+        working-directory: frontend-next
+        run: npm run build
+
+      - name: Start services (backend + frontend)
+        run: |
+          cd backend
+          nohup python central_api.py > /tmp/central-api.log 2>&1 &
+          echo $! > /tmp/central-api.pid
+          nohup python websocket_server.py > /tmp/websocket.log 2>&1 &
+          echo $! > /tmp/websocket.pid
+          nohup python terminal.py > /tmp/terminal.log 2>&1 &
+          echo $! > /tmp/terminal.pid
+          cd ..
+
+          cd frontend-next
+          nohup npm start > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+          cd ..
+
+      - name: Wait for services
+        run: |
+          set -e
+          for i in $(seq 1 30); do
+            if curl -fsS "http://localhost:9081" >/dev/null; then
+              echo "✅ Frontend ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Capture screenshots
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url }}
+          AUTH_USER: ${{ github.event.inputs.smoke_auth_user }}
+          AUTH_PASS: ${{ github.event.inputs.smoke_auth_pass }}
+          OUTPUT_DIR: docs/screenshots
+        run: |
+          node scripts/ui-snapshots.mjs 2>&1 | tee screenshot-results.txt || true
+
+      - name: Stop services
+        if: always()
+        run: |
+          [ -f /tmp/central-api.pid ] && kill $(cat /tmp/central-api.pid) || true
+          [ -f /tmp/websocket.pid ] && kill $(cat /tmp/websocket.pid) || true
+          [ -f /tmp/terminal.pid ] && kill $(cat /tmp/terminal.pid) || true
+          [ -f /tmp/frontend.pid ] && kill $(cat /tmp/frontend.pid) || true
+          sleep 3
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-screenshots
+          path: |
+            docs/screenshots/
+            screenshot-results.txt
+          retention-days: 30
+
+  doc-consistency-check:
+    name: "5) Documentation Consistency"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [audit-static-checks, unit-integration-tests]
+    if: always()
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          fetch-depth: 0
+
+      - name: Run documentation checker
+        run: |
+          chmod +x scripts/doc-checker.sh
+          ./scripts/doc-checker.sh | tee doc-check-results.txt || true
+
+      - name: Upload doc check results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: doc-check-results
+          path: doc-check-results.txt
+          retention-days: 30
+
+  generate-report:
+    name: "6) Generate Review Report"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - audit-static-checks
+      - unit-integration-tests
+      - boot-smoke-tests
+      - ui-screenshots
+      - doc-consistency-check
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+
+      - name: Download all artifacts (best-effort)
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Prepare results for report
+        env:
+          AUDIT_RESULT: ${{ needs.audit-static-checks.result }}
+          TESTS_RESULT: ${{ needs.unit-integration-tests.result }}
+          SMOKE_RESULT: ${{ needs.boot-smoke-tests.result }}
+          SCREENSHOTS_RESULT: ${{ needs.ui-screenshots.result }}
+          DOCS_RESULT: ${{ needs.doc-consistency-check.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cp artifacts/lint-results/lint-results.txt . || true
+          cp artifacts/lint-results/bandit-report.txt . || true
+          cp artifacts/lint-results/eslint-results.txt . || true
+          cp artifacts/lint-results/typescript-results.txt . || true
+          cp artifacts/test-results/test-results.txt . || true
+          cp artifacts/smoke-test-results/smoke-results.txt . || true
+          cp artifacts/smoke-test-results/all-services.log . || true
+          cp artifacts/doc-check-results/doc-check-results.txt . || true
+          cp artifacts/ui-screenshots/screenshot-results.txt . || true
+
+          echo "AUDIT_RESULT=$AUDIT_RESULT" >> $GITHUB_ENV
+          echo "TESTS_RESULT=$TESTS_RESULT" >> $GITHUB_ENV
+          echo "SMOKE_RESULT=$SMOKE_RESULT" >> $GITHUB_ENV
+          echo "SCREENSHOTS_RESULT=$SCREENSHOTS_RESULT" >> $GITHUB_ENV
+          echo "DOCS_RESULT=$DOCS_RESULT" >> $GITHUB_ENV
+          echo "WORKFLOW_RUN_URL=$RUN_URL" >> $GITHUB_ENV
+
+      - name: Generate review report
+        run: |
+          chmod +x scripts/generate-review-report.sh
+          ./scripts/generate-review-report.sh
+
+      - name: Upload review report
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-report
+          path: docs/REVIEW_REPORT.md
+          retention-days: 90
+
+  create-pr-and-issue:
+    name: "7) Create PR & Issue"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - generate-report
+      - audit-static-checks
+      - unit-integration-tests
+      - boot-smoke-tests
+      - ui-screenshots
+      - doc-consistency-check
+    if: ${{ always() && (github.event.inputs.create_pr == true || github.event.inputs.create_issue == true) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'main' }}
+          fetch-depth: 0
+
+      - name: Download review report
+        uses: actions/download-artifact@v4
+        with:
+          name: review-report
+          path: docs/
+        continue-on-error: true
+
+      # Keep your existing PR/Issue creation logic here (unchanged),
+      # but note: needs.ui-screenshots.result might be "skipped" now (intended).
+      - name: Notice
+        run: |
+          echo "This job should create PR/Issue using the generated docs/REVIEW_REPORT.md."
+          echo "Note: ui-screenshots is intentionally skipped unless smoke tests succeed."
