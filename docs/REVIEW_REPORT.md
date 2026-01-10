@@ -1,19 +1,19 @@
 # Project Review Report
 
-**Generated:** 2026-01-10 07:02:30 UTC  
+**Generated:** 2026-01-10 07:31:37 UTC  
 **Ref:** main  
-**Commit:** 631b31f (631b31f9f5666af3020a4b8ef704742bc34e986f)  
+**Commit:** 5e2e8bb (5e2e8bbf8d379a502ddd5e576e82228e41fad50e)  
 **Branch:** main  
 **Author:** Minh Tuấn <vietkeynet@gmail.com>  
-**Date:** 2026-01-10 13:57:09 +0700
+**Date:** 2026-01-10 14:29:16 +0700
 
 ---
 
 ## 🔗 Quick Links
 
-- **Workflow Run:** [#9](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
-- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
-- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+- **Workflow Run:** [#2](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
+- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
+- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
 
 ---
 
@@ -73,90 +73,82 @@ This automated review report provides a comprehensive audit of the server-monito
 
 #### Details:
 ```
-backend/webhook_dispatcher.py:260:13: E722 do not use bare 'except'
-backend/webhook_dispatcher.py:262:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:274:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:278:30: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:279:30: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:280:30: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:281:30: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:283:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:285:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:286:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:287:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:288:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:289:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:290:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:293:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:304:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:306:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:307:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:308:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:309:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:310:26: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:311:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:316:25: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:317:25: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:319:1: W293 blank line contains whitespace
-backend/webhook_dispatcher.py:322:17: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:323:17: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:324:17: E128 continuation line under-indented for visual indent
-backend/webhook_dispatcher.py:325:17: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:46:1: C901 'broadcast_server_stats' is too complex (16)
+backend/terminal.py:30:1: E402 module level import not at top of file
+backend/terminal.py:31:1: E402 module level import not at top of file
+backend/terminal.py:70:5: C901 'SSHTerminalSession.connect' is too complex (17)
+backend/terminal.py:126:29: E722 do not use bare 'except'
+backend/terminal.py:223:9: E722 do not use bare 'except'
+backend/terminal.py:239:13: E722 do not use bare 'except'
+backend/terminal.py:244:9: F841 local variable 'loop' is assigned to but never used
+backend/terminal.py:266:5: F811 redefinition of unused 'handle_input' from line 234
+backend/terminal.py:275:13: E722 do not use bare 'except'
+backend/terminal.py:298:13: E722 do not use bare 'except'
+backend/terminal.py:330:9: E722 do not use bare 'except'
+backend/terminal.py:338:9: E722 do not use bare 'except'
+backend/terminal.py:351:1: C901 'handle_terminal' is too complex (17)
+backend/terminal.py:515:11: F541 f-string is missing placeholders
+backend/terminal.py:516:11: F541 f-string is missing placeholders
+backend/terminal.py:517:11: F541 f-string is missing placeholders
+backend/terminal.py:519:11: F541 f-string is missing placeholders
+backend/terminal.py:521:11: F541 f-string is missing placeholders
+backend/terminal.py:523:11: F541 f-string is missing placeholders
+backend/terminal.py:524:11: F541 f-string is missing placeholders
+backend/terminal.py:525:11: F541 f-string is missing placeholders
+backend/terminal.py:526:11: F541 f-string is missing placeholders
+backend/terminal.py:543:11: F541 f-string is missing placeholders
+backend/user_management.py:169:9: E722 do not use bare 'except'
+backend/user_management.py:237:85: W291 trailing whitespace
+backend/user_management.py:264:77: W291 trailing whitespace
+backend/user_management.py:266:27: W291 trailing whitespace
+backend/user_management.py:316:73: W291 trailing whitespace
+backend/user_management.py:318:27: W291 trailing whitespace
+backend/user_management.py:356:73: W291 trailing whitespace
+backend/user_management.py:358:27: W291 trailing whitespace
+backend/webhook_dispatcher.py:10:1: F401 'json' imported but unused
+backend/webhook_dispatcher.py:23:1: E402 module level import not at top of file
+backend/webhook_dispatcher.py:24:1: E402 module level import not at top of file
+backend/webhook_dispatcher.py:25:1: E402 module level import not at top of file
+backend/webhook_dispatcher.py:100:35: F541 f-string is missing placeholders
+backend/webhook_dispatcher.py:247:13: E722 do not use bare 'except'
+backend/websocket_server.py:41:1: C901 'broadcast_server_stats' is too complex (16)
 8     C901 'CentralAPIHandler.do_GET' is too complex (225)
-1     E127 continuation line over-indented for visual indent
-142   E128 continuation line under-indented for visual indent
-1     E129 visually indented line with same indent as next logical line
-162   E302 expected 2 blank lines, found 1
-1     E303 too many blank lines (2)
-9     E305 expected 2 blank lines after class or function definition, found 1
-45    E402 module level import not at top of file
-2     E501 line too long (167 > 150 characters)
-2     E502 the backslash is redundant between brackets
+1     E203 whitespace before ':'
+44    E402 module level import not at top of file
 1     E713 test for membership should be 'not in'
 37    E722 do not use bare 'except'
-27    F401 'datetime.datetime' imported but unused
-76    F541 f-string is missing placeholders
+24    F401 'hashlib' imported but unused
+70    F541 f-string is missing placeholders
 2     F811 redefinition of unused 'Path' from line 15
 5     F841 local variable 'e' is assigned to but never used
-113   W291 trailing whitespace
-2458  W293 blank line contains whitespace
-2     W391 blank line at end of file
-3094
+80    W291 trailing whitespace
+4     W293 blank line contains whitespace
+276
 ```
 
 **Security Scanning (bandit):** See security scan results
 
 #### Bandit Security Scan (Last 30 lines):
 ```
+Run started:2026-01-10 07:30:09.021033+00:00
 
---------------------------------------------------
->> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
-   Severity: Medium   Confidence: Medium
-   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
-   More Info: https://bandit.readthedocs.io/en/1.9.2/plugins/b608_hardcoded_sql_expressions.html
-   Location: backend/database_manager.py:241:31
-240	            for (table_name,) in cursor.fetchall():
-241	                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-242	                row_count = cursor.fetchone()[0]
-
---------------------------------------------------
+Test results:
+	No issues identified.
 
 Code scanned:
-	Total lines of code: 13628
+	Total lines of code: 13487
 	Total lines skipped (#nosec): 0
-	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 38
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 40
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
 		Low: 37
-		Medium: 2
+		Medium: 0
 		High: 0
 	Total issues (by confidence):
 		Undefined: 0
 		Low: 0
-		Medium: 7
+		Medium: 5
 		High: 32
 Files skipped (0):
 ```
@@ -224,7 +216,7 @@ ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_requires_
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_requires_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
-============= 4 failed, 86 passed, 2 skipped, 35 errors in 14.32s ==============
+============= 4 failed, 86 passed, 2 skipped, 35 errors in 14.20s ==============
 ```
 
 ### 3. Build Validation
@@ -379,12 +371,12 @@ Before releasing the next version, ensure:
 
 The following artifacts were generated during this review:
 
-- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
-- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
+- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
 - Screenshots: `docs/screenshots/`
 - Review report: `docs/REVIEW_REPORT.md` (this file)
 
-**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20874611934](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20874957852](https://github.com/minhtuancn/server-monitor/actions/runs/20874957852)
 
 ---
 
