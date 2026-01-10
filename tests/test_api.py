@@ -6,6 +6,9 @@ Tests authentication, CRUD operations, and key features
 """
 
 import pytest
+
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
 import requests
 import json
 import time

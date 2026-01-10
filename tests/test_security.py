@@ -9,6 +9,9 @@ import requests
 import time
 import pytest
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 BASE_URL = "http://localhost:9083"
 TEST_USER = "admin"
 TEST_PASS = "admin123"
