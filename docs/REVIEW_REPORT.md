@@ -1,19 +1,19 @@
 # Project Review Report
 
-**Generated:** 2026-01-08 10:56:29 UTC  
+**Generated:** 2026-01-10 07:02:30 UTC  
 **Ref:** main  
-**Commit:** 87929a9 (87929a9a66878cd2d6d65d798672469bc5e1e9c8)  
+**Commit:** 631b31f (631b31f9f5666af3020a4b8ef704742bc34e986f)  
 **Branch:** main  
 **Author:** Minh Tuấn <vietkeynet@gmail.com>  
-**Date:** 2026-01-08 17:49:13 +0700
+**Date:** 2026-01-10 13:57:09 +0700
 
 ---
 
 ## 🔗 Quick Links
 
-- **Workflow Run:** [#6](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
-- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
-- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+- **Workflow Run:** [#9](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+- **Download Artifacts:** [View Run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+- **View Logs:** [Workflow Logs](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
 
 ---
 
@@ -58,10 +58,10 @@ This automated review report provides a comprehensive audit of the server-monito
 
 ## Repository Statistics
 
-- **Backend Python Files:** 32
-- **Frontend TypeScript Files:** 41
-- **Test Files:** 9
-- **Documentation Files:** 31
+- **Backend Python Files:** 33
+- **Frontend TypeScript Files:** 52
+- **Test Files:** 10
+- **Documentation Files:** 8
 
 ---
 
@@ -73,56 +73,56 @@ This automated review report provides a comprehensive audit of the server-monito
 
 #### Details:
 ```
-backend/websocket_server.py:205:1: W293 blank line contains whitespace
-backend/websocket_server.py:215:1: W293 blank line contains whitespace
-backend/websocket_server.py:218:20: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:222:21: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:223:21: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:230:1: W293 blank line contains whitespace
-backend/websocket_server.py:233:1: W293 blank line contains whitespace
-backend/websocket_server.py:235:20: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:236:20: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:246:1: W293 blank line contains whitespace
-backend/websocket_server.py:249:1: W293 blank line contains whitespace
-backend/websocket_server.py:250:15: F541 f-string is missing placeholders
-backend/websocket_server.py:255:15: F541 f-string is missing placeholders
-backend/websocket_server.py:264:1: W293 blank line contains whitespace
-backend/websocket_server.py:266:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:267:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:268:16: E128 continuation line under-indented for visual indent
-backend/websocket_server.py:269:1: W293 blank line contains whitespace
-backend/websocket_server.py:271:11: F541 f-string is missing placeholders
-backend/websocket_server.py:277:1: W293 blank line contains whitespace
-backend/websocket_server.py:279:1: W293 blank line contains whitespace
-backend/websocket_server.py:284:1: W293 blank line contains whitespace
-backend/websocket_server.py:300:11: F541 f-string is missing placeholders
-backend/websocket_server.py:301:1: W293 blank line contains whitespace
-backend/websocket_server.py:310:1: W293 blank line contains whitespace
-backend/websocket_server.py:312:1: W293 blank line contains whitespace
-backend/websocket_server.py:318:1: W293 blank line contains whitespace
-backend/websocket_server.py:321:1: W293 blank line contains whitespace
-backend/websocket_server.py:332:1: W293 blank line contains whitespace
-backend/websocket_server.py:335:1: W293 blank line contains whitespace
-8     C901 'CentralAPIHandler.do_GET' is too complex (201)
+backend/webhook_dispatcher.py:260:13: E722 do not use bare 'except'
+backend/webhook_dispatcher.py:262:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:274:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:278:30: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:279:30: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:280:30: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:281:30: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:283:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:285:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:286:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:287:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:288:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:289:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:290:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:293:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:304:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:306:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:307:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:308:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:309:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:310:26: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:311:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:316:25: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:317:25: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:319:1: W293 blank line contains whitespace
+backend/webhook_dispatcher.py:322:17: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:323:17: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:324:17: E128 continuation line under-indented for visual indent
+backend/webhook_dispatcher.py:325:17: E128 continuation line under-indented for visual indent
+backend/websocket_server.py:46:1: C901 'broadcast_server_stats' is too complex (16)
+8     C901 'CentralAPIHandler.do_GET' is too complex (225)
 1     E127 continuation line over-indented for visual indent
-150   E128 continuation line under-indented for visual indent
+142   E128 continuation line under-indented for visual indent
 1     E129 visually indented line with same indent as next logical line
-165   E302 expected 2 blank lines, found 1
+162   E302 expected 2 blank lines, found 1
 1     E303 too many blank lines (2)
 9     E305 expected 2 blank lines after class or function definition, found 1
-48    E402 module level import not at top of file
-1     E501 line too long (155 > 150 characters)
+45    E402 module level import not at top of file
+2     E501 line too long (167 > 150 characters)
 2     E502 the backslash is redundant between brackets
 1     E713 test for membership should be 'not in'
 37    E722 do not use bare 'except'
-25    F401 'datetime.datetime' imported but unused
-80    F541 f-string is missing placeholders
+27    F401 'datetime.datetime' imported but unused
+76    F541 f-string is missing placeholders
 2     F811 redefinition of unused 'Path' from line 15
-6     F841 local variable 'e' is assigned to but never used
+5     F841 local variable 'e' is assigned to but never used
 113   W291 trailing whitespace
-2380  W293 blank line contains whitespace
+2458  W293 blank line contains whitespace
 2     W391 blank line at end of file
-3032
+3094
 ```
 
 **Security Scanning (bandit):** See security scan results
@@ -131,33 +131,33 @@ backend/websocket_server.py:335:1: W293 blank line contains whitespace
 ```
 
 --------------------------------------------------
->> Issue: [B104:hardcoded_bind_all_interfaces] Possible binding to all interfaces.
+>> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.
    Severity: Medium   Confidence: Medium
-   CWE: CWE-605 (https://cwe.mitre.org/data/definitions/605.html)
-   More Info: https://bandit.readthedocs.io/en/1.9.2/plugins/b104_hardcoded_bind_all_interfaces.html
-   Location: backend/websocket_server.py:281:47
-280	    # Start WebSocket server
-281	    async with websockets.serve(handle_client, "0.0.0.0", PORT):
-282	        print(f"WebSocket server listening on ws://0.0.0.0:{PORT}")
+   CWE: CWE-89 (https://cwe.mitre.org/data/definitions/89.html)
+   More Info: https://bandit.readthedocs.io/en/1.9.2/plugins/b608_hardcoded_sql_expressions.html
+   Location: backend/database_manager.py:241:31
+240	            for (table_name,) in cursor.fetchall():
+241	                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+242	                row_count = cursor.fetchone()[0]
 
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 12826
+	Total lines of code: 13628
 	Total lines skipped (#nosec): 0
-	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 38
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
-		Low: 33
-		Medium: 30
-		High: 2
+		Low: 37
+		Medium: 2
+		High: 0
 	Total issues (by confidence):
 		Undefined: 0
-		Low: 6
-		Medium: 24
-		High: 35
+		Low: 0
+		Medium: 7
+		High: 32
 Files skipped (0):
 ```
 
@@ -165,17 +165,6 @@ Files skipped (0):
 
 #### ESLint Results (Last 30 lines):
 ```
-=== Frontend Linting (ESLint) ===
-
-> frontend-next@0.1.0 lint
-> next lint
-
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
-✔ No ESLint warnings or errors
 ```
 
 **TypeScript Type Check:** ✅ PASSED
@@ -186,6 +175,8 @@ https://nextjs.org/telemetry
 
 #### Test Summary (Last 50 lines):
 ```
+/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/sessions.py:589: in request
+    resp = self.send(prep, **send_kwargs)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/requests/sessions.py:703: in send
     r = adapter.send(request, **kwargs)
@@ -194,8 +185,6 @@ https://nextjs.org/telemetry
     raise ConnectionError(e, request=request)
 E   requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 =========================== short test summary info ============================
-FAILED test_security.py::test_rate_limiting - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/stats/overview (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
-FAILED test_security.py::test_login_rate_limiting - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 FAILED test_security.py::test_cors_headers - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/stats/overview (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 FAILED test_security.py::test_security_headers - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/stats/overview (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 FAILED test_security.py::test_input_validation_invalid_ip - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
@@ -235,7 +224,7 @@ ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_requires_
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_requires_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_csv_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
 ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_with_admin - requests.exceptions.ConnectionError: HTTPConnectionPool(host='localhost', port=9083): Max retries exceeded with url: /api/auth/login (Caused by NewConnectionError("HTTPConnection(host='localhost', port=9083): Failed to establish a new connection: [Errno 111] Connection refused"))
-=================== 6 failed, 82 passed, 35 errors in 13.90s ===================
+============= 4 failed, 86 passed, 2 skipped, 35 errors in 14.32s ==============
 ```
 
 ### 3. Build Validation
@@ -248,22 +237,6 @@ ERROR test_observability.py::TestAuditLogExport::test_audit_export_json_with_adm
 
 #### Smoke Test Details (Last 50 lines):
 ```
-=== Running Smoke Tests ===
-
-╔══════════════════════════════════════════════════════════╗
-║     Server Monitor Dashboard - Smoke Test Suite         ║
-╚══════════════════════════════════════════════════════════╝
-
-📋 Test Configuration:
-  Frontend URL: http://127.0.0.1:9081
-  API URL:      http://localhost:9083
-  Auth User:    admin
-  Port Checks:  enabled
-
-ℹ Authenticating as admin...
-⚠ Authentication failed
-🔧 Checking prerequisites...
-./scripts/smoke.sh: line 123: $3: unbound variable
 ```
 
 ### 5. UI Screenshots
@@ -286,19 +259,7 @@ Screenshots are available in `docs/screenshots/` directory.
 
 [0;34m1. Checking if documentation files exist...[0m
 [0;32m✅[0m README.md
-[0;32m✅[0m DEPLOYMENT.md
-[0;32m✅[0m SECURITY.md
-[0;32m✅[0m ARCHITECTURE.md
-[0;32m✅[0m ROADMAP.md
-[0;32m✅[0m TODO-IMPROVEMENTS.md
-[0;32m✅[0m CONTRIBUTING.md
-[0;32m✅[0m TEST_GUIDE.md
-[0;32m✅[0m docs/PROJECT_SPECIFICATION.md
-[0;32m✅[0m docs/RELEASE_PROCESS.md
-[0;32m✅[0m docs/CI_WORKFLOWS.md
-
-[0;34m2. Checking for broken internal links...[0m
-[1;33m⚠️[0m  Broken link in README.md: mailto:vietkeynet@gmail.com
+[0;31m❌[0m DEPLOYMENT.md (missing)
 ```
 
 ---
@@ -328,7 +289,7 @@ The following modules were checked during this review:
 #### Checked Documentation Files:
 
 - ✅ `README.md` exists
-- ✅ `DEPLOYMENT.md` exists
+- ❌ `DEPLOYMENT.md` missing
 - ✅ `SECURITY.md` exists
 - ✅ `ARCHITECTURE.md` exists
 - ✅ `ROADMAP.md` exists
@@ -342,8 +303,7 @@ The following modules were checked during this review:
 
 #### Code TODOs and FIXMEs:
 
-Found **0
-0** TODO/FIXME comments in code
+Found **1** TODO/FIXME comments in code
 
 #### Security Scan:
 
@@ -419,12 +379,12 @@ Before releasing the next version, ensure:
 
 The following artifacts were generated during this review:
 
-- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
-- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+- Test results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
+- Lint results: [Download from workflow run](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
 - Screenshots: `docs/screenshots/`
 - Review report: `docs/REVIEW_REPORT.md` (this file)
 
-**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20814322503](https://github.com/minhtuancn/server-monitor/actions/runs/20814322503)
+**Direct artifact downloads available at:** [https://github.com/minhtuancn/server-monitor/actions/runs/20874611934](https://github.com/minhtuancn/server-monitor/actions/runs/20874611934)
 
 ---
 
