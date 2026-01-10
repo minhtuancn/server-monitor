@@ -3510,14 +3510,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 update_fields.append("updated_at = CURRENT_TIMESTAMP")
                 update_values.append(group_id)
 
-                cursor.execute(
-                    f"""
-                    UPDATE groups 
-                    SET {', '.join(update_fields)}
-                    WHERE id = ?
-                """,
-                    update_values,
-                )
+                # Safe: update_fields only contains whitelisted field names from above conditions
+                query = f"UPDATE groups SET {', '.join(update_fields)} WHERE id = ?"  # nosec B608
+                cursor.execute(query, update_values)
 
                 conn.commit()
                 conn.close()

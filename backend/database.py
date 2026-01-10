@@ -1929,14 +1929,8 @@ def update_server_note(note_id, title=None, content=None, updated_by=None, group
     try:
         # Security Note: Column names are hardcoded above (lines 1569, 1573, 1577, 1584)
         # Not from user input
-        cursor.execute(
-            f"""
-            UPDATE server_notes 
-            SET {', '.join(updates)}
-            WHERE id = ?
-        """,
-            values,
-        )  # nosec B608
+        query = f"UPDATE server_notes SET {', '.join(updates)} WHERE id = ?"  # nosec B608
+        cursor.execute(query, values)
 
         conn.commit()
         conn.close()

@@ -334,10 +334,10 @@ def deploy_agent(
     port,
     username,
     local_agent_path,
-    remote_agent_path="/tmp/server_monitor_agent.py",
+    remote_agent_path="/tmp/server_monitor_agent.py",  # nosec B108
     ssh_key_path=None,
     password=None,
-):  # nosec B108
+):
     """
     Deploy monitoring agent to remote server
 

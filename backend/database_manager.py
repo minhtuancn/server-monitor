@@ -191,7 +191,8 @@ class DatabaseManager:
             tables = []
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             for (table_name,) in cursor.fetchall():
-                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+                # Safe: table_name comes from SQLite system table, not user input
+                cursor.execute(f"SELECT COUNT(*) FROM {table_name}")  # nosec B608
                 row_count = cursor.fetchone()[0]
                 tables.append({"name": table_name, "rows": row_count})
 

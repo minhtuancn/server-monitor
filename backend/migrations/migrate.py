@@ -61,13 +61,8 @@ def mark_migration_applied(version, name):
     cursor = conn.cursor()
 
     # Security Note: MIGRATIONS_TABLE is a constant (line 17), not user input
-    cursor.execute(
-        f"""
-        INSERT INTO {MIGRATIONS_TABLE} (version, name)
-        VALUES (?, ?)
-    """,
-        (version, name),
-    )  # nosec B608
+    query = f"INSERT INTO {MIGRATIONS_TABLE} (version, name) VALUES (?, ?)"  # nosec B608
+    cursor.execute(query, (version, name))
 
     conn.commit()
     conn.close()
