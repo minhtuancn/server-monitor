@@ -64,7 +64,7 @@ class UserManagement:
             required_columns = {
                 'id', 'username', 'email', 'password_hash', 'role',
                 'avatar_url', 'is_active', 'last_login', 'created_at',
-                'password_reset_token', 'reset_token_expires'
+                'password_reset_token', 'reset_token_expires', 'theme_preference'
             }
             
             if not existing_columns:
@@ -81,7 +81,8 @@ class UserManagement:
                         last_login TEXT,
                         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                         password_reset_token TEXT,
-                        reset_token_expires TEXT
+                        reset_token_expires TEXT,
+                        theme_preference TEXT DEFAULT 'system'
                     )
                 ''')
                 
@@ -125,6 +126,8 @@ class UserManagement:
                         c.execute("ALTER TABLE users ADD COLUMN password_reset_token TEXT")
                     elif col == 'reset_token_expires':
                         c.execute("ALTER TABLE users ADD COLUMN reset_token_expires TEXT")
+                    elif col == 'theme_preference':
+                        c.execute("ALTER TABLE users ADD COLUMN theme_preference TEXT DEFAULT 'system'")
             
             conn.commit()
         except Exception as e:
@@ -242,7 +245,7 @@ class UserManagement:
             
             c.execute("""
                 SELECT id, username, email, password_hash, role, avatar_url, 
-                       is_active, last_login
+                       is_active, last_login, theme_preference
                 FROM users 
                 WHERE username = ? OR email = ?
             """, (username, username))
@@ -274,6 +277,7 @@ class UserManagement:
                 'role': user['role'],
                 'avatar_url': user['avatar_url'],
                 'last_login': now,
+                'theme_preference': user['theme_preference'] or 'system',
                 'permissions': ROLES[user['role']]['permissions']
             }
             
@@ -290,7 +294,7 @@ class UserManagement:
             
             c.execute("""
                 SELECT id, username, email, role, avatar_url, is_active, 
-                       last_login, created_at
+                       last_login, created_at, theme_preference
                 FROM users 
                 WHERE id = ?
             """, (user_id,))
@@ -311,6 +315,7 @@ class UserManagement:
                 'is_active': bool(user['is_active']),
                 'last_login': user['last_login'],
                 'created_at': user['created_at'],
+                'theme_preference': user['theme_preference'] or 'system',
                 'permissions': ROLES[user['role']]['permissions']
             }
         
@@ -326,7 +331,7 @@ class UserManagement:
             
             c.execute("""
                 SELECT id, username, email, role, avatar_url, is_active, 
-                       last_login, created_at
+                       last_login, created_at, theme_preference
                 FROM users 
                 ORDER BY created_at DESC
             """)
@@ -342,7 +347,8 @@ class UserManagement:
                     'avatar_url': row['avatar_url'],
                     'is_active': bool(row['is_active']),
                     'last_login': row['last_login'],
-                    'created_at': row['created_at']
+                    'created_at': row['created_at'],
+                    'theme_preference': row['theme_preference'] or 'system'
                 })
             
             conn.close()
@@ -355,9 +361,9 @@ class UserManagement:
     def update_user(self, user_id: int, **kwargs) -> Tuple[bool, str]:
         """
         Update user fields
-        Allowed fields: email, role, avatar_url, is_active
+        Allowed fields: email, role, avatar_url, is_active, theme_preference
         """
-        allowed_fields = {'email', 'role', 'avatar_url', 'is_active'}
+        allowed_fields = {'email', 'role', 'avatar_url', 'is_active', 'theme_preference'}
         update_fields = {k: v for k, v in kwargs.items() if k in allowed_fields}
         
         if not update_fields:
@@ -370,6 +376,12 @@ class UserManagement:
         # Validate role if provided
         if 'role' in update_fields and update_fields['role'] not in ROLES:
             return False, f"Invalid role. Must be one of: {', '.join(ROLES.keys())}"
+        
+        # Validate theme_preference if provided
+        if 'theme_preference' in update_fields:
+            valid_themes = {'light', 'dark', 'system'}
+            if update_fields['theme_preference'] not in valid_themes:
+                return False, f"Invalid theme preference. Must be one of: {', '.join(valid_themes)}"
         
         try:
             conn = self._get_connection()

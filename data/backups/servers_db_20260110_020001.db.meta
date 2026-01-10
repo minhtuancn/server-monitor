@@ -1,0 +1,8 @@
+{
+  "backup_name": "servers_db_20260110_020001.db",
+  "timestamp": "2026-01-10T02:00:01+00:00",
+  "size_bytes": 225280,
+  "checksum_sha256": "b8ea68d467892521c059a0055e181d53ce90459912d0c3867dab906149380af6",
+  "database_path": "/opt/server-monitor/data/servers.db",
+  "encrypted": true
+}

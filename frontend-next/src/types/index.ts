@@ -4,6 +4,7 @@ export type SessionUser = {
   username?: string;
   role?: Role;
   permissions?: string[];
+  theme_preference?: "light" | "dark" | "system";
 };
 
 export type Server = {

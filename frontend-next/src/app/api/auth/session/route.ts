@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       username: verifyData.username || payload?.username,
       role: verifyData.role || payload?.role,
       permissions: payload?.permissions || [],
+      theme_preference: payload?.theme_preference || "system",
     },
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "@/hooks/useSession";
+import { useThemeSync } from "@/hooks/use-theme-sync";
 import { Role } from "@/types";
 import MenuIcon from "@mui/icons-material/Menu";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
@@ -41,7 +42,7 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type NavItem = {
   label: string;
@@ -163,7 +164,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { data: session } = useSession();
+  
+  // Sync theme changes to backend
+  useThemeSync();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleDrawer = () => setMobileOpen((open) => !open);
 
@@ -262,7 +271,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               sx={{ width: 44, height: 44 }}
               aria-label="Toggle theme"
             >
-              {muiTheme.palette.mode === "dark" ? (
+              {mounted && muiTheme.palette.mode === "dark" ? (
                 <Brightness7Icon />
               ) : (
                 <Brightness4Icon />

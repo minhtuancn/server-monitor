@@ -13,6 +13,9 @@ import DnsIcon from "@mui/icons-material/Dns";
 import ComputerIcon from "@mui/icons-material/Computer";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
 import {
   Alert,
   Box,
@@ -109,6 +112,9 @@ export default function ServerWorkspacePage() {
   const [tabValue, setTabValue] = useState(0);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState<ServerNote | null>(null);
+  const [noteFormData, setNoteFormData] = useState({ title: "", content: "" });
 
   const { data: server, isLoading: serverLoading } = useQuery<Server>({
     queryKey: ["server", serverId],
@@ -220,6 +226,63 @@ export default function ServerWorkspacePage() {
     queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
   };
 
+  const saveNoteMutation = useMutation({
+    mutationFn: async (data: { title: string; content: string }) => {
+      if (editingNote) {
+        return apiFetch(`/api/servers/${serverId}/notes/${editingNote.id}`, {
+          method: "PUT",
+          body: JSON.stringify(data),
+        });
+      } else {
+        return apiFetch(`/api/servers/${serverId}/notes`, {
+          method: "POST",
+          body: JSON.stringify(data),
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
+      setNoteDialogOpen(false);
+      setEditingNote(null);
+      setNoteFormData({ title: "", content: "" });
+    },
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: number) => {
+      return apiFetch(`/api/servers/${serverId}/notes/${noteId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
+    },
+  });
+
+  const handleOpenNoteDialog = (note?: ServerNote) => {
+    if (note) {
+      setEditingNote(note);
+      setNoteFormData({ title: note.title || "", content: note.content });
+    } else {
+      setEditingNote(null);
+      setNoteFormData({ title: "", content: "" });
+    }
+    setNoteDialogOpen(true);
+  };
+
+  const handleSaveNote = () => {
+    if (!noteFormData.content.trim()) {
+      return;
+    }
+    saveNoteMutation.mutate(noteFormData);
+  };
+
+  const handleDeleteNote = (noteId: number) => {
+    if (confirm("Are you sure you want to delete this note?")) {
+      deleteNoteMutation.mutate(noteId);
+    }
+  };
+
   const onCreateTask = async (values: TaskForm) => {
     createTaskMutation.mutate(values);
   };
@@ -297,6 +360,7 @@ export default function ServerWorkspacePage() {
           <Tab label="Overview" />
           <Tab label="Inventory" />
           <Tab label="Tasks" />
+          <Tab label="Agent" />
           <Tab label="Terminal" />
           <Tab label="Notes" />
         </Tabs>
@@ -856,6 +920,11 @@ export default function ServerWorkspacePage() {
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
+        {/* Agent Management Tab */}
+        <AgentManagement serverId={serverId} server={server} />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={4}>
         {/* Terminal Tab */}
         <Card>
           <CardContent>
@@ -879,54 +948,75 @@ export default function ServerWorkspacePage() {
         </Card>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={4}>
+      <TabPanel value={tabValue} index={5}>
         {/* Notes Tab */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
+        <Stack spacing={3}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Typography variant="h6" sx={{ flexGrow: 1 }}>
               Server Notes
             </Typography>
-            <Divider sx={{ my: 2 }} />
-            <Stack spacing={2}>
-              {notesLoading ? (
-                <CircularProgress />
-              ) : notes && notes.length > 0 ? (
-                notes.map((note) => (
-                  <Card key={note.id} variant="outlined">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenNoteDialog()}
+            >
+              Add Note
+            </Button>
+          </Stack>
+
+          {notesLoading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : notes && notes.length > 0 ? (
+            <Grid container spacing={2}>
+              {notes.map((note) => (
+                <Grid item xs={12} key={note.id}>
+                  <Card variant="outlined">
                     <CardContent>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {note.content}
-                      </ReactMarkdown>
-                      <Typography variant="caption" color="text.secondary">
-                        {note.updated_at || note.created_at}
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}>
+                        <Typography variant="h6" gutterBottom>
+                          {note.title || "Note"}
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            size="small"
+                            startIcon={<EditIcon />}
+                            onClick={() => handleOpenNoteDialog(note)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="small"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => handleDeleteNote(note.id)}
+                            disabled={deleteNoteMutation.isPending}
+                          >
+                            Delete
+                          </Button>
+                        </Stack>
+                      </Stack>
+                      <Divider sx={{ mb: 2 }} />
+                      <Box sx={{ "& p:last-child": { mb: 0 } }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {note.content}
+                        </ReactMarkdown>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
+                        Last updated: {note.updated_at ? new Date(note.updated_at).toLocaleString() : new Date(note.created_at).toLocaleString()}
                       </Typography>
                     </CardContent>
                   </Card>
-                ))
-              ) : (
-                <Alert severity="info">No notes yet</Alert>
-              )}
-              <Divider />
-              <Typography variant="subtitle2">Add New Note</Typography>
-              <TextField
-                label="Note content (Markdown supported)"
-                multiline
-                minRows={4}
-                {...register("content")}
-                error={!!errors.content}
-                helperText={errors.content?.message}
-              />
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                onClick={handleSubmit(onAddNote)}
-                disabled={isSubmitting}
-              >
-                Save Note
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Alert severity="info">
+              No notes yet. Click "Add Note" to create your first note.
+            </Alert>
+          )}
+        </Stack>
       </TabPanel>
 
       {/* Task Creation Dialog */}
@@ -1098,6 +1188,365 @@ export default function ServerWorkspacePage() {
           <Button onClick={() => setSelectedTask(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Note Editor Dialog */}
+      <Dialog
+        open={noteDialogOpen}
+        onClose={() => setNoteDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingNote ? "Edit Note" : "Add Note"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Title"
+              fullWidth
+              value={noteFormData.title}
+              onChange={(e) => setNoteFormData({ ...noteFormData, title: e.target.value })}
+              placeholder="Note title (optional)"
+            />
+            <TextField
+              label="Content (Markdown supported)"
+              multiline
+              minRows={8}
+              fullWidth
+              value={noteFormData.content}
+              onChange={(e) => setNoteFormData({ ...noteFormData, content: e.target.value })}
+              placeholder="# Heading&#10;&#10;Your note content here..."
+              helperText="Markdown formatting is supported (bold, italic, lists, code blocks, etc.)"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNoteDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveNote}
+            disabled={!noteFormData.content.trim() || saveNoteMutation.isPending}
+            startIcon={<SaveIcon />}
+          >
+            {editingNote ? "Update" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
+  );
+}
+
+// Agent Management Component
+function AgentManagement({ serverId, server }: { serverId: string; server: Server }) {
+  const [installing, setInstalling] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+
+  // Query agent status
+  const { data: agentInfo, refetch: refetchAgentInfo } = useQuery({
+    queryKey: ["agent-info", serverId],
+    queryFn: async () => {
+      try {
+        const response = await apiFetch<{ success: boolean; running: boolean; installed: boolean; message?: string; error?: string }>(
+          `/api/remote/agent/info/${serverId}`,
+          { method: "POST" }
+        );
+        return response;
+      } catch (error) {
+        return { success: false, running: false, installed: false, error: (error as Error).message };
+      }
+    },
+    refetchInterval: 10000, // Refresh every 10s
+  });
+
+  // Install agent mutation
+  const installMutation = useMutation({
+    mutationFn: async () => {
+      setInstalling(true);
+      setLogs(["Starting agent installation..."]);
+      
+      const response = await apiFetch<{ success: boolean; message?: string; log?: string }>(
+        `/api/remote/agent/deploy/${serverId}`,
+        { method: "POST" }
+      );
+      
+      if (response.log) {
+        setLogs(prev => [...prev, ...response.log.split("\n")]);
+      }
+      
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setLogs(prev => [...prev, "✓ Agent deployed successfully"]);
+        // Install with systemd
+        installSystemdMutation.mutate();
+      } else {
+        setLogs(prev => [...prev, `✗ Failed: ${data.message}`]);
+        setInstalling(false);
+      }
+    },
+    onError: (error) => {
+      setLogs(prev => [...prev, `✗ Error: ${(error as Error).message}`]);
+      setInstalling(false);
+    },
+  });
+
+  // Install systemd service
+  const installSystemdMutation = useMutation({
+    mutationFn: async () => {
+      setLogs(prev => [...prev, "Installing systemd service..."]);
+      const response = await apiFetch<{ success: boolean; message?: string }>(
+        `/api/remote/agent/install/${serverId}`,
+        { method: "POST" }
+      );
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setLogs(prev => [...prev, "✓ Systemd service installed"]);
+        // Start agent
+        startMutation.mutate();
+      } else {
+        setLogs(prev => [...prev, `✗ Failed to install service: ${data.message}`]);
+        setInstalling(false);
+      }
+    },
+  });
+
+  // Start agent mutation
+  const startMutation = useMutation({
+    mutationFn: async () => {
+      setLogs(prev => [...prev, "Starting agent service..."]);
+      const response = await apiFetch<{ success: boolean; message?: string }>(
+        `/api/remote/agent/start/${serverId}`,
+        { method: "POST" }
+      );
+      return response;
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setLogs(prev => [...prev, "✓ Agent started successfully"]);
+      } else {
+        setLogs(prev => [...prev, `✗ Failed to start: ${data.message}`]);
+      }
+      setInstalling(false);
+      refetchAgentInfo();
+      queryClient.invalidateQueries({ queryKey: ["server", serverId] });
+    },
+  });
+
+  // Stop agent mutation
+  const stopMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiFetch<{ success: boolean; message?: string }>(
+        `/api/remote/agent/stop/${serverId}`,
+        { method: "POST" }
+      );
+      return response;
+    },
+    onSuccess: () => {
+      refetchAgentInfo();
+    },
+  });
+
+  // Uninstall agent mutation
+  const uninstallMutation = useMutation({
+    mutationFn: async () => {
+      if (!confirm("Are you sure you want to uninstall the agent? This will stop monitoring for this server.")) {
+        throw new Error("Cancelled");
+      }
+      const response = await apiFetch<{ success: boolean; message?: string }>(
+        `/api/remote/agent/uninstall/${serverId}`,
+        { method: "POST" }
+      );
+      return response;
+    },
+    onSuccess: () => {
+      setLogs([]);
+      refetchAgentInfo();
+      queryClient.invalidateQueries({ queryKey: ["server", serverId] });
+    },
+  });
+
+  const handleInstall = () => {
+    setLogs([]);
+    installMutation.mutate();
+  };
+
+  return (
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Agent Management
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Install and manage the monitoring agent on {server.name}
+        </Typography>
+      </Box>
+
+      <Grid container spacing={3}>
+        {/* Agent Status Card */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Agent Status
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Installed
+                  </Typography>
+                  <Box>
+                    <Chip
+                      label={agentInfo?.installed ? "Yes" : "No"}
+                      color={agentInfo?.installed ? "success" : "default"}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Running
+                  </Typography>
+                  <Box>
+                    <Chip
+                      label={agentInfo?.running ? "Running" : "Stopped"}
+                      color={agentInfo?.running ? "success" : "default"}
+                      size="small"
+                    />
+                  </Box>
+                </Box>
+                {agentInfo?.message && (
+                  <Alert severity={agentInfo.success ? "success" : "info"}>
+                    {agentInfo.message}
+                  </Alert>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Agent Actions Card */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Agent Actions
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Stack spacing={2}>
+                {!agentInfo?.installed ? (
+                  <Button
+                    variant="contained"
+                    onClick={handleInstall}
+                    disabled={installing || installMutation.isPending}
+                  >
+                    {installing ? "Installing..." : "Install Agent"}
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="contained"
+                      color={agentInfo.running ? "error" : "success"}
+                      onClick={() => agentInfo.running ? stopMutation.mutate() : startMutation.mutate()}
+                      disabled={stopMutation.isPending || startMutation.isPending}
+                      startIcon={agentInfo.running ? <StopIcon /> : <PlayArrowIcon />}
+                    >
+                      {agentInfo.running ? "Stop Agent" : "Start Agent"}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() => uninstallMutation.mutate()}
+                      disabled={uninstallMutation.isPending}
+                    >
+                      Uninstall Agent
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="outlined"
+                  onClick={() => refetchAgentInfo()}
+                  startIcon={<RefreshIcon />}
+                >
+                  Refresh Status
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Installation Logs */}
+        {logs.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Installation Log
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+                <Box
+                  sx={{
+                    bgcolor: "grey.900",
+                    color: "common.white",
+                    p: 2,
+                    borderRadius: 1,
+                    fontFamily: "monospace",
+                    fontSize: "0.875rem",
+                    maxHeight: "400px",
+                    overflow: "auto",
+                  }}
+                >
+                  {logs.map((log, index) => (
+                    <Box key={index}>{log}</Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+
+        {/* Agent Information */}
+        <Grid item xs={12}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                About the Agent
+              </Typography>
+              <Divider sx={{ my: 2 }} />
+              <Stack spacing={2}>
+                <Typography variant="body2">
+                  The monitoring agent is a lightweight Python service that collects system metrics
+                  and sends them to the central server.
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Features:</strong>
+                </Typography>
+                <ul>
+                  <li>
+                    <Typography variant="body2">Real-time CPU, memory, disk, and network monitoring</Typography>
+                  </li>
+                  <li>
+                    <Typography variant="body2">System inventory collection (OS, packages, services)</Typography>
+                  </li>
+                  <li>
+                    <Typography variant="body2">Automatic startup with systemd</Typography>
+                  </li>
+                  <li>
+                    <Typography variant="body2">Secure communication with the central server</Typography>
+                  </li>
+                </ul>
+                <Alert severity="info">
+                  <strong>Note:</strong> Admin or Operator role required to install agents.
+                </Alert>
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
     </Stack>
   );
 }

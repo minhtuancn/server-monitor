@@ -102,8 +102,10 @@ def init_database():
             tags TEXT,
             timezone TEXT DEFAULT 'UTC',
             connection_timeout INTEGER DEFAULT 10,
+            group_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
         )
     ''')
     
@@ -167,11 +169,42 @@ def init_database():
             description TEXT,
             command TEXT NOT NULL,
             category TEXT DEFAULT 'general',
+            group_id INTEGER,
             is_sudo INTEGER DEFAULT 0,
             created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
             FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+        )
+    ''')
+    
+    # Groups table for organizing servers, notes, snippets, inventory
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            type TEXT NOT NULL,
+            color TEXT DEFAULT '#1976d2',
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
+            UNIQUE(name, type)
+        )
+    ''')
+    
+    # Group memberships (many-to-many relationships)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS group_memberships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            item_id INTEGER NOT NULL,
+            item_type TEXT NOT NULL,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+            UNIQUE(group_id, item_id, item_type)
         )
     ''')
     
@@ -201,12 +234,14 @@ def init_database():
             server_id INTEGER NOT NULL,
             title TEXT NOT NULL,
             content TEXT,
+            group_id INTEGER,
             created_by INTEGER,
             updated_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             deleted_at TIMESTAMP,
             FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE,
+            FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
             FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL,
             FOREIGN KEY (updated_by) REFERENCES admin_users(id) ON DELETE SET NULL
         )
@@ -440,6 +475,30 @@ def init_database():
         ON webhook_deliveries(delivered_at DESC)
     ''')
     
+    # ==================== MIGRATIONS ====================
+    # Add group_id columns to existing tables if they don't exist
+    
+    # Check if servers table has group_id column
+    cursor.execute("PRAGMA table_info(servers)")
+    servers_columns = [col[1] for col in cursor.fetchall()]
+    if 'group_id' not in servers_columns:
+        cursor.execute('ALTER TABLE servers ADD COLUMN group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL')
+        print("✓ Added group_id column to servers table")
+    
+    # Check if server_notes table has group_id column
+    cursor.execute("PRAGMA table_info(server_notes)")
+    notes_columns = [col[1] for col in cursor.fetchall()]
+    if 'group_id' not in notes_columns:
+        cursor.execute('ALTER TABLE server_notes ADD COLUMN group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL')
+        print("✓ Added group_id column to server_notes table")
+    
+    # Check if command_snippets table has group_id column
+    cursor.execute("PRAGMA table_info(command_snippets)")
+    snippets_columns = [col[1] for col in cursor.fetchall()]
+    if 'group_id' not in snippets_columns:
+        cursor.execute('ALTER TABLE command_snippets ADD COLUMN group_id INTEGER REFERENCES groups(id) ON DELETE SET NULL')
+        print("✓ Added group_id column to command_snippets table")
+    
     conn.commit()
     conn.close()
 
@@ -450,7 +509,7 @@ def get_connection():
 
 # ==================== SERVER MANAGEMENT ====================
 
-def add_server(name, host, port, username, description='', ssh_key_path='', ssh_password='', agent_port=8083, tags=''):
+def add_server(name, host, port, username, description='', ssh_key_path='', ssh_password='', agent_port=8083, tags='', group_id=None):
     """Add a new server to monitor"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -461,9 +520,9 @@ def add_server(name, host, port, username, description='', ssh_key_path='', ssh_
             ssh_password = encrypt_ssh_password(ssh_password)
         
         cursor.execute('''
-            INSERT INTO servers (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags))
+            INSERT INTO servers (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags, group_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, host, port, username, description, ssh_key_path, ssh_password, agent_port, tags, group_id))
         
         conn.commit()
         server_id = cursor.lastrowid
@@ -485,9 +544,20 @@ def get_servers(status=None):
     cursor = conn.cursor()
     
     if status:
-        cursor.execute('SELECT * FROM servers WHERE status = ? ORDER BY name', (status,))
+        cursor.execute('''
+            SELECT s.*, g.name as group_name, g.color as group_color
+            FROM servers s
+            LEFT JOIN groups g ON s.group_id = g.id
+            WHERE s.status = ?
+            ORDER BY s.name
+        ''', (status,))
     else:
-        cursor.execute('SELECT * FROM servers ORDER BY name')
+        cursor.execute('''
+            SELECT s.*, g.name as group_name, g.color as group_color
+            FROM servers s
+            LEFT JOIN groups g ON s.group_id = g.id
+            ORDER BY s.name
+        ''')
     
     columns = [desc[0] for desc in cursor.description]
     servers = []
@@ -504,7 +574,12 @@ def get_server(server_id, decrypt_password=False):
     conn = get_connection()
     cursor = conn.cursor()
     
-    cursor.execute('SELECT * FROM servers WHERE id = ?', (server_id,))
+    cursor.execute('''
+        SELECT s.*, g.name as group_name, g.color as group_color
+        FROM servers s
+        LEFT JOIN groups g ON s.group_id = g.id
+        WHERE s.id = ?
+    ''', (server_id,))
     row = cursor.fetchone()
     
     if not row:
@@ -526,7 +601,7 @@ def update_server(server_id, **kwargs):
     conn = get_connection()
     cursor = conn.cursor()
     
-    allowed_fields = ['name', 'host', 'port', 'username', 'description', 'ssh_key_path', 'ssh_password', 'agent_port', 'tags', 'status', 'agent_installed']
+    allowed_fields = ['name', 'host', 'port', 'username', 'description', 'ssh_key_path', 'ssh_password', 'agent_port', 'tags', 'status', 'agent_installed', 'group_id']
     
     updates = []
     values = []
@@ -970,16 +1045,16 @@ def cleanup_expired_sessions(days=7):
 
 # ==================== COMMAND SNIPPETS ====================
 
-def add_snippet(name, command, description='', category='general', is_sudo=0, created_by=None):
+def add_snippet(name, command, description='', category='general', is_sudo=0, created_by=None, group_id=None):
     """Add a command snippet"""
     conn = get_connection()
     cursor = conn.cursor()
     
     try:
         cursor.execute('''
-            INSERT INTO command_snippets (name, command, description, category, is_sudo, created_by)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (name, command, description, category, is_sudo, created_by))
+            INSERT INTO command_snippets (name, command, description, category, is_sudo, created_by, group_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (name, command, description, category, is_sudo, created_by, group_id))
         
         conn.commit()
         snippet_id = cursor.lastrowid
@@ -997,9 +1072,20 @@ def get_snippets(category=None):
     cursor = conn.cursor()
     
     if category:
-        cursor.execute('SELECT * FROM command_snippets WHERE category = ? ORDER BY name', (category,))
+        cursor.execute('''
+            SELECT cs.*, g.name as group_name, g.color as group_color
+            FROM command_snippets cs
+            LEFT JOIN groups g ON cs.group_id = g.id
+            WHERE cs.category = ?
+            ORDER BY cs.name
+        ''', (category,))
     else:
-        cursor.execute('SELECT * FROM command_snippets ORDER BY category, name')
+        cursor.execute('''
+            SELECT cs.*, g.name as group_name, g.color as group_color
+            FROM command_snippets cs
+            LEFT JOIN groups g ON cs.group_id = g.id
+            ORDER BY cs.category, cs.name
+        ''')
     
     columns = [desc[0] for desc in cursor.description]
     snippets = []
@@ -1034,7 +1120,7 @@ def update_snippet(snippet_id, **kwargs):
     conn = get_connection()
     cursor = conn.cursor()
     
-    allowed_fields = ['name', 'command', 'description', 'category', 'is_sudo']
+    allowed_fields = ['name', 'command', 'description', 'category', 'is_sudo', 'group_id']
     
     updates = []
     values = []
@@ -1503,7 +1589,7 @@ def export_audit_logs_json(user_id=None, action=None, target_type=None, start_da
 
 # ==================== SERVER NOTES ====================
 
-def add_server_note(server_id, title, content='', created_by=None):
+def add_server_note(server_id, title, content='', created_by=None, group_id=None):
     """Add a note to a server (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -1511,9 +1597,9 @@ def add_server_note(server_id, title, content='', created_by=None):
     try:
         # Note: updated_by intentionally left NULL on creation, will be set on first update
         cursor.execute('''
-            INSERT INTO server_notes (server_id, title, content, created_by)
-            VALUES (?, ?, ?, ?)
-        ''', (server_id, title, content, created_by))
+            INSERT INTO server_notes (server_id, title, content, created_by, group_id)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (server_id, title, content, created_by, group_id))
         
         conn.commit()
         note_id = cursor.lastrowid
@@ -1531,15 +1617,19 @@ def get_server_notes(server_id, include_deleted=False):
     
     if include_deleted:
         cursor.execute('''
-            SELECT * FROM server_notes 
-            WHERE server_id = ?
-            ORDER BY updated_at DESC
+            SELECT sn.*, g.name as group_name, g.color as group_color
+            FROM server_notes sn
+            LEFT JOIN groups g ON sn.group_id = g.id
+            WHERE sn.server_id = ?
+            ORDER BY sn.updated_at DESC
         ''', (server_id,))
     else:
         cursor.execute('''
-            SELECT * FROM server_notes 
-            WHERE server_id = ? AND deleted_at IS NULL
-            ORDER BY updated_at DESC
+            SELECT sn.*, g.name as group_name, g.color as group_color
+            FROM server_notes sn
+            LEFT JOIN groups g ON sn.group_id = g.id
+            WHERE sn.server_id = ? AND sn.deleted_at IS NULL
+            ORDER BY sn.updated_at DESC
         ''', (server_id,))
     
     notes = [dict(row) for row in cursor.fetchall()]
@@ -1557,7 +1647,7 @@ def get_server_note(note_id):
     conn.close()
     return dict(note) if note else None
 
-def update_server_note(note_id, title=None, content=None, updated_by=None):
+def update_server_note(note_id, title=None, content=None, updated_by=None, group_id=None):
     """Update a server note (Phase 4 Module 5 Enhanced)"""
     conn = get_connection()
     cursor = conn.cursor()
@@ -1576,6 +1666,10 @@ def update_server_note(note_id, title=None, content=None, updated_by=None):
     if updated_by is not None:
         updates.append('updated_by = ?')
         values.append(updated_by)
+    
+    if group_id is not None:
+        updates.append('group_id = ?')
+        values.append(group_id)
     
     if not updates:
         conn.close()

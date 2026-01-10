@@ -12,6 +12,7 @@ import sys
 import os
 import time
 import signal
+import sqlite3
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
@@ -390,6 +391,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         
         # ==================== USER MANAGEMENT ====================
         
+        elif path == '/api/users/me':
+            # Get current user's info
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            user_id = auth_result.get('user_id')
+            user = user_mgr.get_user(user_id)
+            if user:
+                self._set_headers()
+                self.wfile.write(json.dumps(user).encode())
+            else:
+                self._set_headers(404)
+                self.wfile.write(json.dumps({'error': 'User not found'}).encode())
+            return
+        
         elif path == '/api/users':
             # Get all users (admin only)
             auth_result = verify_auth_token(self)
@@ -477,6 +496,105 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             options = settings_mgr.get_options()
             self._set_headers()
             self.wfile.write(json.dumps(options).encode())
+            return
+        
+        # ==================== GROUPS MANAGEMENT ====================
+        
+        elif path == '/api/groups':
+            # Get all groups (optionally filtered by type)
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            query_params = parse_qs(urlparse(self.path).query)
+            group_type = query_params.get('type', [None])[0]
+            
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            if group_type:
+                cursor.execute('''
+                    SELECT g.*, COUNT(gm.id) as item_count
+                    FROM groups g
+                    LEFT JOIN group_memberships gm ON g.id = gm.group_id
+                    WHERE g.type = ?
+                    GROUP BY g.id
+                    ORDER BY g.name
+                ''', (group_type,))
+            else:
+                cursor.execute('''
+                    SELECT g.*, COUNT(gm.id) as item_count
+                    FROM groups g
+                    LEFT JOIN group_memberships gm ON g.id = gm.group_id
+                    GROUP BY g.id
+                    ORDER BY g.type, g.name
+                ''')
+            
+            groups = []
+            for row in cursor.fetchall():
+                groups.append({
+                    'id': row[0],
+                    'name': row[1],
+                    'description': row[2],
+                    'type': row[3],
+                    'color': row[4],
+                    'created_by': row[5],
+                    'created_at': row[6],
+                    'updated_at': row[7],
+                    'item_count': row[8] if len(row) > 8 else 0
+                })
+            
+            conn.close()
+            self._set_headers()
+            self.wfile.write(json.dumps(groups).encode())
+            return
+        
+        elif path.startswith('/api/groups/') and path.count('/') == 3:
+            # Get single group
+            auth_result = verify_auth_token(self)
+            if not auth_result.get('valid'):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
+                return
+            
+            try:
+                group_id = int(path.split('/')[-1])
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT g.*, COUNT(gm.id) as item_count
+                    FROM groups g
+                    LEFT JOIN group_memberships gm ON g.id = gm.group_id
+                    WHERE g.id = ?
+                    GROUP BY g.id
+                ''', (group_id,))
+                
+                row = cursor.fetchone()
+                if row:
+                    group = {
+                        'id': row[0],
+                        'name': row[1],
+                        'description': row[2],
+                        'type': row[3],
+                        'color': row[4],
+                        'created_by': row[5],
+                        'created_at': row[6],
+                        'updated_at': row[7],
+                        'item_count': row[8] if len(row) > 8 else 0
+                    }
+                    conn.close()
+                    self._set_headers()
+                    self.wfile.write(json.dumps(group).encode())
+                else:
+                    conn.close()
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Group not found'}).encode())
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid group ID'}).encode())
             return
         
         # ==================== DOMAIN SETTINGS ====================
@@ -1907,6 +2025,55 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'error': 'Authentication required'}).encode())
             return
         
+        # ==================== GROUPS MANAGEMENT ====================
+        
+        if path == '/api/groups':
+            # Create new group
+            required = ['name', 'type']
+            if not all(k in data for k in required):
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Missing required fields: name, type'}).encode())
+                return
+            
+            valid_types = ['servers', 'notes', 'snippets', 'inventory']
+            if data['type'] not in valid_types:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': f'Invalid type. Must be one of: {", ".join(valid_types)}'}).encode())
+                return
+            
+            try:
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    INSERT INTO groups (name, description, type, color, created_by)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (
+                    data['name'],
+                    data.get('description', ''),
+                    data['type'],
+                    data.get('color', '#1976d2'),
+                    auth_result.get('user_id')
+                ))
+                
+                group_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                
+                self._set_headers(201)
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': 'Group created successfully',
+                    'id': group_id
+                }).encode())
+            except sqlite3.IntegrityError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Group name already exists for this type'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Database error: {str(e)}'}).encode())
+            return
+        
         # ==================== USER MANAGEMENT ====================
         
         if path == '/api/users':
@@ -2110,7 +2277,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 ssh_key_path=data.get('ssh_key_path', '~/.ssh/id_rsa'),
                 ssh_password=data.get('ssh_password', ''),
                 agent_port=agent_port,
-                tags=data.get('tags', '')
+                tags=data.get('tags', ''),
+                group_id=data.get('group_id')
             )
             
             # Invalidate server cache
@@ -2169,7 +2337,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         server_id=server_id,
                         title=data['title'],
                         content=data.get('content', ''),
-                        created_by=auth_result.get('user_id')
+                        created_by=auth_result.get('user_id'),
+                        group_id=data.get('group_id')
                     )
                     self._set_headers(201 if result['success'] else 400)
                     self.wfile.write(json.dumps(result).encode())
@@ -2702,7 +2871,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 description=data.get('description', ''),
                 category=data.get('category', 'general'),
                 is_sudo=data.get('is_sudo', 0),
-                created_by=auth_result.get('user_id')
+                created_by=auth_result.get('user_id'),
+                group_id=data.get('group_id')
             )
             
             if result['success']:
@@ -3309,9 +3479,93 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self._finish_request(401)
             return
         
+        # ==================== GROUPS MANAGEMENT ====================
+        
+        if path.startswith('/api/groups/') and path.count('/') == 3:
+            # Update group
+            try:
+                group_id = int(path.split('/')[-1])
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                
+                # Check if group exists
+                cursor.execute('SELECT id FROM groups WHERE id = ?', (group_id,))
+                if not cursor.fetchone():
+                    conn.close()
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Group not found'}).encode())
+                    return
+                
+                # Build update query
+                update_fields = []
+                update_values = []
+                
+                if 'name' in data:
+                    update_fields.append('name = ?')
+                    update_values.append(data['name'])
+                if 'description' in data:
+                    update_fields.append('description = ?')
+                    update_values.append(data['description'])
+                if 'color' in data:
+                    update_fields.append('color = ?')
+                    update_values.append(data['color'])
+                
+                if not update_fields:
+                    conn.close()
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({'error': 'No fields to update'}).encode())
+                    return
+                
+                update_fields.append('updated_at = CURRENT_TIMESTAMP')
+                update_values.append(group_id)
+                
+                cursor.execute(f'''
+                    UPDATE groups 
+                    SET {', '.join(update_fields)}
+                    WHERE id = ?
+                ''', update_values)
+                
+                conn.commit()
+                conn.close()
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': 'Group updated successfully'
+                }).encode())
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid group ID'}).encode())
+            except sqlite3.IntegrityError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Group name already exists'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Database error: {str(e)}'}).encode())
+            return
+        
         # ==================== USER MANAGEMENT ====================
         
-        if path.startswith('/api/users/') and not path.endswith('/change-password'):
+        if path == '/api/users/me':
+            # Update current user's info (users can update their own theme, email, etc.)
+            user_id = auth_result.get('user_id')
+            
+            # Users can't change their own role
+            if 'role' in data:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({'error': 'Cannot change your own role'}).encode())
+                return
+            
+            success, message = user_mgr.update_user(user_id, **data)
+            
+            self._set_headers(200 if success else 400)
+            self.wfile.write(json.dumps({
+                'success': success,
+                'message': message
+            }).encode())
+            return
+        
+        elif path.startswith('/api/users/') and not path.endswith('/change-password'):
             # Update user (admin only for changing roles, users can update their own profile)
             try:
                 user_id = int(path.split('/')[-1])
@@ -3360,7 +3614,8 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     result = db.update_server_note(
                         note_id=note_id,
                         title=data.get('title'),
-                        content=data.get('content')
+                        content=data.get('content'),
+                        group_id=data.get('group_id')
                     )
                     self._set_headers()
                     self.wfile.write(json.dumps(result).encode())
@@ -3619,6 +3874,40 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             return
         
         # ==================== OTHER ENDPOINTS ====================
+        
+        elif path.startswith('/api/groups/') and path.count('/') == 3:
+            # Delete group
+            try:
+                group_id = int(path.split('/')[-1])
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                
+                # Check if group exists
+                cursor.execute('SELECT id, name FROM groups WHERE id = ?', (group_id,))
+                group = cursor.fetchone()
+                if not group:
+                    conn.close()
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({'error': 'Group not found'}).encode())
+                    return
+                
+                # Delete group (memberships will cascade delete)
+                cursor.execute('DELETE FROM groups WHERE id = ?', (group_id,))
+                conn.commit()
+                conn.close()
+                
+                self._set_headers()
+                self.wfile.write(json.dumps({
+                    'success': True,
+                    'message': 'Group deleted successfully'
+                }).encode())
+            except ValueError:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({'error': 'Invalid group ID'}).encode())
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': f'Database error: {str(e)}'}).encode())
+            return
         
         elif path.startswith('/api/snippets/'):
             # Delete snippet

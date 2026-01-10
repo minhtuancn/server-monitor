@@ -10,6 +10,7 @@
 ## 1. Executive Summary
 
 ✅ **COMPLETE (8/8 areas):**
+
 1. **Server CRUD**: Full backend + frontend parity ✓
 2. **Remote Agent Install**: Backend API exists, **UI missing** ⚠️
 3. **Terminal Command Presets**: Backend complete, **UI missing** ⚠️
@@ -20,6 +21,7 @@
 8. **Security**: **4 CodeQL alerts pending** ⚠️
 
 **Key Findings:**
+
 - **P0 (Critical)**: Backend CI workflow failing (test server not started)
 - **P1 (High)**: Remote agent install UI missing, theme persistence missing
 - **P2 (Medium)**: Command presets UI missing, CodeQL alerts (false positives)
@@ -30,17 +32,17 @@
 
 ### 2.1 Server Management (CRUD)
 
-| Feature | Backend Endpoint | Frontend UI | Status | Notes |
-|---------|-----------------|-------------|--------|-------|
-| List servers | `GET /api/servers` | ✅ `/dashboard` | ✅ COMPLETE | WebSocket live updates |
-| Get server detail | `GET /api/servers/:id` | ✅ `/servers/:id` | ✅ COMPLETE | Tabs: Overview, Notes, Inventory, Tasks |
-| Create server | `POST /api/servers` | ✅ `/dashboard` | ✅ COMPLETE | Form validation with Zod |
-| Update server | `PUT /api/servers/:id` | ✅ `/servers/:id` | ✅ COMPLETE | Edit form in server detail |
-| Delete server | `DELETE /api/servers/:id` | ✅ `/servers/:id` | ✅ COMPLETE | Confirmation dialog |
-| Test connection | `POST /api/servers/test` | ✅ `/dashboard` | ✅ COMPLETE | Real-time SSH test |
-| Server notes CRUD | `GET/POST/PUT/DELETE /api/servers/:id/notes/:note_id` | ✅ `/servers/:id` | ✅ COMPLETE | Markdown editor, tab view |
-| Server inventory | `GET /api/servers/:id/inventory/latest` | ✅ `/servers/:id` | ✅ COMPLETE | System, network, storage tables |
-| Server tasks | `POST /api/servers/:id/tasks` | ✅ `/servers/:id` | ✅ COMPLETE | Task creation + history |
+| Feature           | Backend Endpoint                                      | Frontend UI       | Status      | Notes                                   |
+| ----------------- | ----------------------------------------------------- | ----------------- | ----------- | --------------------------------------- |
+| List servers      | `GET /api/servers`                                    | ✅ `/dashboard`   | ✅ COMPLETE | WebSocket live updates                  |
+| Get server detail | `GET /api/servers/:id`                                | ✅ `/servers/:id` | ✅ COMPLETE | Tabs: Overview, Notes, Inventory, Tasks |
+| Create server     | `POST /api/servers`                                   | ✅ `/dashboard`   | ✅ COMPLETE | Form validation with Zod                |
+| Update server     | `PUT /api/servers/:id`                                | ✅ `/servers/:id` | ✅ COMPLETE | Edit form in server detail              |
+| Delete server     | `DELETE /api/servers/:id`                             | ✅ `/servers/:id` | ✅ COMPLETE | Confirmation dialog                     |
+| Test connection   | `POST /api/servers/test`                              | ✅ `/dashboard`   | ✅ COMPLETE | Real-time SSH test                      |
+| Server notes CRUD | `GET/POST/PUT/DELETE /api/servers/:id/notes/:note_id` | ✅ `/servers/:id` | ✅ COMPLETE | Markdown editor, tab view               |
+| Server inventory  | `GET /api/servers/:id/inventory/latest`               | ✅ `/servers/:id` | ✅ COMPLETE | System, network, storage tables         |
+| Server tasks      | `POST /api/servers/:id/tasks`                         | ✅ `/servers/:id` | ✅ COMPLETE | Task creation + history                 |
 
 **Verdict:** ✅ **100% PARITY** - Server management is feature-complete.
 
@@ -48,17 +50,18 @@
 
 ### 2.2 Remote Agent Installation
 
-| Feature | Backend Endpoint | Frontend UI | Status | Notes |
-|---------|-----------------|-------------|--------|-------|
-| Deploy agent | `POST /api/remote/agent/deploy/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI button |
-| Install agent (systemd) | `POST /api/remote/agent/install/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI |
-| Start agent | `POST /api/remote/agent/start/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI |
-| Uninstall agent | `POST /api/remote/agent/uninstall/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI |
-| Agent status | `POST /api/remote/agent/info/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI |
+| Feature                 | Backend Endpoint                       | Frontend UI    | Status     | Notes                       |
+| ----------------------- | -------------------------------------- | -------------- | ---------- | --------------------------- |
+| Deploy agent            | `POST /api/remote/agent/deploy/:id`    | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI button |
+| Install agent (systemd) | `POST /api/remote/agent/install/:id`   | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI        |
+| Start agent             | `POST /api/remote/agent/start/:id`     | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI        |
+| Uninstall agent         | `POST /api/remote/agent/uninstall/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI        |
+| Agent status            | `POST /api/remote/agent/info/:id`      | ❌ **MISSING** | ⚠️ **GAP** | Backend ready, no UI        |
 
 **Verdict:** ⚠️ **0% UI PARITY** - Backend fully functional, frontend completely missing.
 
 **Gap Details:**
+
 - **Expected Location:** `/servers/:id` → "Agent Management" tab
 - **Required UI Elements:**
   1. "Install Agent" button (admin/operator only)
@@ -73,15 +76,16 @@
 
 ### 2.3 Terminal Command Presets (Snippets)
 
-| Feature | Backend Endpoint | Frontend UI | Status | Notes |
-|---------|-----------------|-------------|--------|-------|
-| List snippets | `GET /api/snippets` | ❌ **MISSING** | ⚠️ **GAP** | Backend API exists |
-| Create snippet | `POST /api/snippets` | ❌ **MISSING** | ⚠️ **GAP** | Backend supports categories |
-| Update snippet | `PUT /api/snippets/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready |
-| Delete snippet | `DELETE /api/snippets/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready |
-| Get snippet by ID | `GET /api/snippets/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready |
+| Feature           | Backend Endpoint           | Frontend UI    | Status     | Notes                       |
+| ----------------- | -------------------------- | -------------- | ---------- | --------------------------- |
+| List snippets     | `GET /api/snippets`        | ❌ **MISSING** | ⚠️ **GAP** | Backend API exists          |
+| Create snippet    | `POST /api/snippets`       | ❌ **MISSING** | ⚠️ **GAP** | Backend supports categories |
+| Update snippet    | `PUT /api/snippets/:id`    | ❌ **MISSING** | ⚠️ **GAP** | Backend ready               |
+| Delete snippet    | `DELETE /api/snippets/:id` | ❌ **MISSING** | ⚠️ **GAP** | Backend ready               |
+| Get snippet by ID | `GET /api/snippets/:id`    | ❌ **MISSING** | ⚠️ **GAP** | Backend ready               |
 
 **Database Schema:** ✅ Exists
+
 ```sql
 CREATE TABLE command_snippets (
     id INTEGER PRIMARY KEY,
@@ -98,6 +102,7 @@ CREATE TABLE command_snippets (
 **Verdict:** ⚠️ **0% UI PARITY** - Backend + DB fully functional, frontend completely missing.
 
 **Gap Details:**
+
 - **Expected Location:** `/terminal` → Side panel "Saved Commands"
 - **Required UI Elements:**
   1. Snippet list (filterable by category)
@@ -112,18 +117,19 @@ CREATE TABLE command_snippets (
 
 ### 2.4 Internationalization (i18n)
 
-| Aspect | Implementation | Status | Notes |
-|--------|---------------|--------|-------|
-| i18n Library | `next-intl` v3.25.4 | ✅ COMPLETE | App Router integration |
-| Locales | `en`, `vi`, `fr`, `es`, `de`, `ja`, `ko`, `zh-CN` | ✅ COMPLETE | 8 languages supported |
-| Route prefix | `/{locale}/dashboard` | ✅ COMPLETE | Middleware handles locale detection |
-| Translation files | `messages/en.json`, etc. | ✅ COMPLETE | Full coverage for dashboard, settings, users |
-| Missing translations | Fallback to English | ✅ COMPLETE | `next-intl` handles gracefully |
-| Language switcher | UI component exists | ✅ COMPLETE | Dropdown in AppShell |
+| Aspect               | Implementation                                    | Status      | Notes                                        |
+| -------------------- | ------------------------------------------------- | ----------- | -------------------------------------------- |
+| i18n Library         | `next-intl` v3.25.4                               | ✅ COMPLETE | App Router integration                       |
+| Locales              | `en`, `vi`, `fr`, `es`, `de`, `ja`, `ko`, `zh-CN` | ✅ COMPLETE | 8 languages supported                        |
+| Route prefix         | `/{locale}/dashboard`                             | ✅ COMPLETE | Middleware handles locale detection          |
+| Translation files    | `messages/en.json`, etc.                          | ✅ COMPLETE | Full coverage for dashboard, settings, users |
+| Missing translations | Fallback to English                               | ✅ COMPLETE | `next-intl` handles gracefully               |
+| Language switcher    | UI component exists                               | ✅ COMPLETE | Dropdown in AppShell                         |
 
 **Verdict:** ✅ **100% COMPLETE** - i18n is production-ready.
 
 **Translation Coverage:**
+
 - ✅ Dashboard, servers, terminal, settings, users
 - ✅ Notifications, webhooks, database management
 - ✅ Error messages, form validation
@@ -133,18 +139,19 @@ CREATE TABLE command_snippets (
 
 ### 2.5 Theme System (Dark/Light Mode)
 
-| Aspect | Implementation | Status | Notes |
-|--------|---------------|--------|-------|
-| Theme provider | `@mui/material` + `next-themes` | ✅ COMPLETE | MUI theming integrated |
-| Dark/Light themes | CSS variables + MUI palette | ✅ COMPLETE | Full theme switching |
-| Toggle UI | IconButton in AppShell header | ✅ COMPLETE | Brightness4Icon |
-| Persistence | **localStorage only** | ⚠️ **GAP** | Not synced to user settings DB |
-| SSR hydration | `suppressHydrationWarning` | ✅ COMPLETE | Fixed in layout.tsx |
-| System preference | `prefers-color-scheme` | ✅ COMPLETE | Auto-detection on first load |
+| Aspect            | Implementation                  | Status      | Notes                          |
+| ----------------- | ------------------------------- | ----------- | ------------------------------ |
+| Theme provider    | `@mui/material` + `next-themes` | ✅ COMPLETE | MUI theming integrated         |
+| Dark/Light themes | CSS variables + MUI palette     | ✅ COMPLETE | Full theme switching           |
+| Toggle UI         | IconButton in AppShell header   | ✅ COMPLETE | Brightness4Icon                |
+| Persistence       | **localStorage only**           | ⚠️ **GAP**  | Not synced to user settings DB |
+| SSR hydration     | `suppressHydrationWarning`      | ✅ COMPLETE | Fixed in layout.tsx            |
+| System preference | `prefers-color-scheme`          | ✅ COMPLETE | Auto-detection on first load   |
 
 **Verdict:** ⚠️ **80% COMPLETE** - Theme toggle works, but no server-side persistence.
 
 **Gap Details:**
+
 - **Issue:** Theme preference stored only in `localStorage`
 - **Problem:** User loses theme preference when:
   1. Switching devices
@@ -159,26 +166,28 @@ CREATE TABLE command_snippets (
 
 **Source:** `frontend-next/MIGRATION.md`
 
-| Legacy HTML | Next.js Route | API Mapping | Status | Notes |
-|------------|---------------|-------------|--------|-------|
-| `index.html` | `/dashboard` | `/api/stats/overview`, `/api/servers` | ✅ COMPLETE | WebSocket live |
-| `login.html` | `/login` | `/api/auth/login` | ✅ COMPLETE | JWT + HttpOnly cookie |
-| `dashboard.html` | `/dashboard` | `/api/servers`, `/ws` | ✅ COMPLETE | Multi-server cards |
-| `server-detail.html` | `/servers/:id` | `/api/servers/:id` | ✅ COMPLETE | Tabs: overview, notes, inventory |
-| `terminal.html` | `/terminal?server=:id` | `/terminal` WebSocket | ✅ COMPLETE | xterm.js client |
-| `settings.html` | `/settings` | `/api/settings` | ✅ COMPLETE | System config |
-| `domain-settings.html` | `/settings/domain` | `/api/domain/settings` | ✅ COMPLETE | SSL management |
-| `email-settings.html` | ❌ **MISSING** | `/api/email/config` | ⚠️ **GAP** | Backend exists, no UI route |
-| `ssh-keys.html` | `/settings/ssh-keys` | `/api/ssh-keys` | ✅ COMPLETE | CRUD interface |
-| `notifications.html` | `/notifications` | `/api/alerts`, `/api/notifications/*` | ✅ COMPLETE | Channel config |
-| `users.html` | `/users` | `/api/users` | ❌ **MISSING** | Backend ready, no UI route |
-| `system-check.html` | `/system-check` | `/api/health`, `/ws` | ✅ COMPLETE | Diagnostics |
-| `test_cors.html` | `/test-cors` | `/api/stats/overview` | ✅ COMPLETE | CORS testing |
+| Legacy HTML            | Next.js Route          | API Mapping                           | Status         | Notes                            |
+| ---------------------- | ---------------------- | ------------------------------------- | -------------- | -------------------------------- |
+| `index.html`           | `/dashboard`           | `/api/stats/overview`, `/api/servers` | ✅ COMPLETE    | WebSocket live                   |
+| `login.html`           | `/login`               | `/api/auth/login`                     | ✅ COMPLETE    | JWT + HttpOnly cookie            |
+| `dashboard.html`       | `/dashboard`           | `/api/servers`, `/ws`                 | ✅ COMPLETE    | Multi-server cards               |
+| `server-detail.html`   | `/servers/:id`         | `/api/servers/:id`                    | ✅ COMPLETE    | Tabs: overview, notes, inventory |
+| `terminal.html`        | `/terminal?server=:id` | `/terminal` WebSocket                 | ✅ COMPLETE    | xterm.js client                  |
+| `settings.html`        | `/settings`            | `/api/settings`                       | ✅ COMPLETE    | System config                    |
+| `domain-settings.html` | `/settings/domain`     | `/api/domain/settings`                | ✅ COMPLETE    | SSL management                   |
+| `email-settings.html`  | ❌ **MISSING**         | `/api/email/config`                   | ⚠️ **GAP**     | Backend exists, no UI route      |
+| `ssh-keys.html`        | `/settings/ssh-keys`   | `/api/ssh-keys`                       | ✅ COMPLETE    | CRUD interface                   |
+| `notifications.html`   | `/notifications`       | `/api/alerts`, `/api/notifications/*` | ✅ COMPLETE    | Channel config                   |
+| `users.html`           | `/users`               | `/api/users`                          | ❌ **MISSING** | Backend ready, no UI route       |
+| `system-check.html`    | `/system-check`        | `/api/health`, `/ws`                  | ✅ COMPLETE    | Diagnostics                      |
+| `test_cors.html`       | `/test-cors`           | `/api/stats/overview`                 | ✅ COMPLETE    | CORS testing                     |
 
 **Verdict:** ⚠️ **90% PARITY** - 2 routes missing (email settings, user management).
 
 **Missing Routes:**
+
 1. **Email Settings** (`/settings/email`):
+
    - Backend: `GET/POST /api/email/config` ✅
    - Frontend: ❌ Route not created
    - Workaround: User management partially covered in `/notifications`
@@ -194,11 +203,12 @@ CREATE TABLE command_snippets (
 
 ### P0: Critical (Block Release)
 
-| ID | Gap | Impact | Files Affected |
-|----|-----|--------|----------------|
+| ID       | Gap                             | Impact                                                       | Files Affected             |
+| -------- | ------------------------------- | ------------------------------------------------------------ | -------------------------- |
 | **P0-1** | **Backend CI workflow failing** | Tests not running on PRs, 0% confidence in backend stability | `.github/workflows/ci.yml` |
 
 **Details:**
+
 - **Symptom:** "startup_failure" in recent workflow runs
 - **Root Cause:** Tests call `localhost:9083` but `central_api.py` not started in CI
 - **Fix Required:**
@@ -210,21 +220,21 @@ CREATE TABLE command_snippets (
 
 ### P1: High (Must Fix Before Next Release)
 
-| ID | Gap | Impact | Files Affected |
-|----|-----|--------|----------------|
-| **P1-1** | **Remote agent install UI missing** | Users cannot install agents via UI, must use CLI/scripts | `frontend-next/src/app/[locale]/(dashboard)/servers/[id]/page.tsx` |
-| **P1-2** | **Theme preference not persisted to DB** | Users lose theme on device switch | `backend/database.py` (add column), `frontend-next/src/components/providers/ThemeProvider.tsx` |
-| **P1-3** | **User management UI missing** | Admins cannot manage users (RBAC critical) | `frontend-next/src/app/[locale]/(dashboard)/users/page.tsx` (create) |
+| ID       | Gap                                      | Impact                                                   | Files Affected                                                                                 |
+| -------- | ---------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **P1-1** | **Remote agent install UI missing**      | Users cannot install agents via UI, must use CLI/scripts | `frontend-next/src/app/[locale]/(dashboard)/servers/[id]/page.tsx`                             |
+| **P1-2** | **Theme preference not persisted to DB** | Users lose theme on device switch                        | `backend/database.py` (add column), `frontend-next/src/components/providers/ThemeProvider.tsx` |
+| **P1-3** | **User management UI missing**           | Admins cannot manage users (RBAC critical)               | `frontend-next/src/app/[locale]/(dashboard)/users/page.tsx` (create)                           |
 
 ---
 
 ### P2: Medium (Nice to Have)
 
-| ID | Gap | Impact | Files Affected |
-|----|-----|--------|----------------|
-| **P2-1** | **Terminal command presets UI missing** | Users cannot save/reuse commands | `frontend-next/src/app/[locale]/(dashboard)/terminal/page.tsx` |
-| **P2-2** | **Email settings UI missing** | Admins cannot configure email via UI | `frontend-next/src/app/[locale]/(dashboard)/settings/email/page.tsx` (create) |
-| **P2-3** | **4 CodeQL alerts pending** | Potential security risks (mostly false positives) | See Section 7 |
+| ID       | Gap                                     | Impact                                            | Files Affected                                                                |
+| -------- | --------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **P2-1** | **Terminal command presets UI missing** | Users cannot save/reuse commands                  | `frontend-next/src/app/[locale]/(dashboard)/terminal/page.tsx`                |
+| **P2-2** | **Email settings UI missing**           | Admins cannot configure email via UI              | `frontend-next/src/app/[locale]/(dashboard)/settings/email/page.tsx` (create) |
+| **P2-3** | **4 CodeQL alerts pending**             | Potential security risks (mostly false positives) | See Section 7                                                                 |
 
 ---
 
@@ -232,20 +242,21 @@ CREATE TABLE command_snippets (
 
 ### 4.1 Workflow Status Matrix
 
-| Workflow | File | Last Status | Issue | Priority |
-|----------|------|-------------|-------|----------|
-| Backend CI | `ci.yml` | ❌ **FAILING** | API server not started | **P0** |
-| Frontend CI | `frontend-ci.yml` | ✅ **PASSING** | None | - |
-| CodeQL Analysis | `codeql.yml` | ✅ **PASSING** | 4 alerts open | P2 |
-| Security Scan | `security-scan.yml` | ✅ **PASSING** | None | - |
-| Dependency Review | `dependency-review.yml` | ✅ **PASSING** | None | - |
-| Full Review | `full-review.yml` | ✅ **PASSING** | None | - |
-| Manual Review | `manual-project-review.yml` | ✅ **PASSING** | None | - |
-| CI/CD | `ci-cd.yml` | ⚠️ **NOT TRIGGERED** | Manual workflow | - |
+| Workflow          | File                        | Last Status          | Issue                  | Priority |
+| ----------------- | --------------------------- | -------------------- | ---------------------- | -------- |
+| Backend CI        | `ci.yml`                    | ❌ **FAILING**       | API server not started | **P0**   |
+| Frontend CI       | `frontend-ci.yml`           | ✅ **PASSING**       | None                   | -        |
+| CodeQL Analysis   | `codeql.yml`                | ✅ **PASSING**       | 4 alerts open          | P2       |
+| Security Scan     | `security-scan.yml`         | ✅ **PASSING**       | None                   | -        |
+| Dependency Review | `dependency-review.yml`     | ✅ **PASSING**       | None                   | -        |
+| Full Review       | `full-review.yml`           | ✅ **PASSING**       | None                   | -        |
+| Manual Review     | `manual-project-review.yml` | ✅ **PASSING**       | None                   | -        |
+| CI/CD             | `ci-cd.yml`                 | ⚠️ **NOT TRIGGERED** | Manual workflow        | -        |
 
 ### 4.2 Backend CI Fix Required (P0-1)
 
 **Current Failure Pattern:**
+
 ```yaml
 # .github/workflows/ci.yml (lines 50-60)
 - name: Run pytest tests
@@ -279,7 +290,9 @@ CREATE TABLE command_snippets (
 ```
 
 **Required Changes:**
+
 1. Add pytest markers in `tests/test_api.py`:
+
    ```python
    @pytest.mark.integration
    def test_get_servers():
@@ -302,14 +315,15 @@ CREATE TABLE command_snippets (
 
 **Status:** 4 alerts open (JavaScript/TypeScript)
 
-| Alert ID | Severity | Category | File | Status | Recommendation |
-|----------|----------|----------|------|--------|----------------|
-| `alert-1` | Medium | Incomplete URL substring sanitization | `frontend-next/src/lib/api-client.ts` | ⚠️ False Positive | Add comment explaining BFF proxy pattern |
-| `alert-2` | Low | Unused variable | `frontend-next/src/components/layout/Sidebar.tsx` | ✅ True Positive | Remove unused import |
-| `alert-3` | Low | Unvalidated dynamic method call | `backend/agent.py` (line 345) | ⚠️ False Positive | Nosec marker already present |
-| `alert-4` | Medium | Command injection risk | `backend/agent.py` (line 478) | ⚠️ Mitigated | `shell=True` with `shlex.quote()`, nosec marker |
+| Alert ID  | Severity | Category                              | File                                              | Status            | Recommendation                                  |
+| --------- | -------- | ------------------------------------- | ------------------------------------------------- | ----------------- | ----------------------------------------------- |
+| `alert-1` | Medium   | Incomplete URL substring sanitization | `frontend-next/src/lib/api-client.ts`             | ⚠️ False Positive | Add comment explaining BFF proxy pattern        |
+| `alert-2` | Low      | Unused variable                       | `frontend-next/src/components/layout/Sidebar.tsx` | ✅ True Positive  | Remove unused import                            |
+| `alert-3` | Low      | Unvalidated dynamic method call       | `backend/agent.py` (line 345)                     | ⚠️ False Positive | Nosec marker already present                    |
+| `alert-4` | Medium   | Command injection risk                | `backend/agent.py` (line 478)                     | ⚠️ Mitigated      | `shell=True` with `shlex.quote()`, nosec marker |
 
 **Actions Required:**
+
 - **P2-3:** Review all alerts, add suppression comments for false positives, fix true positives
 
 ### 5.2 Bandit Scan Results
@@ -317,6 +331,7 @@ CREATE TABLE command_snippets (
 **Status:** ✅ **0 HIGH/MEDIUM** issues
 
 Recent scan output:
+
 ```
 Run started:2026-01-10 01:XX:XX
 
@@ -334,16 +349,17 @@ Files skipped (0):
 
 ### 5.3 Secrets Management
 
-| Secret Type | Storage | Status | Recommendation |
-|-------------|---------|--------|----------------|
-| JWT Secret | `backend/.env` → `SECRET_KEY` | ⚠️ Weak default | Document rotation policy |
-| Encryption Key | `backend/.env` → `ENCRYPTION_KEY` | ⚠️ Weak default | Document rotation policy |
-| Master Key | `backend/.env` → `KEY_VAULT_MASTER_KEY` | ⚠️ Weak default | Document rotation policy |
-| SSH Keys | `~/.ssh/` (file paths in DB) | ✅ Good | Encrypted via crypto_vault.py |
-| SSH Passwords | DB encrypted via `crypto_vault.py` | ✅ Good | Fernet encryption |
-| Database Backups | GPG encrypted (AES256) | ✅ Good | Automated rotation |
+| Secret Type      | Storage                                 | Status          | Recommendation                |
+| ---------------- | --------------------------------------- | --------------- | ----------------------------- |
+| JWT Secret       | `backend/.env` → `SECRET_KEY`           | ⚠️ Weak default | Document rotation policy      |
+| Encryption Key   | `backend/.env` → `ENCRYPTION_KEY`       | ⚠️ Weak default | Document rotation policy      |
+| Master Key       | `backend/.env` → `KEY_VAULT_MASTER_KEY` | ⚠️ Weak default | Document rotation policy      |
+| SSH Keys         | `~/.ssh/` (file paths in DB)            | ✅ Good         | Encrypted via crypto_vault.py |
+| SSH Passwords    | DB encrypted via `crypto_vault.py`      | ✅ Good         | Fernet encryption             |
+| Database Backups | GPG encrypted (AES256)                  | ✅ Good         | Automated rotation            |
 
 **Actions Required:**
+
 - **P2-4:** Add secret rotation guide to `docs/security/SECRET_ROTATION.md`
 - **P2-5:** Add warning to `.env.example` about production secret strength
 
@@ -355,20 +371,24 @@ Files skipped (0):
 
 **Goal:** Make backend tests pass in CI  
 **Scope:**
+
 - Split unit vs integration tests
 - Start API server before integration tests
 - Add pytest markers
 
 **Files:**
+
 - `.github/workflows/ci.yml`
 - `tests/test_api.py` (add markers)
 - `pytest.ini` (add marker definitions)
 
 **Non-Goals:**
+
 - Refactoring test structure
 - Adding new tests
 
 **How to Test:**
+
 ```bash
 # Locally
 pytest tests/ -v -m "not integration"  # Should pass without API
@@ -377,6 +397,7 @@ pytest tests/ -v -m integration  # Should pass with API
 ```
 
 **Copilot Prompt:**
+
 ```
 Fix backend CI workflow failure by splitting unit and integration tests.
 Add pytest markers to tests/test_api.py for tests that call localhost:9083.
@@ -389,20 +410,24 @@ Update .github/workflows/ci.yml to start API server before integration tests.
 
 **Goal:** Allow admins to install/manage agents via UI  
 **Scope:**
+
 - Add "Agent" tab to `/servers/:id` page
 - UI for install/start/stop/uninstall agent
 - Real-time installation log viewer
 
 **Files:**
+
 - `frontend-next/src/app/[locale]/(dashboard)/servers/[id]/page.tsx`
 - `frontend-next/src/components/server/AgentManagement.tsx` (new)
 - `frontend-next/src/hooks/use-agent-management.ts` (new)
 
 **Non-Goals:**
+
 - Changing backend API (already complete)
 - Multi-server agent deployment (future feature)
 
 **How to Test:**
+
 ```bash
 1. Navigate to /servers/:id
 2. Click "Agent" tab
@@ -412,6 +437,7 @@ Update .github/workflows/ci.yml to start API server before integration tests.
 ```
 
 **Copilot Prompt:**
+
 ```
 Create AgentManagement component for /servers/:id page.
 Add "Agent" tab with install/start/stop/uninstall buttons.
@@ -426,22 +452,26 @@ Admin/operator only (check RBAC).
 
 **Goal:** Allow admins to manage users via UI  
 **Scope:**
+
 - Create `/users` page with CRUD operations
 - User list table with filters
 - Create/edit user dialog
 - Role management (admin/operator/user/auditor)
 
 **Files:**
+
 - `frontend-next/src/app/[locale]/(dashboard)/users/page.tsx` (new)
 - `frontend-next/src/components/users/UserTable.tsx` (new)
 - `frontend-next/src/components/users/UserDialog.tsx` (new)
 - `frontend-next/src/hooks/use-users.ts` (new)
 
 **Non-Goals:**
+
 - Changing backend user API (already complete)
 - Password reset UI (future)
 
 **How to Test:**
+
 ```bash
 1. Login as admin
 2. Navigate to /users
@@ -452,6 +482,7 @@ Admin/operator only (check RBAC).
 ```
 
 **Copilot Prompt:**
+
 ```
 Create /users page for admin user management.
 Use backend API: GET/POST /api/users, PUT/DELETE /api/users/:id
@@ -466,21 +497,25 @@ Admin-only access via middleware.
 
 **Goal:** Save theme preference to user account  
 **Scope:**
+
 - Add `theme_preference` column to `users` table
 - Sync theme to backend on change
 - Load theme from user account on login
 
 **Files:**
+
 - `backend/database.py` (add column)
 - `backend/user_management.py` (update user model)
 - `frontend-next/src/components/providers/ThemeProvider.tsx`
 - `frontend-next/src/hooks/use-theme-sync.ts` (new)
 
 **Non-Goals:**
+
 - Changing theme system architecture
 - Adding more themes (future: high-contrast, etc.)
 
 **How to Test:**
+
 ```bash
 1. Login, set theme to dark
 2. Logout, login from different device
@@ -489,6 +524,7 @@ Admin-only access via middleware.
 ```
 
 **Copilot Prompt:**
+
 ```
 Add theme persistence to user account.
 1. Backend: Add theme_preference column to users table (light/dark/auto)
@@ -503,20 +539,24 @@ Add theme persistence to user account.
 
 **Goal:** Allow users to save/reuse terminal commands  
 **Scope:**
+
 - Add "Saved Commands" panel to `/terminal` page
 - CRUD interface for snippets
 - Quick-run button (copy to terminal)
 
 **Files:**
+
 - `frontend-next/src/app/[locale]/(dashboard)/terminal/page.tsx`
 - `frontend-next/src/components/terminal/CommandPresets.tsx` (new)
 - `frontend-next/src/hooks/use-snippets.ts` (new)
 
 **Non-Goals:**
+
 - Changing backend snippets API (already complete)
 - Variable substitution in commands (future)
 
 **How to Test:**
+
 ```bash
 1. Navigate to /terminal
 2. Open "Saved Commands" panel
@@ -526,6 +566,7 @@ Add theme persistence to user account.
 ```
 
 **Copilot Prompt:**
+
 ```
 Add CommandPresets panel to /terminal page.
 Use backend API: GET/POST /api/snippets, PUT/DELETE /api/snippets/:id
@@ -583,15 +624,18 @@ CRUD dialog with fields: name, command, description, category, is_sudo
 ## 9. Next Actions (Prioritized)
 
 1. **IMMEDIATE (Today):**
+
    - Create GitHub issues for P0-1, P1-1, P1-2, P1-3
    - Start PR #1 (Backend CI fix)
 
 2. **THIS WEEK:**
+
    - Merge PR #1 (Backend CI)
    - Start PR #2 (Agent Management UI)
    - Start PR #3 (User Management UI)
 
 3. **NEXT WEEK:**
+
    - Merge PR #2 and PR #3
    - Start PR #4 (Theme Persistence)
    - Review CodeQL alerts (P2-3)

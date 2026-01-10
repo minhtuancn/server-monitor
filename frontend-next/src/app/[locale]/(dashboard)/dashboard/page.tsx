@@ -1,49 +1,42 @@
 "use client";
 
-import { apiFetch, downloadFile } from "@/lib/api-client";
+import { downloadFile } from "@/lib/api-client";
 import { MONITORING_WS_URL } from "@/lib/config";
 import { createReconnectingWebSocket } from "@/lib/websocket";
 import { StatsOverview, Server } from "@/types";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { ServerFormDialog } from "@/components/server/ServerFormDialog";
+import { useGroups } from "@/hooks/use-groups";
+import { apiFetch } from "@/lib/api-client";
 import AddIcon from "@mui/icons-material/Add";
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import TerminalIcon from "@mui/icons-material/Terminal";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import {
-  Alert,
   Box,
   Button,
   Card,
   CardContent,
   Chip,
   CircularProgress,
+  FormControl,
   Grid,
   IconButton,
+  InputLabel,
   LinearProgress,
+  MenuItem,
+  Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
-const serverSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  host: z.string().min(1, "Host is required"),
-  port: z.coerce.number().min(1).max(65535).optional(),
-  username: z.string().min(1, "Username is required"),
-  description: z.string().optional(),
-  tags: z.string().optional(),
-});
-
-type ServerForm = z.infer<typeof serverSchema>;
-
-export default function DashboardPage() {
-  const [formError, setFormError] = useState<string | null>(null);
+export default function DashboardWithGroups() {
   const [liveServers, setLiveServers] = useState<Server[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<string>("");
 
   const {
     data: stats,
@@ -63,12 +56,7 @@ export default function DashboardPage() {
     queryFn: () => apiFetch<Server[]>("/api/servers"),
   });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<ServerForm>({ resolver: zodResolver(serverSchema) });
+  const { data: groups = [] } = useGroups("servers");
 
   const { data: recentActivity } = useQuery({
     queryKey: ["recent-activity"],
@@ -86,31 +74,32 @@ export default function DashboardPage() {
         }>;
         count: number;
       }>("/api/activity/recent?limit=10"),
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
   });
 
-  const onCreateServer = async (values: ServerForm) => {
-    setFormError(null);
-    try {
-      await apiFetch("/api/servers", {
-        method: "POST",
-        body: JSON.stringify(values),
-      });
-      reset();
-      refetchServers();
-      refetchStats();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to create server";
-      setFormError(message);
-    }
-  };
+  // Filter servers by selected group
+  const displayServers = liveServers.length ? liveServers : servers || [];
+  const filteredServers = selectedGroup
+    ? displayServers.filter((s) => s.group_id?.toString() === selectedGroup)
+    : displayServers;
 
   const isLoading = statsLoading || serversLoading;
 
+  // Copy live server data from existing servers
   useEffect(() => {
-    if (servers) {
-      setLiveServers(servers);
-    }
+    if (!servers) return;
+    setLiveServers((prev) => {
+      if (!prev.length) return servers;
+      const map = new Map<number, Server>();
+      servers.forEach((s) => map.set(s.id, s));
+      prev.forEach((live) => {
+        const existing = map.get(live.id);
+        if (existing) {
+          map.set(live.id, { ...existing, ...live });
+        }
+      });
+      return Array.from(map.values());
+    });
   }, [servers]);
 
   useEffect(() => {
@@ -157,11 +146,52 @@ export default function DashboardPage() {
           }
         },
       },
-      { maxRetries: 10, retryDelayMs: 1500 },
+      { maxRetries: 10, retryDelayMs: 1500 }
     );
 
     return () => socket.close();
   }, []);
+
+  // Helper functions for activity feed
+  const getActionIcon = (action: string) => {
+    const iconMap: Record<string, string> = {
+      create: "➕",
+      update: "✏️",
+      delete: "🗑️",
+      login: "🔐",
+      logout: "👋",
+      execute: "▶️",
+      view: "👁️",
+    };
+    return iconMap[action] || "📝";
+  };
+
+  const getActionText = (action: string) => {
+    const textMap: Record<string, string> = {
+      create: "created",
+      update: "updated",
+      delete: "deleted",
+      login: "logged in",
+      logout: "logged out",
+      execute: "executed task",
+      view: "viewed",
+    };
+    return textMap[action] || action;
+  };
+
+  const timeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   return (
     <Stack spacing={3}>
@@ -256,46 +286,14 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      {/* Recent Activity Widget */}
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Recent Activity
           </Typography>
           {recentActivity?.activities && recentActivity.activities.length > 0 ? (
-            <Stack spacing={1} mt={2}>
+            <Stack spacing={0} divider={<Box sx={{ borderBottom: 1, borderColor: "divider" }} />}>
               {recentActivity.activities.map((activity) => {
-                const getActionIcon = (action: string) => {
-                  if (action.includes("terminal")) return "💻";
-                  if (action.includes("ssh_key")) return "🔑";
-                  if (action.includes("inventory")) return "📊";
-                  if (action.includes("user")) return "👤";
-                  if (action.includes("server")) return "🖥️";
-                  return "📝";
-                };
-
-                const getActionText = (action: string) => {
-                  const parts = action.split(".");
-                  if (parts.length >= 2) {
-                    return `${parts[0]} ${parts[1]}`;
-                  }
-                  return action;
-                };
-
-                const timeAgo = (dateStr: string) => {
-                  const date = new Date(dateStr);
-                  const now = new Date();
-                  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-                  if (seconds < 60) return `${seconds}s ago`;
-                  const minutes = Math.floor(seconds / 60);
-                  if (minutes < 60) return `${minutes}m ago`;
-                  const hours = Math.floor(minutes / 60);
-                  if (hours < 24) return `${hours}h ago`;
-                  const days = Math.floor(hours / 24);
-                  return `${days}d ago`;
-                };
-
                 return (
                   <Box
                     key={activity.id}
@@ -335,146 +333,133 @@ export default function DashboardPage() {
 
       <Card id="servers">
         <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h6">Servers</Typography>
-            {isLoading && <CircularProgress size={18} />}
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={2}>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography variant="h6">Servers</Typography>
+              {isLoading && <CircularProgress size={18} />}
+            </Box>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel id="group-filter-label">
+                  <FilterListIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: "middle" }} />
+                  Filter by Group
+                </InputLabel>
+                <Select
+                  labelId="group-filter-label"
+                  value={selectedGroup}
+                  label="Filter by Group"
+                  onChange={(e) => setSelectedGroup(e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>All Servers</em>
+                  </MenuItem>
+                  {groups.map((group) => (
+                    <MenuItem key={group.id} value={group.id.toString()}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            bgcolor: group.color,
+                          }}
+                        />
+                        <span>{group.name}</span>
+                      </Stack>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setDialogOpen(true)}
+              >
+                Add Server
+              </Button>
+            </Stack>
           </Box>
           <Grid container spacing={2}>
-            {(liveServers.length ? liveServers : servers || []).map((server) => (
-              <Grid item xs={12} md={6} lg={4} key={server.id}>
-                <Card variant="outlined" sx={{ height: "100%" }}>
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Box display="flex" alignItems="center" justifyContent="space-between">
-                        <Typography variant="subtitle1" fontWeight={700}>
-                          {server.name}
+            {filteredServers.map((server) => {
+              const serverGroup = groups.find((g) => g.id === server.group_id);
+              return (
+                <Grid item xs={12} md={6} lg={4} key={server.id}>
+                  <Card variant="outlined" sx={{ height: "100%" }}>
+                    <CardContent>
+                      <Stack spacing={1.5}>
+                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                          <Typography variant="subtitle1" fontWeight={700}>
+                            {server.name}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            color={
+                              server.status === "online"
+                                ? "success"
+                                : server.status === "offline"
+                                  ? "error"
+                                  : "default"
+                            }
+                            label={server.status || "unknown"}
+                          />
+                        </Box>
+                        {serverGroup && (
+                          <Chip
+                            label={serverGroup.name}
+                            size="small"
+                            sx={{
+                              bgcolor: serverGroup.color + "20",
+                              color: serverGroup.color,
+                              borderLeft: `3px solid ${serverGroup.color}`,
+                              maxWidth: "fit-content",
+                            }}
+                          />
+                        )}
+                        <Typography variant="body2" color="text.secondary">
+                          {server.host}
                         </Typography>
-                        <Chip
-                          size="small"
-                          color={
-                            server.status === "online"
-                              ? "success"
-                              : server.status === "offline"
-                                ? "error"
-                                : "default"
-                          }
-                          label={server.status || "unknown"}
-                        />
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {server.host}
-                      </Typography>
-                      <Stack direction="row" spacing={1}>
-                        <Chip label={`CPU ${server.cpu ?? "-"}%`} size="small" />
-                        <Chip label={`RAM ${server.memory ?? "-"}%`} size="small" />
-                        <Chip label={`Disk ${server.disk ?? "-"}%`} size="small" />
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          <Chip label={`CPU ${server.cpu ?? "-"}%`} size="small" />
+                          <Chip label={`RAM ${server.memory ?? "-"}%`} size="small" />
+                          <Chip label={`Disk ${server.disk ?? "-"}%`} size="small" />
+                        </Stack>
+                        <Stack direction="row" spacing={1}>
+                          <Button
+                            component={Link}
+                            href={`./servers/${server.id}`}
+                            size="small"
+                            variant="outlined"
+                          >
+                            Details
+                          </Button>
+                          <Button
+                            component={Link}
+                            href={`./terminal?server=${server.id}`}
+                            size="small"
+                            variant="text"
+                            startIcon={<TerminalIcon />}
+                          >
+                            Terminal
+                          </Button>
+                        </Stack>
                       </Stack>
-                      <Stack direction="row" spacing={1}>
-                        <Button
-                          component={Link}
-                          href={`./servers/${server.id}`}
-                          size="small"
-                          variant="outlined"
-                        >
-                          Details
-                        </Button>
-                        <Button
-                          component={Link}
-                          href={`./terminal?server=${server.id}`}
-                          size="small"
-                          variant="text"
-                          startIcon={<TerminalIcon />}
-                        >
-                          Terminal
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Typography variant="h6">Add Server</Typography>
-            <IconButton onClick={() => reset()} sx={{ width: 44, height: 44 }}>
-              <AddIcon />
-            </IconButton>
-          </Box>
-          {formError && <Alert severity="error">{formError}</Alert>}
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Name"
-                fullWidth
-                {...register("name")}
-                error={!!errors.name}
-                helperText={errors.name?.message}
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Host"
-                fullWidth
-                {...register("host")}
-                error={!!errors.host}
-                helperText={errors.host?.message}
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Port"
-                type="number"
-                fullWidth
-                {...register("port")}
-                error={!!errors.port}
-                helperText={errors.port?.message}
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Username"
-                fullWidth
-                {...register("username")}
-                error={!!errors.username}
-                helperText={errors.username?.message}
-              />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <TextField
-                label="Description"
-                fullWidth
-                {...register("description")}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField label="Tags" fullWidth {...register("tags")} />
-            </Grid>
-            <Grid
-              item
-              xs={12}
-              md={6}
-              display="flex"
-              justifyContent={{ xs: "flex-start", md: "flex-end" }}
-              alignItems="center"
-            >
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleSubmit(onCreateServer)}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Saving..." : "Add Server"}
-              </Button>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <ServerFormDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSuccess={() => {
+          refetchServers();
+          refetchStats();
+        }}
+      />
     </Stack>
   );
 }

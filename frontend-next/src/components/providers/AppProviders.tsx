@@ -7,9 +7,9 @@ import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import {
   QueryClient,
   QueryClientProvider,
+  useQuery,
 } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SnackbarProvider } from "../SnackbarProvider";
 
 type Props = {
@@ -19,7 +19,35 @@ type Props = {
 };
 
 function MuiThemeBridge({ children }: { children: React.ReactNode }) {
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  // Fetch session to get theme_preference
+  const { data: session } = useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/session", { cache: "no-store" });
+      if (!res.ok) return { authenticated: false };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: mounted,
+  });
+
+  // Load theme from session on mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (session?.authenticated && session.user?.theme_preference) {
+      const savedTheme = session.user.theme_preference;
+      if (savedTheme && savedTheme !== resolvedTheme) {
+        setTheme(savedTheme);
+      }
+    }
+  }, [session, setTheme, resolvedTheme]);
+
   const mode: PaletteMode = resolvedTheme === "dark" ? "dark" : "light";
   const theme = useMemo(
     () =>
@@ -57,14 +85,13 @@ export function AppProviders({ locale, messages, children }: Props) {
 
   return (
     <NextThemesProvider attribute="class" defaultTheme="system" enableSystem>
-      <MuiThemeBridge>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <MuiThemeBridge>
           <NextIntlClientProvider locale={locale} messages={messages}>
             {children}
           </NextIntlClientProvider>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </QueryClientProvider>
-      </MuiThemeBridge>
+        </MuiThemeBridge>
+      </QueryClientProvider>
     </NextThemesProvider>
   );
 }
