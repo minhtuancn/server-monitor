@@ -165,7 +165,13 @@ export default function DashboardPage() {
 
   return (
     <Stack spacing={3}>
-      <Box display="flex" alignItems="center" justifyContent="space-between">
+      <Box
+        display="flex"
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        justifyContent="space-between"
+        gap={2}
+        flexWrap="wrap"
+      >
         <Box>
           <Typography variant="h5" fontWeight={700}>
             Dashboard
@@ -174,8 +180,9 @@ export default function DashboardPage() {
             Real-time overview of all monitored servers
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="flex-end">
           <Button
+            size="small"
             variant="outlined"
             startIcon={<CloudDownloadIcon />}
             onClick={() => downloadFile("/api/export/servers/csv", "servers.csv")}
@@ -183,13 +190,17 @@ export default function DashboardPage() {
             Export CSV
           </Button>
           <Button
+            size="small"
             variant="outlined"
             startIcon={<CloudDownloadIcon />}
             onClick={() => downloadFile("/api/export/servers/json", "servers.json")}
           >
             Export JSON
           </Button>
-          <IconButton onClick={() => Promise.all([refetchServers(), refetchStats()])}>
+          <IconButton
+            onClick={() => Promise.all([refetchServers(), refetchStats()])}
+            sx={{ width: 44, height: 44 }}
+          >
             <RefreshIcon />
           </IconButton>
         </Stack>
@@ -389,7 +400,7 @@ export default function DashboardPage() {
         <CardContent>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
             <Typography variant="h6">Add Server</Typography>
-            <IconButton onClick={() => reset()}>
+            <IconButton onClick={() => reset()} sx={{ width: 44, height: 44 }}>
               <AddIcon />
             </IconButton>
           </Box>
@@ -442,8 +453,16 @@ export default function DashboardPage() {
             <Grid item xs={12} md={6}>
               <TextField label="Tags" fullWidth {...register("tags")} />
             </Grid>
-            <Grid item xs={12} md={6} display="flex" justifyContent="flex-end" alignItems="center">
+            <Grid
+              item
+              xs={12}
+              md={6}
+              display="flex"
+              justifyContent={{ xs: "flex-start", md: "flex-end" }}
+              alignItems="center"
+            >
               <Button
+                size="small"
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={handleSubmit(onCreateServer)}

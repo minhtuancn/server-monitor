@@ -12,18 +12,29 @@ Security hardening checklist for production deployments.
 
 ### ✅ Level 1: Basic Security (Minimum)
 
-- [ ] **Change default admin password**
+- [ ] **Change default admin password (first login)**
 
   ```bash
   # Login → Settings → Profile → Change Password
   # Use strong password (16+ chars, uppercase, lowercase, digits, symbols)
   ```
 
+- [ ] **Force first-login password change (ops control)**
+
+  - Create a one-time admin and rotate credentials immediately after first login
+  - Document and enforce via runbook until app-level policy is added
+
 - [ ] **Generate unique JWT secret**
 
   ```bash
-  python3 -c "import secrets; print(secrets.token_urlsafe(32))" >> backend/.env
+  python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))" >> backend/.env
   # Should be 32+ characters, truly random
+  ```
+
+- [ ] **Set ENCRYPTION_KEY (min 24 chars, 32+ recommended)**
+
+  ```bash
+  python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(32))" >> backend/.env
   ```
 
 - [ ] **Disable debug mode**
@@ -229,13 +240,16 @@ chown server-monitor:server-monitor backend/.env
 **Required secrets**:
 
 ```bash
-# backend/.env
-JWT_SECRET=<32+ chars, random>
-DATABASE_ENCRYPTION_KEY=<32+ chars, random>
-SSH_KEY_PASSPHRASE=<strong passphrase>
-TELEGRAM_BOT_TOKEN=<from BotFather>
-SMTP_PASSWORD=<email password>
-SLACK_WEBHOOK_URL=<webhook URL>
+# Copy backend/.env.example to backend/.env and update values
+cp backend/.env.example backend/.env
+
+# Edit backend/.env with your production values
+# See backend/.env.example for all available options
+
+# CRITICAL: Generate strong secrets
+python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(32))"
+python3 -c "import secrets; print('ENCRYPTION_KEY=' + secrets.token_urlsafe(32))"
+python3 -c "import secrets; print('KEY_VAULT_MASTER_KEY=' + secrets.token_urlsafe(32))"
 ```
 
 ---

@@ -1,0 +1,298 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: "18"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # Backend Testing
+  backend-tests:
+    name: Backend Tests (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest bandit safety
+
+      - name: Run security scan
+        run: |
+          bandit -r backend/ -f json -o bandit-report.json
+          safety check
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-scan-results
+          path: bandit-report.json
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          CI=true python -m pytest ../tests/ -v --tb=short
+        env:
+          CI: true
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: backend-coverage
+          path: htmlcov/
+
+  # Frontend Testing
+  frontend-tests:
+    name: Frontend Tests (Node.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "frontend-next/package-lock.json"
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend-next
+          npm ci
+
+      - name: Run TypeScript type check
+        run: |
+          cd frontend-next
+          npx tsc --noEmit
+
+      - name: Run ESLint
+        run: |
+          cd frontend-next
+          npm run lint
+
+      - name: Build frontend
+        run: |
+          cd frontend-next
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: frontend-next/.next/
+
+  # End-to-End Testing
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "frontend-next/package-lock.json"
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          # Backend
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+          # Frontend
+          cd frontend-next
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start services
+        run: |
+          # Start backend services
+          cd backend
+          python central_api.py &
+          sleep 5
+
+          # Start frontend
+          cd ../frontend-next
+          npm run build
+          npm start &
+          sleep 10
+
+          # Health check
+          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:9083/api/health
+          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:9081
+        env:
+          CI: true
+          JWT_SECRET: test-secret-for-ci-only-not-secure
+          ENCRYPTION_KEY: test-encryption-key-ci-only
+
+      - name: Run E2E tests
+        run: |
+          cd frontend-next
+          E2E_RUN=1 E2E_BASE_URL=http://localhost:9081 E2E_BASE_PATH=/en npm run test:e2e
+        env:
+          E2E_RUN: 1
+          E2E_BASE_URL: http://localhost:9081
+          E2E_BASE_PATH: /en
+          E2E_USER: admin
+          E2E_PASS: admin123
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            frontend-next/test-results/
+            frontend-next/playwright-report/
+
+      - name: Upload screenshots and videos
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-screenshots-videos
+          path: |
+            frontend-next/test-results/**/*.png
+            frontend-next/test-results/**/*.webm
+
+  # Security Analysis
+  security-analysis:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better analysis
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit safety semgrep
+
+      - name: Run Bandit security scan
+        run: |
+          bandit -r backend/ -f json -o bandit-report.json || true
+
+      - name: Run Safety dependency check
+        run: |
+          pip install -r backend/requirements.txt
+          safety check --json --output safety-report.json || true
+
+      - name: Run Semgrep SAST
+        run: |
+          semgrep --config=auto --json --output=semgrep-report.json backend/ || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-analysis-results
+          path: |
+            bandit-report.json
+            safety-report.json
+            semgrep-report.json
+
+  # Performance Testing (optional)
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [e2e-tests]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "frontend-next/package-lock.json"
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+
+      - name: Build and start application
+        run: |
+          pip install -r backend/requirements.txt
+          cd backend && python central_api.py &
+          cd frontend-next && npm ci && npm run build && npm start &
+          sleep 15
+        env:
+          CI: true
+          JWT_SECRET: test-secret-for-ci-only
+          ENCRYPTION_KEY: test-encryption-key-ci
+
+      - name: Run Lighthouse CI
+        run: lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: lighthouse-results
+          path: .lighthouseci/
+
+  # Security and quality gates
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, e2e-tests]
+    if: always()
+
+    steps:
+      - name: Check test results
+        run: |
+          echo \"Backend tests: ${{ needs.backend-tests.result }}\"
+          echo \"Frontend tests: ${{ needs.frontend-tests.result }}\"
+          echo \"E2E tests: ${{ needs.e2e-tests.result }}\"
+
+          if [[ \"${{ needs.backend-tests.result }}\" != \"success\" ||
+                \"${{ needs.frontend-tests.result }}\" != \"success\" ||
+                \"${{ needs.e2e-tests.result }}\" != \"success\" ]]; then
+            echo \"❌ Quality gate failed - one or more test suites failed\"
+            exit 1
+          else
+            echo \"✅ Quality gate passed - all tests successful\"
+          fi

@@ -58,6 +58,7 @@ Last Updated: 2026-01-09
 - [CODE_STYLE.md](development/CODE_STYLE.md) — Coding standards
 - [TESTING.md](development/TESTING.md) — Testing strategy
 - [TEST_GUIDE.md](operations/TEST_GUIDE.md) — Running tests
+- [E2E_TESTS.md](testing/E2E_TESTS.md) — Playwright end-to-end guide
 
 **Backend (Python)**
 
@@ -100,6 +101,7 @@ Last Updated: 2026-01-09
 
 - [SECURITY.md](security/SECURITY.md) — Security policy & vulnerability reporting
 - [PRODUCTION_SECURITY.md](security/PRODUCTION_SECURITY.md) — Production hardening checklist
+- [SECURITY_CHECKLIST.md](security/SECURITY_CHECKLIST.md) — Pre-deployment security audit
 - [HTTPS_SETUP.md](security/HTTPS_SETUP.md) — SSL certificate setup
 - [SECURITY_MODEL.md](security/SECURITY_MODEL.md) — Authentication & authorization
 - [SSH_KEY_MANAGEMENT.md](security/SSH_KEY_MANAGEMENT.md) — SSH key vault

@@ -145,7 +145,8 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const DRAWER_WIDTH = 270;
+const DESKTOP_DRAWER_WIDTH = 270;
+const MOBILE_DRAWER_WIDTH = 240;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -236,7 +237,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <AppBar position="fixed" color="inherit" elevation={1} sx={{ zIndex: 1300 }}>
         <Toolbar sx={{ display: "flex", gap: 1 }}>
           {isMobile && (
-            <IconButton edge="start" onClick={toggleDrawer}>
+            <IconButton edge="start" onClick={toggleDrawer} sx={{ width: 44, height: 44 }}>
               <MenuIcon />
             </IconButton>
           )}
@@ -247,6 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <IconButton
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               color="inherit"
+              sx={{ width: 44, height: 44 }}
             >
               {muiTheme.palette.mode === "dark" ? (
                 <Brightness7Icon />
@@ -256,7 +258,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </IconButton>
           </Tooltip>
           <Tooltip title="Logout">
-            <IconButton onClick={handleLogout} color="inherit">
+            <IconButton onClick={handleLogout} color="inherit" sx={{ width: 44, height: 44 }}>
               <LogoutIcon />
             </IconButton>
           </Tooltip>
@@ -267,7 +269,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Toolbar>
       </AppBar>
 
-      <Box component="nav" sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
+      <Box
+        component="nav"
+        sx={{
+          width: { xs: MOBILE_DRAWER_WIDTH, md: DESKTOP_DRAWER_WIDTH },
+          flexShrink: { md: 0 },
+        }}
+      >
         {isMobile ? (
           <Drawer
             variant="temporary"
@@ -275,7 +283,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClose={toggleDrawer}
             ModalProps={{ keepMounted: true }}
             sx={{
-              "& .MuiDrawer-paper": { boxSizing: "border-box", width: DRAWER_WIDTH },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: MOBILE_DRAWER_WIDTH,
+              },
             }}
           >
             {drawerContent}
@@ -286,7 +297,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sx={{
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
-                width: DRAWER_WIDTH,
+                width: DESKTOP_DRAWER_WIDTH,
               },
             }}
             open
@@ -300,8 +311,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          px: { xs: 2, md: 3 },
+          py: { xs: 2, md: 3 },
+          width: { md: `calc(100% - ${DESKTOP_DRAWER_WIDTH}px)` },
           mt: 8,
         }}
       >

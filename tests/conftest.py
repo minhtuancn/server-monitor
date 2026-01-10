@@ -8,6 +8,7 @@ Handles test setup, teardown, and common test utilities
 import sys
 import os
 import pytest
+import requests
 
 # Set CI environment to disable rate limiting for tests
 os.environ['CI'] = 'true'
@@ -18,6 +19,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 # Import after setting CI env var so security.py reads the flag
 from rate_limiter import get_rate_limiter
 import security
+
+# Test configuration
+BASE_URL = os.getenv('TEST_BASE_URL', 'http://localhost:9083')
 
 
 @pytest.fixture(autouse=True)
@@ -35,22 +39,41 @@ def reset_rate_limiter():
     is set (which it is for testing), but we still reset the counters
     for cleanliness.
     """
+    # Always use local reset since it's more reliable
+    _local_reset_rate_limiter()
+    
+    yield
+    
+    # Cleanup after test (optional, for consistency)
+    _local_reset_rate_limiter()
+
+
+def _local_reset_rate_limiter():
+    """
+    Reset rate limiter locally (fallback if API server not running)
+    """
     # Reset global rate limiter state
     rate_limiter = get_rate_limiter()
-    rate_limiter.clear_all()
+    if hasattr(rate_limiter, 'clear_all'):
+        rate_limiter.clear_all()
     
     # Reset security rate limiting and IP blocks
     # These are used by security.RateLimiter
-    security.login_attempts.clear()
-    security.blocked_ips.clear()
-    
-    # Yield to test
-    yield
-    
-    # Cleanup after test
-    rate_limiter.clear_all()
-    security.login_attempts.clear()
-    security.blocked_ips.clear()
+    if hasattr(security, 'clear_rate_limit_state'):
+        try:
+            security.clear_rate_limit_state()
+        except:
+            # Fallback for older versions
+            security.login_attempts.clear()
+            security.blocked_ips.clear()
+            if hasattr(security, 'request_counts'):
+                security.request_counts.clear()
+    else:
+        # Fallback for older versions
+        security.login_attempts.clear()
+        security.blocked_ips.clear()
+        if hasattr(security, 'request_counts'):
+            security.request_counts.clear()
 
 
 @pytest.fixture

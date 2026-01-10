@@ -1685,6 +1685,26 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._start_request()
         
+        path = self.path
+        
+        # ==================== TESTING ENDPOINTS (CI/DEV ONLY) ====================
+        # Must be before security middleware to bypass rate limiting
+        
+        if path == '/api/test/clear-rate-limit' and os.environ.get('CI', '').lower() in ('true', '1', 'yes'):
+            # Clear rate limiter for testing
+            # Only available in CI mode to prevent abuse
+            try:
+                security.clear_rate_limit_state()
+                rate_limiter.clear_all()
+                self._set_headers(200)
+                self.wfile.write(json.dumps({'success': True, 'message': 'Rate limit state cleared'}).encode())
+                self._finish_request(200)
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({'error': str(e)}).encode())
+                self._finish_request(500)
+            return
+        
         # Apply security middleware
         sec_result = security.apply_security_middleware(self, 'POST')
         if sec_result['block']:
