@@ -2,6 +2,7 @@ export type Role = "admin" | "user" | "public" | string;
 
 export type SessionUser = {
   username?: string;
+  email?: string;
   role?: Role;
   permissions?: string[];
   theme_preference?: "light" | "dark" | "system";

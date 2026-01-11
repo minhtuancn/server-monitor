@@ -117,7 +117,17 @@ export default function SettingsPage() {
       )}
 
       <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+        <Tabs
+          value={tabValue}
+          onChange={(_, newValue) => setTabValue(newValue)}
+          sx={{
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.95rem",
+            },
+          }}
+        >
           <Tab label="General" icon={<PublicIcon />} iconPosition="start" />
           <Tab label="Localization" icon={<LanguageIcon />} iconPosition="start" />
           <Tab label="Database" icon={<StorageIcon />} iconPosition="start" />
@@ -127,10 +137,17 @@ export default function SettingsPage() {
 
       {/* General Settings */}
       <TabPanel value={tabValue} index={0}>
-        <Card>
+        <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
           <CardContent>
             <Stack spacing={3}>
-              <Typography variant="h6">General Settings</Typography>
+              <Box>
+                <Typography variant="h6" fontWeight={600}>
+                  General Settings
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Configure basic system preferences and behavior
+                </Typography>
+              </Box>
               <Divider />
               
               <Grid container spacing={3}>
@@ -140,6 +157,7 @@ export default function SettingsPage() {
                     label="System Name"
                     value={localSettings.system_name || "Server Monitor"}
                     onChange={(e) => updateSetting("system_name", e.target.value)}
+                    helperText="Display name for your monitoring system"
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -149,6 +167,7 @@ export default function SettingsPage() {
                     type="email"
                     value={localSettings.admin_email || ""}
                     onChange={(e) => updateSetting("admin_email", e.target.value)}
+                    helperText="Primary contact email for system notifications"
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
@@ -177,9 +196,12 @@ export default function SettingsPage() {
                     type="number"
                     value={localSettings.session_timeout || "480"}
                     onChange={(e) => updateSetting("session_timeout", e.target.value)}
+                    helperText="Auto-logout after inactivity (default: 8 hours)"
                   />
                 </Grid>
               </Grid>
+              
+              <Divider />
               
               <Box display="flex" justifyContent="flex-end">
                 <Button
@@ -187,8 +209,9 @@ export default function SettingsPage() {
                   startIcon={<SaveIcon />}
                   onClick={handleSaveAll}
                   disabled={mutation.isPending}
+                  size="large"
                 >
-                  Save General Settings
+                  {mutation.isPending ? "Saving..." : "Save General Settings"}
                 </Button>
               </Box>
             </Stack>
@@ -198,10 +221,17 @@ export default function SettingsPage() {
 
       {/* Localization Settings */}
       <TabPanel value={tabValue} index={1}>
-        <Card>
+        <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
           <CardContent>
             <Stack spacing={3}>
-              <Typography variant="h6">Localization Settings</Typography>
+              <Box>
+                <Typography variant="h6" fontWeight={600}>
+                  Localization Settings
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Configure language, date/time formats, and regional preferences
+                </Typography>
+              </Box>
               <Divider />
               
               <Grid container spacing={3}>
@@ -213,14 +243,14 @@ export default function SettingsPage() {
                       label="Default Language"
                       onChange={(e) => updateSetting("default_language", e.target.value)}
                     >
-                      <MenuItem value="en">English</MenuItem>
-                      <MenuItem value="vi">Tiếng Việt</MenuItem>
-                      <MenuItem value="fr">Français</MenuItem>
-                      <MenuItem value="es">Español</MenuItem>
-                      <MenuItem value="de">Deutsch</MenuItem>
-                      <MenuItem value="ja">日本語</MenuItem>
-                      <MenuItem value="ko">한국어</MenuItem>
-                      <MenuItem value="zh-CN">简体中文</MenuItem>
+                      <MenuItem value="en">🇬🇧 English</MenuItem>
+                      <MenuItem value="vi">🇻🇳 Tiếng Việt</MenuItem>
+                      <MenuItem value="fr">🇫🇷 Français</MenuItem>
+                      <MenuItem value="es">🇪🇸 Español</MenuItem>
+                      <MenuItem value="de">🇩🇪 Deutsch</MenuItem>
+                      <MenuItem value="ja">🇯🇵 日本語</MenuItem>
+                      <MenuItem value="ko">🇰🇷 한국어</MenuItem>
+                      <MenuItem value="zh-CN">🇨🇳 简体中文</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -264,9 +294,9 @@ export default function SettingsPage() {
                       label="Number Format"
                       onChange={(e) => updateSetting("number_format", e.target.value)}
                     >
-                      <MenuItem value="1,234.56">1,234.56 (Comma thousand, dot decimal)</MenuItem>
-                      <MenuItem value="1.234,56">1.234,56 (Dot thousand, comma decimal)</MenuItem>
-                      <MenuItem value="1 234,56">1 234,56 (Space thousand, comma decimal)</MenuItem>
+                      <MenuItem value="1,234.56">1,234.56 (Comma, dot decimal)</MenuItem>
+                      <MenuItem value="1.234,56">1.234,56 (Dot, comma decimal)</MenuItem>
+                      <MenuItem value="1 234,56">1 234,56 (Space, comma decimal)</MenuItem>
                       <MenuItem value="1234.56">1234.56 (No separator)</MenuItem>
                     </Select>
                   </FormControl>
@@ -280,12 +310,12 @@ export default function SettingsPage() {
                       label="Currency"
                       onChange={(e) => updateSetting("currency", e.target.value)}
                     >
-                      <MenuItem value="USD">USD ($)</MenuItem>
-                      <MenuItem value="EUR">EUR (€)</MenuItem>
-                      <MenuItem value="GBP">GBP (£)</MenuItem>
-                      <MenuItem value="VND">VND (₫)</MenuItem>
-                      <MenuItem value="JPY">JPY (¥)</MenuItem>
-                      <MenuItem value="CNY">CNY (¥)</MenuItem>
+                      <MenuItem value="USD">USD - $ (US Dollar)</MenuItem>
+                      <MenuItem value="EUR">EUR - € (Euro)</MenuItem>
+                      <MenuItem value="GBP">GBP - £ (British Pound)</MenuItem>
+                      <MenuItem value="VND">VND - ₫ (Vietnamese Dong)</MenuItem>
+                      <MenuItem value="JPY">JPY - ¥ (Japanese Yen)</MenuItem>
+                      <MenuItem value="CNY">CNY - ¥ (Chinese Yuan)</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -305,14 +335,17 @@ export default function SettingsPage() {
                 </Grid>
               </Grid>
               
+              <Divider />
+              
               <Box display="flex" justifyContent="flex-end">
                 <Button
                   variant="contained"
                   startIcon={<SaveIcon />}
                   onClick={handleSaveAll}
                   disabled={mutation.isPending}
+                  size="large"
                 >
-                  Save Localization Settings
+                  {mutation.isPending ? "Saving..." : "Save Localization Settings"}
                 </Button>
               </Box>
             </Stack>
@@ -322,27 +355,40 @@ export default function SettingsPage() {
 
       {/* Database Management */}
       <TabPanel value={tabValue} index={2}>
-        <Card>
+        <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
           <CardContent>
             <Stack spacing={3}>
               <Box>
-                <Typography variant="h6">Database Management</Typography>
+                <Typography variant="h6" fontWeight={600}>
+                  Database Management
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Manage database backups, restore, and health monitoring
                 </Typography>
               </Box>
               <Divider />
               
-              <Alert severity="info">
-                Database management features are available in a dedicated page.
-              </Alert>
-              
-              <Box>
+              <Box
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  bgcolor: "action.hover",
+                  borderRadius: 2,
+                }}
+              >
+                <StorageIcon sx={{ fontSize: 64, color: "primary.main", mb: 2 }} />
+                <Typography variant="body1" gutterBottom>
+                  Database management features are available on a dedicated page
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={3}>
+                  Backup, restore, and monitor your database health
+                </Typography>
                 <Button
                   variant="contained"
                   component={Link}
                   href="/settings/database"
                   startIcon={<StorageIcon />}
+                  size="large"
                 >
                   Go to Database Management
                 </Button>
@@ -354,29 +400,56 @@ export default function SettingsPage() {
 
       {/* Groups Management */}
       <TabPanel value={tabValue} index={3}>
-        <Card>
+        <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
           <CardContent>
             <Stack spacing={3}>
               <Box>
-                <Typography variant="h6">Groups Management</Typography>
+                <Typography variant="h6" fontWeight={600}>
+                  Groups Management
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Organize servers, notes, snippets, and inventory items into groups
                 </Typography>
               </Box>
               <Divider />
               
-              <Grid container spacing={2}>
+              <Grid container spacing={3}>
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card variant="outlined">
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      transition: "all 0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-4px)",
+                        borderColor: "primary.main",
+                      },
+                    }}
+                  >
                     <CardContent>
-                      <Stack spacing={2}>
-                        <CategoryIcon color="primary" sx={{ fontSize: 40 }} />
-                        <Typography variant="h6">Server Groups</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                      <Stack spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                          }}
+                        >
+                          <CategoryIcon sx={{ fontSize: 32, color: "white" }} />
+                        </Box>
+                        <Typography variant="h6" fontWeight={600}>
+                          Server Groups
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" textAlign="center">
                           Organize servers by environment, location, or function
                         </Typography>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           component={Link}
                           href="/settings/groups?type=servers"
                           fullWidth
@@ -389,19 +462,45 @@ export default function SettingsPage() {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card variant="outlined">
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      transition: "all 0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-4px)",
+                        borderColor: "success.main",
+                      },
+                    }}
+                  >
                     <CardContent>
-                      <Stack spacing={2}>
-                        <CategoryIcon color="success" sx={{ fontSize: 40 }} />
-                        <Typography variant="h6">Note Groups</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                      <Stack spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                          }}
+                        >
+                          <CategoryIcon sx={{ fontSize: 32, color: "white" }} />
+                        </Box>
+                        <Typography variant="h6" fontWeight={600}>
+                          Note Groups
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" textAlign="center">
                           Categorize server notes by topic or priority
                         </Typography>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           component={Link}
                           href="/settings/groups?type=notes"
                           fullWidth
+                          color="success"
                         >
                           Manage
                         </Button>
@@ -411,19 +510,45 @@ export default function SettingsPage() {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card variant="outlined">
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      transition: "all 0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-4px)",
+                        borderColor: "warning.main",
+                      },
+                    }}
+                  >
                     <CardContent>
-                      <Stack spacing={2}>
-                        <CategoryIcon color="warning" sx={{ fontSize: 40 }} />
-                        <Typography variant="h6">Command Snippets</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                      <Stack spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                          }}
+                        >
+                          <CategoryIcon sx={{ fontSize: 32, color: "white" }} />
+                        </Box>
+                        <Typography variant="h6" fontWeight={600}>
+                          Command Snippets
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" textAlign="center">
                           Group terminal commands by category or use case
                         </Typography>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           component={Link}
                           href="/settings/groups?type=snippets"
                           fullWidth
+                          color="warning"
                         >
                           Manage
                         </Button>
@@ -433,19 +558,45 @@ export default function SettingsPage() {
                 </Grid>
                 
                 <Grid item xs={12} sm={6} md={3}>
-                  <Card variant="outlined">
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      transition: "all 0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-4px)",
+                        borderColor: "info.main",
+                      },
+                    }}
+                  >
                     <CardContent>
-                      <Stack spacing={2}>
-                        <CategoryIcon color="info" sx={{ fontSize: 40 }} />
-                        <Typography variant="h6">Inventory Groups</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                      <Stack spacing={2} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)",
+                          }}
+                        >
+                          <CategoryIcon sx={{ fontSize: 32, color: "white" }} />
+                        </Box>
+                        <Typography variant="h6" fontWeight={600}>
+                          Inventory Groups
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" textAlign="center">
                           Classify inventory items by type or category
                         </Typography>
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           component={Link}
                           href="/settings/groups?type=inventory"
                           fullWidth
+                          color="info"
                         >
                           Manage
                         </Button>
@@ -460,10 +611,14 @@ export default function SettingsPage() {
       </TabPanel>
 
       {mutation.isSuccess && (
-        <Alert severity="success">Settings saved successfully!</Alert>
+        <Alert severity="success" sx={{ borderRadius: 2 }}>
+          Settings saved successfully!
+        </Alert>
       )}
       {mutation.isError && (
-        <Alert severity="error">Failed to save settings. Please try again.</Alert>
+        <Alert severity="error" sx={{ borderRadius: 2 }}>
+          Failed to save settings. Please try again.
+        </Alert>
       )}
     </Stack>
   );

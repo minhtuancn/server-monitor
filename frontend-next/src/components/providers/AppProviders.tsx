@@ -1,6 +1,6 @@
 "use client";
 
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import type { PaletteMode } from "@mui/material";
 import { NextIntlClientProvider, type AbstractIntlMessages } from "next-intl";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { SnackbarProvider } from "../SnackbarProvider";
+import { createAppTheme } from "@/theme/theme";
 
 type Props = {
   locale: string;
@@ -49,14 +50,7 @@ function MuiThemeBridge({ children }: { children: React.ReactNode }) {
   }, [session, setTheme, resolvedTheme]);
 
   const mode: PaletteMode = resolvedTheme === "dark" ? "dark" : "light";
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: { mode },
-        shape: { borderRadius: 10 },
-      }),
-    [mode],
-  );
+  const theme = useMemo(() => createAppTheme(mode), [mode]);
 
   return (
     <ThemeProvider theme={theme}>

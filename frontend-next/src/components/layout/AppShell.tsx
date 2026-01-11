@@ -23,6 +23,9 @@ import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import HistoryIcon from "@mui/icons-material/History";
 import WebhookIcon from "@mui/icons-material/Webhook";
+import PersonIcon from "@mui/icons-material/Person";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import {
   AppBar,
   Avatar,
@@ -34,10 +37,14 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Menu,
+  MenuItem,
   Toolbar,
   Tooltip,
   Typography,
   useMediaQuery,
+  Badge,
+  Chip,
 } from "@mui/material";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -50,6 +57,7 @@ type NavItem = {
   href: string;
   icon: React.ReactNode;
   roles?: Role[];
+  badge?: number;
 };
 
 type NavSection = {
@@ -159,8 +167,21 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-const DESKTOP_DRAWER_WIDTH = 270;
-const MOBILE_DRAWER_WIDTH = 240;
+const DESKTOP_DRAWER_WIDTH = 280;
+const MOBILE_DRAWER_WIDTH = 260;
+
+const getRoleColor = (role?: string) => {
+  switch (role) {
+    case "admin":
+      return "error";
+    case "operator":
+      return "warning";
+    case "viewer":
+      return "info";
+    default:
+      return "default";
+  }
+};
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -172,6 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
   const { data: session } = useSession();
   
   // Sync theme changes to backend
@@ -183,20 +205,46 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const toggleDrawer = () => setMobileOpen((open) => !open);
 
+  const handleProfileOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setProfileAnchor(event.currentTarget);
+  };
+
+  const handleProfileClose = () => {
+    setProfileAnchor(null);
+  };
+
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace(`/${locale}/login`);
   };
 
+  const handleProfile = () => {
+    handleProfileClose();
+    router.push(`/${locale}/profile`);
+  };
+
   const currentRole = session?.authenticated ? session.user?.role : "public";
+  const username = session?.authenticated ? session.user?.username : "Guest";
+  const email = session?.authenticated ? session.user?.email : "";
 
   const renderNavItems = () =>
     NAV_SECTIONS.map((section) => (
       <Box key={section.title} sx={{ mb: 2 }}>
-        <Typography variant="caption" sx={{ px: 2.5, color: "text.secondary" }}>
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2.5,
+            py: 0.5,
+            color: "text.secondary",
+            textTransform: "uppercase",
+            fontWeight: 700,
+            fontSize: "0.75rem",
+            letterSpacing: "0.5px",
+          }}
+        >
           {section.title}
         </Typography>
-        <List>
+        <List sx={{ px: 1, pt: 0.5 }}>
           {section.items
             .filter((item) => {
               if (!item.roles || item.roles.length === 0) return true;
@@ -215,13 +263,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   onClick={() => isMobile && setMobileOpen(false)}
                   sx={{
                     borderRadius: 2,
-                    mx: 1,
-                    my: 0.5,
+                    my: 0.3,
+                    px: 2,
+                    py: 1.2,
+                    transition: "all 0.2s ease-in-out",
+                    "&:hover": {
+                      transform: "translateX(4px)",
+                    },
                   }}
                 >
                   {/* eslint-enable @typescript-eslint/no-explicit-any */}
-                  <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} />
+                  <ListItemIcon sx={{ minWidth: 40, color: active ? "primary.main" : "inherit" }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontSize: "0.9375rem",
+                      fontWeight: active ? 600 : 500,
+                    }}
+                  />
+                  {item.badge && (
+                    <Badge badgeContent={item.badge} color="error" sx={{ ml: 1 }} />
+                  )}
                 </ListItemButton>
               );
             })}
@@ -231,46 +295,149 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const drawerContent = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ px: 2, py: 2 }}>
-        <Typography variant="h6">Server Monitor</Typography>
-        <Typography variant="body2" color="text.secondary">
-          Multi-server dashboard
-        </Typography>
+      {/* Logo / Brand Section */}
+      <Box sx={{ px: 3, py: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 42,
+              height: 42,
+              borderRadius: 2,
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <StorageIcon sx={{ color: "white", fontSize: 24 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              Server Monitor
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+              Multi-server dashboard
+            </Typography>
+          </Box>
+        </Box>
       </Box>
       <Divider />
-      <Box sx={{ flex: 1, overflowY: "auto", py: 1 }}>{renderNavItems()}</Box>
+      
+      {/* Navigation */}
+      <Box sx={{ flex: 1, overflowY: "auto", py: 2 }}>{renderNavItems()}</Box>
+      
       <Divider />
+      
+      {/* User Info Section */}
       <Box sx={{ p: 2 }}>
-        <Typography variant="caption" color="text.secondary">
-          Logged in as
-        </Typography>
-        <Typography variant="body2" fontWeight={600}>
-          {session?.authenticated ? session.user?.username : "Guest"}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {session?.authenticated ? session.user?.role : "public"}
-        </Typography>
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            bgcolor: (theme) =>
+              theme.palette.mode === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)",
+            transition: "all 0.2s",
+            "&:hover": {
+              bgcolor: (theme) =>
+                theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
+            },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: "primary.main",
+                fontSize: "1rem",
+                fontWeight: 600,
+              }}
+            >
+              {username?.[0]?.toUpperCase() || "?"}
+            </Avatar>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body2" fontWeight={600} noWrap>
+                {username}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" noWrap>
+                {email}
+              </Typography>
+            </Box>
+          </Box>
+          <Chip
+            label={currentRole}
+            size="small"
+            color={getRoleColor(currentRole)}
+            sx={{ fontSize: "0.75rem", height: 24, fontWeight: 600 }}
+          />
+        </Box>
       </Box>
     </Box>
   );
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <AppBar position="fixed" color="inherit" elevation={1} sx={{ zIndex: 1300 }}>
-        <Toolbar sx={{ display: "flex", gap: 1 }}>
+      {/* App Bar */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          zIndex: 1300,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Toolbar sx={{ display: "flex", gap: 1, minHeight: { xs: 64, md: 70 } }}>
           {isMobile && (
-            <IconButton 
-              edge="start" 
-              onClick={toggleDrawer} 
+            <IconButton
+              edge="start"
+              onClick={toggleDrawer}
               sx={{ width: 44, height: 44 }}
               aria-label="Open navigation menu"
             >
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Server Monitor
-          </Typography>
+          
+          {!isMobile && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <Box
+                sx={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1.5,
+                  background: (theme) =>
+                    theme.palette.mode === "dark"
+                      ? "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                      : "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <StorageIcon sx={{ color: "white", fontSize: 20 }} />
+              </Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Server Monitor
+              </Typography>
+            </Box>
+          )}
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          {/* Notifications */}
+          <Tooltip title="Notifications">
+            <IconButton color="inherit" sx={{ width: 44, height: 44 }}>
+              <Badge badgeContent={0} color="error">
+                <NotificationsIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+          
+          {/* Theme Toggle */}
           <Tooltip title="Toggle theme">
             <IconButton
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -285,23 +452,111 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </IconButton>
           </Tooltip>
-          <Tooltip title="Logout">
-            <IconButton 
-              onClick={handleLogout} 
-              color="inherit" 
-              sx={{ width: 44, height: 44 }}
-              aria-label="Logout"
+          
+          {/* Profile Menu */}
+          <Box
+            onClick={handleProfileOpen}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              cursor: "pointer",
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 2,
+              transition: "all 0.2s",
+              "&:hover": {
+                bgcolor: (theme) =>
+                  theme.palette.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+              },
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: "primary.main",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+              }}
             >
-              <LogoutIcon />
-            </IconButton>
-          </Tooltip>
-          <Avatar sx={{ width: 36, height: 36, ml: 1 }}>
-            {(session?.authenticated && session.user?.username?.[0]?.toUpperCase()) ||
-              "A"}
-          </Avatar>
+              {username?.[0]?.toUpperCase() || "?"}
+            </Avatar>
+            {!isMobile && (
+              <>
+                <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                  <Typography variant="body2" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                    {username}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                    {currentRole}
+                  </Typography>
+                </Box>
+                <KeyboardArrowDownIcon fontSize="small" />
+              </>
+            )}
+          </Box>
+          
+          {/* Profile Dropdown Menu */}
+          <Menu
+            anchorEl={profileAnchor}
+            open={Boolean(profileAnchor)}
+            onClose={handleProfileClose}
+            onClick={handleProfileClose}
+            PaperProps={{
+              elevation: 3,
+              sx: {
+                minWidth: 220,
+                mt: 1.5,
+                borderRadius: 2,
+                overflow: "visible",
+                "&:before": {
+                  content: '""',
+                  display: "block",
+                  position: "absolute",
+                  top: 0,
+                  right: 14,
+                  width: 10,
+                  height: 10,
+                  bgcolor: "background.paper",
+                  transform: "translateY(-50%) rotate(45deg)",
+                  zIndex: 0,
+                },
+              },
+            }}
+            transformOrigin={{ horizontal: "right", vertical: "top" }}
+            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+          >
+            <Box sx={{ px: 2, py: 1.5 }}>
+              <Typography variant="body2" fontWeight={600}>
+                {username}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {email}
+              </Typography>
+            </Box>
+            <Divider />
+            <MenuItem onClick={handleProfile} sx={{ py: 1.5, gap: 2 }}>
+              <PersonIcon fontSize="small" />
+              Profile
+            </MenuItem>
+            <MenuItem onClick={() => router.push(`/${locale}/settings`)} sx={{ py: 1.5, gap: 2 }}>
+              <SettingsIcon fontSize="small" />
+              Settings
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={handleLogout}
+              sx={{ py: 1.5, gap: 2, color: "error.main" }}
+            >
+              <LogoutIcon fontSize="small" />
+              Logout
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
 
+      {/* Sidebar Drawer */}
       <Box
         component="nav"
         sx={{
@@ -331,6 +586,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: DESKTOP_DRAWER_WIDTH,
+                borderRight: 1,
+                borderColor: "divider",
               },
             }}
             open
@@ -340,20 +597,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </Box>
 
-      {/* Main Content Area with Breadcrumbs */}
+      {/* Main Content Area */}
       <Box
         sx={{
           flexGrow: 1,
           width: { md: `calc(100% - ${DESKTOP_DRAWER_WIDTH}px)` },
-          mt: 8,
+          mt: { xs: 8, md: 8.75 },
         }}
       >
         <Breadcrumbs />
         <Box
           component="main"
           sx={{
-            px: { xs: 2, md: 3 },
-            py: { xs: 2, md: 3 },
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2, sm: 3, md: 4 },
+            maxWidth: "1600px",
+            mx: "auto",
           }}
         >
           {children}

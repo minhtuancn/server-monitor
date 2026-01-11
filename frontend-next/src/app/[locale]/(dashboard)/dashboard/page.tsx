@@ -237,31 +237,51 @@ export default function DashboardWithGroups() {
         </Stack>
       </Box>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card
+            sx={{
+              height: "100%",
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)"
+                  : "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+              color: "white",
+            }}
+          >
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
+              <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
                 Total Servers
               </Typography>
               {statsLoading ? (
-                <LinearProgress />
+                <LinearProgress sx={{ bgcolor: "rgba(255,255,255,0.2)", "& .MuiLinearProgress-bar": { bgcolor: "white" } }} />
               ) : (
-                <Typography variant="h4">{stats?.total_servers ?? 0}</Typography>
+                <Typography variant="h3" fontWeight={700}>
+                  {stats?.total_servers ?? 0}
+                </Typography>
               )}
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card
+            sx={{
+              height: "100%",
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "linear-gradient(135deg, #065f46 0%, #047857 100%)"
+                  : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+              color: "white",
+            }}
+          >
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Online
+              <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                Online Servers
               </Typography>
               {statsLoading ? (
-                <LinearProgress />
+                <LinearProgress sx={{ bgcolor: "rgba(255,255,255,0.2)", "& .MuiLinearProgress-bar": { bgcolor: "white" } }} />
               ) : (
-                <Typography variant="h4" color="success.main">
+                <Typography variant="h3" fontWeight={700}>
                   {stats?.online_servers ?? 0}
                 </Typography>
               )}
@@ -269,15 +289,24 @@ export default function DashboardWithGroups() {
           </Card>
         </Grid>
         <Grid item xs={12} md={4}>
-          <Card>
+          <Card
+            sx={{
+              height: "100%",
+              background: (theme) =>
+                theme.palette.mode === "dark"
+                  ? "linear-gradient(135deg, #991b1b 0%, #b91c1c 100%)"
+                  : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+              color: "white",
+            }}
+          >
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Offline
+              <Typography variant="body2" sx={{ opacity: 0.9, mb: 1 }}>
+                Offline Servers
               </Typography>
               {statsLoading ? (
-                <LinearProgress />
+                <LinearProgress sx={{ bgcolor: "rgba(255,255,255,0.2)", "& .MuiLinearProgress-bar": { bgcolor: "white" } }} />
               ) : (
-                <Typography variant="h4" color="error.main">
+                <Typography variant="h3" fontWeight={700}>
                   {stats?.offline_servers ?? 0}
                 </Typography>
               )}
@@ -286,14 +315,17 @@ export default function DashboardWithGroups() {
         </Grid>
       </Grid>
 
-      <Card>
+      <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent Activity
-          </Typography>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography variant="h6" fontWeight={600}>
+              Recent Activity
+            </Typography>
+            <Chip label={`${recentActivity?.count ?? 0} total`} size="small" />
+          </Box>
           {recentActivity?.activities && recentActivity.activities.length > 0 ? (
-            <Stack spacing={0} divider={<Box sx={{ borderBottom: 1, borderColor: "divider" }} />}>
-              {recentActivity.activities.map((activity) => {
+            <Stack spacing={0}>
+              {recentActivity.activities.map((activity, index) => {
                 return (
                   <Box
                     key={activity.id}
@@ -302,11 +334,30 @@ export default function DashboardWithGroups() {
                       alignItems: "center",
                       gap: 2,
                       p: 1.5,
-                      borderRadius: 1,
-                      "&:hover": { bgcolor: "action.hover" },
+                      borderRadius: 1.5,
+                      borderBottom: index < recentActivity.activities.length - 1 ? 1 : 0,
+                      borderColor: "divider",
+                      transition: "all 0.2s",
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                        transform: "translateX(4px)",
+                      },
                     }}
                   >
-                    <Typography fontSize="1.5rem">{getActionIcon(activity.action)}</Typography>
+                    <Box
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: "50%",
+                        bgcolor: "action.selected",
+                        fontSize: "1.25rem",
+                      }}
+                    >
+                      {getActionIcon(activity.action)}
+                    </Box>
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Typography variant="body2" noWrap>
                         <strong>{activity.username || `User ${activity.user_id}`}</strong>{" "}
@@ -324,21 +375,30 @@ export default function DashboardWithGroups() {
               })}
             </Stack>
           ) : (
-            <Typography color="text.secondary" mt={2}>
-              No recent activity
-            </Typography>
+            <Box
+              sx={{
+                textAlign: "center",
+                py: 6,
+                color: "text.secondary",
+              }}
+            >
+              <Typography variant="body2">No recent activity</Typography>
+            </Box>
           )}
         </CardContent>
       </Card>
 
-      <Card id="servers">
+      <Card id="servers" sx={{ borderRadius: 2, boxShadow: 2 }}>
         <CardContent>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2} flexWrap="wrap" gap={2}>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={3} flexWrap="wrap" gap={2}>
             <Box display="flex" alignItems="center" gap={2}>
-              <Typography variant="h6">Servers</Typography>
-              {isLoading && <CircularProgress size={18} />}
+              <Typography variant="h6" fontWeight={600}>
+                Servers
+              </Typography>
+              {isLoading && <CircularProgress size={20} />}
+              <Chip label={`${filteredServers.length} ${selectedGroup ? 'in group' : 'total'}`} size="small" variant="outlined" />
             </Box>
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
               <FormControl size="small" sx={{ minWidth: 150 }}>
                 <InputLabel id="group-filter-label">
                   <FilterListIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: "middle" }} />
@@ -374,19 +434,32 @@ export default function DashboardWithGroups() {
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setDialogOpen(true)}
+                sx={{ fontWeight: 600 }}
               >
                 Add Server
               </Button>
             </Stack>
           </Box>
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             {filteredServers.map((server) => {
               const serverGroup = groups.find((g) => g.id === server.group_id);
               return (
                 <Grid item xs={12} md={6} lg={4} key={server.id}>
-                  <Card variant="outlined" sx={{ height: "100%" }}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      borderRadius: 2,
+                      transition: "all 0.3s",
+                      "&:hover": {
+                        boxShadow: 4,
+                        transform: "translateY(-4px)",
+                        borderColor: "primary.main",
+                      },
+                    }}
+                  >
                     <CardContent>
-                      <Stack spacing={1.5}>
+                      <Stack spacing={2}>
                         <Box display="flex" alignItems="center" justifyContent="space-between">
                           <Typography variant="subtitle1" fontWeight={700}>
                             {server.name}
@@ -401,6 +474,7 @@ export default function DashboardWithGroups() {
                                   : "default"
                             }
                             label={server.status || "unknown"}
+                            sx={{ fontWeight: 600 }}
                           />
                         </Box>
                         {serverGroup && (
@@ -412,23 +486,64 @@ export default function DashboardWithGroups() {
                               color: serverGroup.color,
                               borderLeft: `3px solid ${serverGroup.color}`,
                               maxWidth: "fit-content",
+                              fontWeight: 600,
                             }}
                           />
                         )}
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" noWrap>
                           {server.host}
                         </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap">
-                          <Chip label={`CPU ${server.cpu ?? "-"}%`} size="small" />
-                          <Chip label={`RAM ${server.memory ?? "-"}%`} size="small" />
-                          <Chip label={`Disk ${server.disk ?? "-"}%`} size="small" />
+                        <Stack spacing={1}>
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                              CPU Usage
+                            </Typography>
+                            <Typography variant="caption" fontWeight={600}>
+                              {server.cpu ?? "-"}%
+                            </Typography>
+                          </Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={server.cpu ?? 0}
+                            sx={{ height: 6, borderRadius: 3 }}
+                            color={server.cpu && server.cpu > 80 ? "error" : "primary"}
+                          />
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                              Memory Usage
+                            </Typography>
+                            <Typography variant="caption" fontWeight={600}>
+                              {server.memory ?? "-"}%
+                            </Typography>
+                          </Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={server.memory ?? 0}
+                            sx={{ height: 6, borderRadius: 3 }}
+                            color={server.memory && server.memory > 80 ? "warning" : "primary"}
+                          />
+                          <Box display="flex" justifyContent="space-between" alignItems="center">
+                            <Typography variant="caption" color="text.secondary">
+                              Disk Usage
+                            </Typography>
+                            <Typography variant="caption" fontWeight={600}>
+                              {server.disk ?? "-"}%
+                            </Typography>
+                          </Box>
+                          <LinearProgress
+                            variant="determinate"
+                            value={server.disk ?? 0}
+                            sx={{ height: 6, borderRadius: 3 }}
+                            color={server.disk && server.disk > 80 ? "error" : "primary"}
+                          />
                         </Stack>
-                        <Stack direction="row" spacing={1}>
+                        <Stack direction="row" spacing={1} pt={1}>
                           <Button
                             component={Link}
                             href={`./servers/${server.id}`}
                             size="small"
-                            variant="outlined"
+                            variant="contained"
+                            sx={{ flex: 1 }}
                           >
                             Details
                           </Button>
@@ -436,7 +551,7 @@ export default function DashboardWithGroups() {
                             component={Link}
                             href={`./terminal?server=${server.id}`}
                             size="small"
-                            variant="text"
+                            variant="outlined"
                             startIcon={<TerminalIcon />}
                           >
                             Terminal

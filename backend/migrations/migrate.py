@@ -48,7 +48,9 @@ def is_migration_applied(version):
     cursor = conn.cursor()
 
     # Security Note: MIGRATIONS_TABLE is a constant (line 17), not user input
-    cursor.execute(f"SELECT COUNT(*) FROM {MIGRATIONS_TABLE} WHERE version = ?", (version,))  # nosec B608
+    cursor.execute(
+        f"SELECT COUNT(*) FROM {MIGRATIONS_TABLE} WHERE version = ?", (version,)
+    )  # nosec B608
     count = cursor.fetchone()[0]
 
     conn.close()
@@ -427,10 +429,6 @@ def run_all_migrations():
     return True
 
 
-if __name__ == "__main__":
-    run_all_migrations()
-
-
 # ========================================
 # Migration 007: Module 4 Tasks (Phase 4)
 # ========================================
@@ -541,7 +539,7 @@ def migration_008_module5_notes_tags():
         if "updated_by" not in columns:
             cursor.execute(
                 """
-                ALTER TABLE server_notes 
+                ALTER TABLE server_notes
                 ADD COLUMN updated_by INTEGER REFERENCES admin_users(id) ON DELETE SET NULL
             """
             )
@@ -550,7 +548,7 @@ def migration_008_module5_notes_tags():
         if "deleted_at" not in columns:
             cursor.execute(
                 """
-                ALTER TABLE server_notes 
+                ALTER TABLE server_notes
                 ADD COLUMN deleted_at TIMESTAMP
             """
             )
@@ -593,14 +591,14 @@ def migration_008_module5_notes_tags():
         # Create indexes
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_server_tag_map_server_id 
+            CREATE INDEX IF NOT EXISTS idx_server_tag_map_server_id
             ON server_tag_map(server_id)
         """
         )
 
         cursor.execute(
             """
-            CREATE INDEX IF NOT EXISTS idx_server_tag_map_tag_id 
+            CREATE INDEX IF NOT EXISTS idx_server_tag_map_tag_id
             ON server_tag_map(tag_id)
         """
         )
@@ -616,3 +614,7 @@ def migration_008_module5_notes_tags():
         raise
     finally:
         conn.close()
+
+
+if __name__ == "__main__":
+    run_all_migrations()
