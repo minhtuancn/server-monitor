@@ -52,6 +52,11 @@ function MuiThemeBridge({ children }: { children: React.ReactNode }) {
   const mode: PaletteMode = resolvedTheme === "dark" ? "dark" : "light";
   const theme = useMemo(() => createAppTheme(mode), [mode]);
 
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
