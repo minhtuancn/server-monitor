@@ -129,9 +129,9 @@ export default function SSHKeysPage() {
 
   return (
     <Stack spacing={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
+      <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
         <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
             SSH Key Vault
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -147,32 +147,65 @@ export default function SSHKeysPage() {
             setOpenAddDialog(true);
           }}
           disabled={isLoading}
+          size="large"
         >
           Add SSH Key
         </Button>
       </Box>
 
-      <Alert severity="info" icon={<KeyIcon />}>
-        <Typography variant="body2" fontWeight={600}>🔒 Security Notice</Typography>
+      <Alert severity="info" icon={<KeyIcon />} sx={{ borderRadius: 2 }}>
+        <Typography variant="body2" fontWeight={600} gutterBottom>
+          🔒 Security Notice
+        </Typography>
         <Typography variant="body2">
           Private keys are encrypted with AES-256-GCM and never stored in plaintext.
         </Typography>
       </Alert>
 
-      {isLoading && <LinearProgress />}
-      {error && <Alert severity="error">Failed to load SSH keys.</Alert>}
+      {isLoading && <LinearProgress sx={{ borderRadius: 1 }} />}
+      {error && (
+        <Alert severity="error" sx={{ borderRadius: 2 }}>
+          Failed to load SSH keys. Please try again.
+        </Alert>
+      )}
 
       {!isLoading && !error && keys.length === 0 && (
-        <Paper sx={{ p: 6, textAlign: "center" }}>
-          <KeyIcon sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
-          <Typography variant="h6" color="text.secondary" gutterBottom>No SSH Keys</Typography>
-          <Typography variant="body2" color="text.secondary" mb={3}>
-            Add your first SSH private key to use for server connections
+        <Paper
+          sx={{
+            p: 8,
+            textAlign: "center",
+            borderRadius: 3,
+            border: "2px dashed",
+            borderColor: "divider",
+            bgcolor: "action.hover",
+          }}
+        >
+          <Box
+            sx={{
+              width: 100,
+              height: 100,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "primary.main",
+              color: "white",
+              margin: "0 auto 24px",
+            }}
+          >
+            <KeyIcon sx={{ fontSize: 48 }} />
+          </Box>
+          <Typography variant="h6" fontWeight={600} gutterBottom>
+            No SSH Keys
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={4}>
+            Add your first SSH private key to use for secure server connections
           </Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => setOpenAddDialog(true)}
+            size="large"
           >
             Add SSH Key
           </Button>
@@ -180,26 +213,65 @@ export default function SSHKeysPage() {
       )}
 
       {!isLoading && !error && keys.length > 0 && (
-        <TableContainer component={Paper}>
+        <TableContainer
+          component={Paper}
+          sx={{ borderRadius: 2, boxShadow: 2 }}
+        >
           <Table>
             <TableHead>
-              <TableRow>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Type</strong></TableCell>
-                <TableCell><strong>Fingerprint</strong></TableCell>
-                <TableCell><strong>Created By</strong></TableCell>
-                <TableCell><strong>Created At</strong></TableCell>
-                <TableCell align="right"><strong>Actions</strong></TableCell>
+              <TableRow sx={{ bgcolor: "action.hover" }}>
+                <TableCell>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Name
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Type
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Fingerprint
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Created By
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Created At
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="subtitle2" fontWeight={700}>
+                    Actions
+                  </Typography>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {keys.map((key) => (
-                <TableRow key={key.id} hover>
+                <TableRow
+                  key={key.id}
+                  hover
+                  sx={{
+                    "&:hover": {
+                      bgcolor: "action.hover",
+                    },
+                  }}
+                >
                   <TableCell>
                     <Box>
-                      <Typography variant="body1" fontWeight={600}>{key.name}</Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {key.name}
+                      </Typography>
                       {key.description && (
-                        <Typography variant="body2" color="text.secondary">{key.description}</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {key.description}
+                        </Typography>
                       )}
                     </Box>
                   </TableCell>
@@ -208,24 +280,40 @@ export default function SSHKeysPage() {
                       label={key.key_type?.toUpperCase() || "RSA"}
                       size="small"
                       color={getKeyTypeColor(key.key_type)}
+                      sx={{ fontWeight: 600 }}
                     />
                   </TableCell>
                   <TableCell>
                     <Tooltip title={key.fingerprint || ""}>
-                      <Typography variant="body2" fontFamily="monospace"
-                        sx={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      <Typography
+                        variant="body2"
+                        fontFamily="monospace"
+                        sx={{
+                          maxWidth: 300,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
                       >
                         {key.fingerprint || "N/A"}
                       </Typography>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>{key.created_by || "Unknown"}</TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">{formatDate(key.created_at)}</Typography>
+                    <Typography variant="body2">{key.created_by || "Unknown"}</Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatDate(key.created_at)}
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Tooltip title="Delete Key (Admin Only)">
-                      <IconButton onClick={() => setDeleteConfirmId(key.id)} color="error" size="small">
+                      <IconButton
+                        onClick={() => setDeleteConfirmId(key.id)}
+                        color="error"
+                        size="small"
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Tooltip>

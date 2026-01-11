@@ -179,10 +179,15 @@ export default function DatabaseSettingsPage() {
   };
 
   return (
-    <Box>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ xs: "flex-start", sm: "center" }} mb={3}>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h4" gutterBottom>
+    <Stack spacing={3}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={2}
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        justifyContent="space-between"
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={700} gutterBottom>
             Database Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -196,7 +201,7 @@ export default function DatabaseSettingsPage() {
                 refetchHealth();
                 refetchBackups();
               }}
-              sx={{ width: 44, height: 44 }}
+              size="large"
               aria-label="Refresh database data"
             >
               <RefreshIcon />
@@ -552,6 +557,6 @@ export default function DatabaseSettingsPage() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Stack>
   );
 }
