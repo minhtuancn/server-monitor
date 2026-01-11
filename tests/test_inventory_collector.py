@@ -360,9 +360,9 @@ class TestInventoryStructure:
     
     def test_timestamp_format(self):
         """Test timestamp format"""
-        from datetime import datetime
+        from datetime import datetime, timezone
         
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         
         assert "T" in timestamp
         assert timestamp.endswith("Z")
@@ -534,9 +534,9 @@ class TestInventoryMetadata:
     
     def test_collection_timestamp(self):
         """Test collection timestamp is recorded"""
-        from datetime import datetime
+        from datetime import datetime, timezone
         
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         
         assert timestamp is not None
         assert "T" in timestamp
