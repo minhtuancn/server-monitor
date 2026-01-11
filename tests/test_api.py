@@ -17,7 +17,7 @@ from datetime import datetime
 # Test Configuration
 BASE_URL = "http://localhost:9083"
 TEST_USER = "admin"
-TEST_PASS = "admin123"
+TEST_PASS = "Admin123"
 
 # Global test state
 auth_token = None

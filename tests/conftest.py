@@ -103,7 +103,7 @@ def test_credentials():
     """Get test user credentials"""
     return {
         'username': os.getenv('TEST_USER', 'admin'),
-        'password': os.getenv('TEST_PASS', 'admin123')
+        'password': os.getenv('TEST_PASS', 'Admin123')
     }
 
 
