@@ -380,13 +380,14 @@ if check_port $FRONTEND_PORT; then
 fi
 
 echo ""
+# Use wrapper script to keep Next.js 16 dev server running in background
 start_service \
     "Next.js Frontend" \
-    "npm run dev" \
+    "$BASE_DIR/scripts/start-frontend.sh" \
     "$BASE_DIR/web.pid" \
     "$LOGS_DIR/web.log" \
     $FRONTEND_PORT \
-    "$BASE_DIR/frontend-next"
+    "$BASE_DIR"
 
 # Function to monitor and restart frontend if it exits
 monitor_frontend() {
@@ -435,8 +436,8 @@ monitor_frontend() {
                 # Restart frontend
                 restart_count=$((restart_count + 1))
                 echo -e "${BLUE}Restarting frontend (attempt $restart_count/$max_restarts)...${NC}"
-                cd "$BASE_DIR/frontend-next"
-                nohup npm run dev > "$LOGS_DIR/web.log" 2>&1 &
+                cd "$BASE_DIR"
+                nohup "$BASE_DIR/scripts/start-frontend.sh" > "$LOGS_DIR/web.log" 2>&1 &
                 local new_pid=$!
                 echo $new_pid > "$frontend_pidfile"
                 
