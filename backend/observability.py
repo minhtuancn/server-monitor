@@ -352,6 +352,175 @@ class HealthCheck:
 
         return {"status": overall_status, "timestamp": datetime.utcnow().isoformat() + "Z", "checks": checks}
 
+    @staticmethod
+    def check_services_health() -> Dict[str, Any]:
+        """
+        Comprehensive health check for all services and system metrics
+        Returns detailed status for admin dashboard
+
+        Returns:
+            Dict with service statuses, system metrics, and overall health
+        """
+        import socket
+        import psutil
+        from pathlib import Path
+
+        services = {}
+        system_metrics = {}
+        overall_healthy = True
+
+        # Check API service (self - always running if we're here)
+        services["api"] = {
+            "status": "healthy",
+            "port": 9083,
+            "message": "API server running"
+        }
+
+        # Check WebSocket service (port 9085)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('localhost', 9085))
+            sock.close()
+            if result == 0:
+                services["websocket"] = {
+                    "status": "healthy",
+                    "port": 9085,
+                    "message": "WebSocket server running"
+                }
+            else:
+                services["websocket"] = {
+                    "status": "unhealthy",
+                    "port": 9085,
+                    "message": "WebSocket server not responding"
+                }
+                overall_healthy = False
+        except Exception as e:
+            services["websocket"] = {
+                "status": "error",
+                "port": 9085,
+                "message": f"WebSocket check failed: {str(e)}"
+            }
+            overall_healthy = False
+
+        # Check Terminal service (port 9084)
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex(('localhost', 9084))
+            sock.close()
+            if result == 0:
+                services["terminal"] = {
+                    "status": "healthy",
+                    "port": 9084,
+                    "message": "Terminal server running"
+                }
+            else:
+                services["terminal"] = {
+                    "status": "unhealthy",
+                    "port": 9084,
+                    "message": "Terminal server not responding"
+                }
+                overall_healthy = False
+        except Exception as e:
+            services["terminal"] = {
+                "status": "error",
+                "port": 9084,
+                "message": f"Terminal check failed: {str(e)}"
+            }
+            overall_healthy = False
+
+        # Check Database health
+        try:
+            if db is None:
+                services["database"] = {
+                    "status": "error",
+                    "message": "Database module not available"
+                }
+                overall_healthy = False
+            else:
+                conn = db.sqlite3.connect(db.DB_PATH)
+                cursor = conn.cursor()
+
+                # Check integrity
+                cursor.execute("PRAGMA integrity_check")
+                integrity = cursor.fetchone()[0]
+
+                # Get database file size
+                db_path = Path(db.DB_PATH)
+                db_size_mb = db_path.stat().st_size / (1024 * 1024) if db_path.exists() else 0
+
+                # Count servers
+                cursor.execute("SELECT COUNT(*) FROM servers")
+                server_count = cursor.fetchone()[0]
+
+                conn.close()
+
+                if integrity == "ok":
+                    services["database"] = {
+                        "status": "healthy",
+                        "message": "Database operational",
+                        "size_mb": round(db_size_mb, 2),
+                        "server_count": server_count
+                    }
+                else:
+                    services["database"] = {
+                        "status": "degraded",
+                        "message": f"Database integrity check: {integrity}",
+                        "size_mb": round(db_size_mb, 2)
+                    }
+        except Exception as e:
+            services["database"] = {
+                "status": "error",
+                "message": f"Database check failed: {str(e)}"
+            }
+            overall_healthy = False
+
+        # System metrics
+        try:
+            # Memory usage
+            memory = psutil.virtual_memory()
+            system_metrics["memory"] = {
+                "total_mb": round(memory.total / (1024 * 1024), 2),
+                "used_mb": round(memory.used / (1024 * 1024), 2),
+                "available_mb": round(memory.available / (1024 * 1024), 2),
+                "percent_used": memory.percent
+            }
+
+            # Disk usage (for database partition)
+            disk = psutil.disk_usage('/')
+            system_metrics["disk"] = {
+                "total_gb": round(disk.total / (1024 ** 3), 2),
+                "used_gb": round(disk.used / (1024 ** 3), 2),
+                "available_gb": round(disk.free / (1024 ** 3), 2),
+                "percent_used": disk.percent
+            }
+
+            # CPU usage (average over 1 second)
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            system_metrics["cpu"] = {
+                "percent_used": cpu_percent,
+                "cores": psutil.cpu_count()
+            }
+
+            # System uptime
+            boot_time = psutil.boot_time()
+            uptime_seconds = time.time() - boot_time
+            system_metrics["uptime"] = {
+                "seconds": int(uptime_seconds),
+                "human": f"{int(uptime_seconds // 86400)}d {int((uptime_seconds % 86400) // 3600)}h {int((uptime_seconds % 3600) // 60)}m"
+            }
+
+        except Exception as e:
+            system_metrics["error"] = f"Failed to collect system metrics: {str(e)}"
+
+        return {
+            "status": "healthy" if overall_healthy else "degraded",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "services": services,
+            "system": system_metrics
+        }
+
 
 # Global metrics collector instance
 _metrics_collector = None

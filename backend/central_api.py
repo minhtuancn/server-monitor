@@ -377,6 +377,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._finish_request(200)
             return
 
+        elif path == "/api/admin/health":
+            # Comprehensive health check endpoint (admin only)
+            auth_result = verify_auth_token(self)
+
+            if not auth_result.get("valid"):
+                self._set_headers(401)
+                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self._finish_request(401)
+                return
+
+            if auth_result.get("role") not in ["admin"]:
+                self._set_headers(403)
+                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self._finish_request(403)
+                return
+
+            # Get comprehensive health status
+            health_status = HealthCheck.check_services_health()
+            self._set_headers()
+            self.wfile.write(json.dumps(health_status).encode())
+            self._finish_request(200)
+            return
+
         # ==================== AUTHENTICATION ====================
 
         if path == "/api/auth/verify":

@@ -94,6 +94,12 @@ const NAV_SECTIONS: NavSection[] = [
         roles: ["admin"],
       },
       {
+        label: "System Health",
+        href: "/settings/health",
+        icon: <HealthAndSafetyIcon />,
+        roles: ["admin"],
+      },
+      {
         label: "Domain & SSL",
         href: "/settings/domain",
         icon: <LanguageIcon />,
