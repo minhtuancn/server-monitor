@@ -17,12 +17,14 @@ export type Server = {
   memory?: number;
   disk?: number;
   tags?: string;
+  group_id?: number;
   last_check?: string;
 };
 
 export type ServerNote = {
   id: number;
   server_id: number;
+  title?: string;
   content: string;
   created_at?: string;
   updated_at?: string;

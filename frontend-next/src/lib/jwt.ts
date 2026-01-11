@@ -3,6 +3,7 @@ export type JwtPayload = {
   username?: string;
   role?: string;
   permissions?: string[];
+  theme_preference?: "light" | "dark" | "system";
   exp?: number;
 };
 

@@ -1004,7 +1004,7 @@ export default function ServerWorkspacePage() {
                         </ReactMarkdown>
                       </Box>
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-                        Last updated: {note.updated_at ? new Date(note.updated_at).toLocaleString() : new Date(note.created_at).toLocaleString()}
+                        Last updated: {note.updated_at ? new Date(note.updated_at).toLocaleString() : (note.created_at ? new Date(note.created_at).toLocaleString() : "N/A")}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -1271,7 +1271,7 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
       );
       
       if (response.log) {
-        setLogs(prev => [...prev, ...response.log.split("\n")]);
+        setLogs(prev => [...prev, ...response.log!.split("\n")]);
       }
       
       return response;
