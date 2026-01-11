@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Grid,
   Stack,
   TextField,
@@ -15,9 +16,11 @@ import {
   IconButton,
   InputAdornment,
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
+import { useSession } from "@/hooks/useSession";
+import { useRouter, useParams } from "next/navigation";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -41,6 +44,10 @@ interface PasswordChange {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const params = useParams();
+  const locale = params?.locale as string || "en";
+  const { isAuthenticated, isLoading: sessionLoading } = useSession();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editedEmail, setEditedEmail] = useState("");
@@ -153,10 +160,31 @@ export default function ProfilePage() {
       .slice(0, 2);
   };
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!sessionLoading && !isAuthenticated) {
+      router.push(`/${locale}/login`);
+    }
+  }, [isAuthenticated, sessionLoading, router, locale]);
+
+  // Show loading while checking auth
+  if (sessionLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <Typography>Loading profile...</Typography>
+        <CircularProgress />
       </Box>
     );
   }

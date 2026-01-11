@@ -603,6 +603,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           flexGrow: 1,
           width: { md: `calc(100% - ${DESKTOP_DRAWER_WIDTH}px)` },
           mt: { xs: 8, md: 8.75 },
+          bgcolor: "background.default",
+          minHeight: "100vh",
         }}
       >
         <Breadcrumbs />
