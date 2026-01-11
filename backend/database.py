@@ -577,6 +577,205 @@ def init_database():
         )
         print("✓ Added group_id column to command_snippets table")
 
+    # ==================== PERFORMANCE INDEXES ====================
+    # Add indexes for frequently queried columns to improve performance
+
+    # Servers table indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_servers_status
+        ON servers(status)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_servers_group_id
+        ON servers(group_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_servers_created_at
+        ON servers(created_at DESC)
+        """
+    )
+
+    # Alerts table indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_alerts_server_id
+        ON alerts(server_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_alerts_is_read
+        ON alerts(is_read)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_alerts_created_at
+        ON alerts(created_at DESC)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_alerts_severity
+        ON alerts(severity)
+        """
+    )
+
+    # Sessions table index (critical for auth performance)
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_sessions_token
+        ON sessions(token)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_sessions_user_id
+        ON sessions(user_id)
+        """
+    )
+
+    # Monitoring history indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_monitoring_history_server_id
+        ON monitoring_history(server_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_monitoring_history_timestamp
+        ON monitoring_history(timestamp DESC)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_monitoring_history_metric_type
+        ON monitoring_history(metric_type)
+        """
+    )
+
+    # Composite index for common query pattern
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_monitoring_history_server_metric
+        ON monitoring_history(server_id, metric_type, timestamp DESC)
+        """
+    )
+
+    # Terminal sessions indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_terminal_sessions_user_id
+        ON terminal_sessions(user_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_terminal_sessions_status
+        ON terminal_sessions(status)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_terminal_sessions_server_id
+        ON terminal_sessions(server_id)
+        """
+    )
+
+    # Server notes indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_server_notes_server_id
+        ON server_notes(server_id)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_server_notes_created_at
+        ON server_notes(created_at DESC)
+        """
+    )
+
+    # Admin users index
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_admin_users_username
+        ON admin_users(username)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_admin_users_is_active
+        ON admin_users(is_active)
+        """
+    )
+
+    # Groups indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_groups_created_at
+        ON groups(created_at DESC)
+        """
+    )
+
+    # Group memberships index
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_group_memberships_group_id
+        ON group_memberships(group_id)
+        """
+    )
+
+    # Command snippets indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_command_snippets_category
+        ON command_snippets(category)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_command_snippets_group_id
+        ON command_snippets(group_id)
+        """
+    )
+
+    # SSH keys indexes
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_ssh_keys_created_by
+        ON ssh_keys(created_by)
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_ssh_keys_deleted_at
+        ON ssh_keys(deleted_at)
+        """
+    )
+
+    print("✓ Added performance indexes for all tables")
+
     conn.commit()
     conn.close()
 

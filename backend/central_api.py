@@ -176,7 +176,7 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         self.request_start_time = None
         super().__init__(*args, **kwargs)
 
-    def _set_headers(self, status=200, extra_headers=None):
+    def _set_headers(self, status=200, extra_headers=None, cache_control=None):
         self.send_response(status)
         self.send_header("Content-type", "application/json")
 
@@ -191,6 +191,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # Add request correlation headers
         if self.request_id:
             self.send_header("X-Request-Id", self.request_id)
+
+        # Add caching headers for performance
+        if cache_control:
+            self.send_header("Cache-Control", cache_control)
+        else:
+            # Default: no caching for dynamic API responses
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
 
         # Add any extra headers (will override if keys conflict)
         if extra_headers:
