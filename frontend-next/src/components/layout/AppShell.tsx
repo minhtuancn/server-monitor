@@ -3,6 +3,7 @@
 import { useSession } from "@/hooks/useSession";
 import { useThemeSync } from "@/hooks/use-theme-sync";
 import { Role } from "@/types";
+import { Breadcrumbs } from "./Breadcrumbs";
 import MenuIcon from "@mui/icons-material/Menu";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
@@ -339,17 +340,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </Box>
 
+      {/* Main Content Area with Breadcrumbs */}
       <Box
-        component="main"
         sx={{
           flexGrow: 1,
-          px: { xs: 2, md: 3 },
-          py: { xs: 2, md: 3 },
           width: { md: `calc(100% - ${DESKTOP_DRAWER_WIDTH}px)` },
           mt: 8,
         }}
       >
-        {children}
+        <Breadcrumbs />
+        <Box
+          component="main"
+          sx={{
+            px: { xs: 2, md: 3 },
+            py: { xs: 2, md: 3 },
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );
