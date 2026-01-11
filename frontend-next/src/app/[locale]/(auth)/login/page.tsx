@@ -19,8 +19,8 @@ import StorageIcon from "@mui/icons-material/Storage";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import LoginIcon from "@mui/icons-material/Login";
-import { useSearchParams, useParams } from "next/navigation";
-import { useState } from "react";
+import { useSearchParams, useParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -34,10 +34,37 @@ type LoginForm = z.infer<typeof LoginSchema>;
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const { locale } = useParams();
+  const router = useRouter();
   const theme = useTheme();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Security: Remove credentials from URL if present
+  useEffect(() => {
+    const hasUsername = searchParams.has("username");
+    const hasPassword = searchParams.has("password");
+    
+    if (hasUsername || hasPassword) {
+      // Remove sensitive params from URL
+      const newParams = new URLSearchParams(searchParams.toString());
+      newParams.delete("username");
+      newParams.delete("password");
+      newParams.delete("user");
+      newParams.delete("pass");
+      newParams.delete("pwd");
+      
+      // Clean URL without reloading page
+      const newUrl = newParams.toString() 
+        ? `/${locale}/login?${newParams.toString()}`
+        : `/${locale}/login`;
+      
+      window.history.replaceState({}, "", newUrl);
+      
+      // Show security warning
+      setError("⚠️ Security Warning: Never include credentials in URLs! Please use the login form below.");
+    }
+  }, [searchParams, locale]);
 
   const {
     register,

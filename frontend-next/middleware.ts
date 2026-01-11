@@ -38,6 +38,27 @@ export default async function middleware(request: NextRequest) {
   const isLogin = pathname.endsWith("/login");
   const isAccessDenied = pathname.endsWith("/access-denied");
 
+  // Security: Remove credentials from URL if present on login page
+  if (isLogin) {
+    const url = request.nextUrl;
+    const hasCredentials = 
+      url.searchParams.has("username") || 
+      url.searchParams.has("password") ||
+      url.searchParams.has("user") ||
+      url.searchParams.has("pass") ||
+      url.searchParams.has("pwd");
+    
+    if (hasCredentials) {
+      // Redirect to clean URL
+      url.searchParams.delete("username");
+      url.searchParams.delete("password");
+      url.searchParams.delete("user");
+      url.searchParams.delete("pass");
+      url.searchParams.delete("pwd");
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (isApiRoute || isStatic) {
     return intlResponse;
   }
