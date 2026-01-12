@@ -3,7 +3,7 @@
 import { apiFetch } from "@/lib/api-client";
 import { Server } from "@/types";
 import { ServerFormDialog } from "@/components/server/ServerFormDialog";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import AddIcon from "@mui/icons-material/Add";
 import StorageIcon from "@mui/icons-material/Storage";
 import TerminalIcon from "@mui/icons-material/Terminal";
