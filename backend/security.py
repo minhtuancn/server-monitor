@@ -26,6 +26,11 @@ except ImportError:
 # Accepts CI=true, CI=1, or CI=yes (common CI environment variable values)
 IS_CI_ENVIRONMENT = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
+# Check if rate limiting should be completely disabled (for E2E testing)
+# DISABLE_RATE_LIMIT=true will completely bypass rate limiting
+# WARNING: Only use in test/dev environments, NEVER in production
+DISABLE_RATE_LIMIT = os.environ.get("DISABLE_RATE_LIMIT", "").lower() in ("true", "1", "yes")
+
 # Rate limiting configuration
 # CI rate limits are set high to avoid blocking test IPs during automated testing
 RATE_LIMIT_CI_UNLIMITED = 100000  # Effectively unlimited for CI
@@ -302,22 +307,26 @@ def apply_security_middleware(handler, method="GET"):
     # Get origin from headers
     origin = handler.headers.get("Origin", "")
 
-    # Check rate limit
-    rate_limit_result = RateLimiter.check_rate_limit(ip_address, path)
+    # Check rate limit (skip if DISABLE_RATE_LIMIT is enabled)
+    if not DISABLE_RATE_LIMIT:
+        rate_limit_result = RateLimiter.check_rate_limit(ip_address, path)
 
-    if not rate_limit_result["allowed"]:
-        return {
-            "block": True,
-            "status": 429,
-            "headers": {"Retry-After": str(rate_limit_result.get("retry_after", 60)), **CORS.get_cors_headers(origin)},
-            "body": {"error": rate_limit_result["error"], "retry_after": rate_limit_result.get("retry_after")},
-        }
+        if not rate_limit_result["allowed"]:
+            return {
+                "block": True,
+                "status": 429,
+                "headers": {"Retry-After": str(rate_limit_result.get("retry_after", 60)), **CORS.get_cors_headers(origin)},
+                "body": {"error": rate_limit_result["error"], "retry_after": rate_limit_result.get("retry_after")},
+            }
+    else:
+        # Rate limiting disabled, create a fake result for header generation
+        rate_limit_result = {"allowed": True}
 
     # Build headers
     headers = {**CORS.get_cors_headers(origin), **SecurityHeaders.get_security_headers()}
 
-    # Add rate limit info to headers
-    if "remaining" in rate_limit_result:
+    # Add rate limit info to headers (only if rate limiting is enabled)
+    if not DISABLE_RATE_LIMIT and "remaining" in rate_limit_result:
         headers["X-RateLimit-Limit"] = str(RATE_LIMIT_REQUESTS)
         headers["X-RateLimit-Remaining"] = str(rate_limit_result["remaining"])
         headers["X-RateLimit-Reset"] = str(int(rate_limit_result["reset_time"]))

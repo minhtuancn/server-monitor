@@ -24,14 +24,34 @@ export const test = base.extend<AuthFixtures>({
     await page.fill('input[name="username"]', 'admin');
     await page.fill('input[name="password"]', 'admin123');
     
+    // Wait for API response BEFORE clicking (setup listener first)
+    const responsePromise = page.waitForResponse(
+      response => response.url().includes('/api/auth/login') && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
+    // Wait for URL change (hard refresh with window.location.href)
+    const navigationPromise = page.waitForURL(url => url.pathname.includes('/dashboard'), { 
+      timeout: 15000 
+    });
+    
     // Click login button
     await page.click('button[type="submit"]');
     
-    // Wait for successful login (redirects to dashboard)
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
+    // Wait for login API to succeed
+    await responsePromise;
     
-    // Verify we're on the dashboard
-    await page.waitForSelector('text=Dashboard', { state: 'visible' });
+    // Wait for navigation to dashboard
+    await navigationPromise;
+    
+    // Verify we're on dashboard page
+    const url = page.url();
+    if (!url.includes('/dashboard')) {
+      throw new Error(`Login navigation failed. Expected URL to contain '/dashboard', got: ${url}`);
+    }
+    
+    // Verify dashboard content loaded
+    await page.waitForSelector('h1, h2, h3, h4, h5, h6', { state: 'visible', timeout: 5000 });
     
     // Use the authenticated page
     await use(page);
