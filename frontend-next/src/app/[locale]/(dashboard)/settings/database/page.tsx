@@ -212,6 +212,8 @@ export default function DatabaseSettingsPage() {
             startIcon={createBackupMutation.isPending ? <CircularProgress size={20} /> : <BackupIcon />}
             onClick={handleCreateBackup}
             disabled={createBackupMutation.isPending}
+            aria-label="Create new database backup"
+            sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
           >
             Create Backup
           </Button>
@@ -414,67 +416,140 @@ export default function DatabaseSettingsPage() {
               {backupsLoading ? (
                 <LinearProgress />
               ) : backupsData && backupsData.backups.length > 0 ? (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Filename</TableCell>
-                        <TableCell>Created</TableCell>
-                        <TableCell>Size</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell align="right">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {backupsData.backups.map((backup) => (
-                        <TableRow key={backup.filename} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontFamily="monospace">
-                              {backup.filename}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{formatDate(backup.created_at)}</TableCell>
-                          <TableCell>{backup.size_human}</TableCell>
-                          <TableCell>
-                            <Stack direction="row" spacing={1}>
-                              {backup.encrypted && <Chip label="Encrypted" size="small" color="success" />}
-                              {backup.checksum && (
-                                <Tooltip title={`Checksum: ${backup.checksum.substring(0, 16)}...`}>
-                                  <Chip label="Verified" size="small" variant="outlined" />
+                <>
+                  {/* Desktop Table View */}
+                  <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Filename</TableCell>
+                          <TableCell>Created</TableCell>
+                          <TableCell>Size</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell align="right">Actions</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {backupsData.backups.map((backup) => (
+                          <TableRow key={backup.filename} hover>
+                            <TableCell>
+                              <Typography variant="body2" fontFamily="monospace">
+                                {backup.filename}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>{formatDate(backup.created_at)}</TableCell>
+                            <TableCell>{backup.size_human}</TableCell>
+                            <TableCell>
+                              <Stack direction="row" spacing={1}>
+                                {backup.encrypted && <Chip label="Encrypted" size="small" color="success" />}
+                                {backup.checksum && (
+                                  <Tooltip title={`Checksum: ${backup.checksum.substring(0, 16)}...`}>
+                                    <Chip label="Verified" size="small" variant="outlined" />
+                                  </Tooltip>
+                                )}
+                              </Stack>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                <Tooltip title="Restore backup">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleRestoreClick(backup)}
+                                    disabled={restoreBackupMutation.isPending}
+                                    aria-label={`Restore backup ${backup.filename}`}
+                                  >
+                                    <RestoreIcon fontSize="small" />
+                                  </IconButton>
                                 </Tooltip>
-                              )}
-                            </Stack>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Stack direction="row" spacing={1} justifyContent="flex-end">
-                              <Tooltip title="Restore backup">
-                                <IconButton
+                                <Tooltip title="Delete backup">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDeleteClick(backup)}
+                                    disabled={deleteBackupMutation.isPending}
+                                    color="error"
+                                    aria-label={`Delete backup ${backup.filename}`}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </Stack>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+
+                  {/* Mobile Card View */}
+                  <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                    <Stack spacing={2}>
+                      {backupsData.backups.map((backup) => (
+                        <Card key={backup.filename} variant="outlined">
+                          <CardContent>
+                            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                              <Box flex={1}>
+                                <Typography variant="subtitle1" fontWeight={700} fontFamily="monospace" gutterBottom sx={{ wordBreak: 'break-all' }}>
+                                  {backup.filename}
+                                </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mb={1}>
+                                  {backup.encrypted && <Chip label="Encrypted" size="small" color="success" />}
+                                  {backup.checksum && (
+                                    <Chip label="Verified" size="small" variant="outlined" />
+                                  )}
+                                </Stack>
+                              </Box>
+                            </Box>
+
+                            <Stack spacing={1.5}>
+                              <Box display="flex" justifyContent="space-between" gap={2}>
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Created
+                                  </Typography>
+                                  <Typography variant="body2">
+                                    {formatDate(backup.created_at)}
+                                  </Typography>
+                                </Box>
+                                <Box textAlign="right">
+                                  <Typography variant="caption" color="text.secondary" display="block">
+                                    Size
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {backup.size_human}
+                                  </Typography>
+                                </Box>
+                              </Box>
+
+                              <Box display="flex" gap={1} justifyContent="flex-end">
+                                <Button
+                                  variant="outlined"
                                   size="small"
+                                  startIcon={<RestoreIcon />}
                                   onClick={() => handleRestoreClick(backup)}
                                   disabled={restoreBackupMutation.isPending}
-                                  aria-label="Restore backup"
+                                  aria-label={`Restore backup ${backup.filename}`}
                                 >
-                                  <RestoreIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete backup">
-                                <IconButton
+                                  Restore
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  color="error"
                                   size="small"
+                                  startIcon={<DeleteIcon />}
                                   onClick={() => handleDeleteClick(backup)}
                                   disabled={deleteBackupMutation.isPending}
-                                  color="error"
-                                  aria-label="Delete backup"
+                                  aria-label={`Delete backup ${backup.filename}`}
                                 >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
+                                  Delete
+                                </Button>
+                              </Box>
                             </Stack>
-                          </TableCell>
-                        </TableRow>
+                          </CardContent>
+                        </Card>
                       ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                    </Stack>
+                  </Box>
+                </>
               ) : (
                 <Alert severity="info">
                   No backups found. Create your first backup to get started.
@@ -505,7 +580,7 @@ export default function DatabaseSettingsPage() {
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRestoreDialog(false)} disabled={restoreBackupMutation.isPending}>
+          <Button onClick={() => setRestoreDialog(false)} disabled={restoreBackupMutation.isPending} aria-label="Cancel database restore">
             Cancel
           </Button>
           <Button
@@ -514,6 +589,7 @@ export default function DatabaseSettingsPage() {
             color="warning"
             disabled={restoreBackupMutation.isPending}
             startIcon={restoreBackupMutation.isPending ? <CircularProgress size={20} /> : <RestoreIcon />}
+            aria-label="Confirm and restore database backup"
           >
             Restore
           </Button>
@@ -537,13 +613,14 @@ export default function DatabaseSettingsPage() {
             placeholder="DELETE"
             sx={{ mt: 2 }}
             autoFocus
+            inputProps={{ 'aria-label': 'Type DELETE to confirm backup deletion' }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => {
             setDeleteDialog(false);
             setConfirmText("");
-          }} disabled={deleteBackupMutation.isPending}>
+          }} disabled={deleteBackupMutation.isPending} aria-label="Cancel backup deletion">
             Cancel
           </Button>
           <Button
@@ -552,6 +629,7 @@ export default function DatabaseSettingsPage() {
             color="error"
             disabled={confirmText !== "DELETE" || deleteBackupMutation.isPending}
             startIcon={deleteBackupMutation.isPending ? <CircularProgress size={20} /> : <DeleteIcon />}
+            aria-label="Confirm and delete backup permanently"
           >
             Delete
           </Button>

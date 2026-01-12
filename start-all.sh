@@ -38,6 +38,13 @@ echo -e "${BLUE}║   Server Monitor Dashboard v4.1 - Start Services          �
 echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Load nvm if available (for Node.js 20+ required by Next.js 16)
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+    source "$NVM_DIR/nvm.sh"
+    nvm use default > /dev/null 2>&1 || true
+fi
+
 # Check for virtual environment and activate it
 if [ -d "$BASE_DIR/venv" ]; then
     echo -e "${GREEN}Found virtual environment, activating...${NC}"
@@ -68,13 +75,66 @@ fi
 mkdir -p "$LOGS_DIR"
 mkdir -p "$DATA_DIR"
 
-# Function to check if port is in use
+# Function to check if port is in use (handles both IPv4 and IPv6)
 check_port() {
     local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+    
+    # Method 1: Try lsof (works for both IPv4 and IPv6)
+    if lsof -i :$port -sTCP:LISTEN -t >/dev/null 2>&1 ; then
         return 0
-    else
+    fi
+    
+    # Method 2: Try netstat as fallback
+    if netstat -tln 2>/dev/null | grep -q ":$port " ; then
+        return 0
+    fi
+    
+    # Method 3: Try ss as another fallback
+    if ss -tln 2>/dev/null | grep -q ":$port " ; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to aggressively kill processes on a port
+kill_process_on_port() {
+    local port=$1
+    local service_name=$2
+    
+    echo -e "${YELLOW}Checking for processes on port $port...${NC}"
+    
+    # Try lsof first
+    local pids=$(lsof -ti:$port 2>/dev/null)
+    if [ ! -z "$pids" ]; then
+        echo -e "${YELLOW}  Found processes using port $port: $pids${NC}"
+        echo -e "${YELLOW}  Sending TERM signal...${NC}"
+        echo "$pids" | xargs kill 2>/dev/null || true
+        sleep 2
+        
+        # Check if processes are still running
+        pids=$(lsof -ti:$port 2>/dev/null)
+        if [ ! -z "$pids" ]; then
+            echo -e "${YELLOW}  Processes still running, sending KILL signal...${NC}"
+            echo "$pids" | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+    fi
+    
+    # Double check with netstat/ss as backup
+    if check_port $port; then
+        echo -e "${YELLOW}  Port still in use, trying alternative method...${NC}"
+        fuser -k -9 $port/tcp 2>/dev/null || true
+        sleep 1
+    fi
+    
+    # Final verification
+    if check_port $port; then
+        echo -e "${RED}  ✗ Warning: Could not free port $port${NC}"
         return 1
+    else
+        echo -e "${GREEN}  ✓ Port $port is now free${NC}"
+        return 0
     fi
 }
 
@@ -89,6 +149,17 @@ stop_service() {
             echo -e "${YELLOW}Stopping existing $name (PID: $pid)...${NC}"
             kill $pid 2>/dev/null || true
             sleep 1
+            
+            # Force kill if still running
+            if ps -p $pid > /dev/null 2>&1; then
+                echo -e "${YELLOW}  Process still running, force killing...${NC}"
+                kill -9 $pid 2>/dev/null || true
+                sleep 1
+            fi
+            
+            if ! ps -p $pid > /dev/null 2>&1; then
+                echo -e "${GREEN}  ✓ $name stopped${NC}"
+            fi
         fi
         rm -f "$pidfile"
     fi
@@ -107,9 +178,8 @@ start_service() {
     
     # Check if port is already in use
     if check_port $port; then
-        echo -e "${YELLOW}  Port $port already in use, stopping existing process...${NC}"
-        lsof -ti:$port | xargs kill -9 2>/dev/null || true
-        sleep 1
+        echo -e "${YELLOW}  Port $port already in use, attempting to free it...${NC}"
+        kill_process_on_port $port "$name"
     fi
     
     # Start service
@@ -118,24 +188,86 @@ start_service() {
     local pid=$!
     echo $pid > "$pidfile"
     
-    # Wait a moment and check if it started
-    sleep 2
-    if ps -p $pid > /dev/null 2>&1; then
+    # Determine wait time based on service (Next.js needs more time)
+    local wait_time=2
+    local max_wait=30
+    if [[ "$name" == *"Next.js"* ]] || [[ "$name" == *"Frontend"* ]]; then
+        echo -e "${YELLOW}  Waiting for Next.js to compile and start (may take 10-30 seconds)...${NC}"
+        wait_time=5
+        max_wait=45
+    fi
+    
+    # Wait for process to start
+    sleep $wait_time
+    
+    # Check if process is running
+    if ! ps -p $pid > /dev/null 2>&1; then
+        echo -e "${RED}  ✗ Failed to start $name - Process died immediately${NC}"
+        echo -e "${YELLOW}  Checking if port conflict caused the failure...${NC}"
+        if check_port $port; then
+            echo -e "${YELLOW}  Port $port is in use. Attempting cleanup and retry...${NC}"
+            kill_process_on_port $port "$name"
+            
+            # Retry once after cleanup
+            echo -e "${BLUE}  Retrying $name...${NC}"
+            cd "$workdir"
+            nohup $command > "$logfile" 2>&1 &
+            pid=$!
+            echo $pid > "$pidfile"
+            sleep $wait_time
+            
+            if ps -p $pid > /dev/null 2>&1 && check_port $port; then
+                echo -e "${GREEN}  ✓ $name started successfully on retry (PID: $pid, Port: $port)${NC}"
+                cd "$BASE_DIR"
+                return 0
+            else
+                echo -e "${RED}  ✗ Retry failed. Check logs:${NC}"
+                tail -10 "$logfile" 2>/dev/null || echo "  (log file not found)"
+                cd "$BASE_DIR"
+                return 1
+            fi
+        else
+            echo -e "${RED}  Port $port is free. Error is not port-related.${NC}"
+            echo -e "${YELLOW}  Last 10 lines of log:${NC}"
+            tail -10 "$logfile" 2>/dev/null || echo "  (log file not found)"
+            cd "$BASE_DIR"
+            return 1
+        fi
+    fi
+    
+    # Process is running, now wait for port to start listening
+    echo -e "${YELLOW}  Process started (PID: $pid), waiting for port $port to listen...${NC}"
+    local elapsed=0
+    while [ $elapsed -lt $max_wait ]; do
         if check_port $port; then
             echo -e "${GREEN}  ✓ $name started successfully (PID: $pid, Port: $port)${NC}"
             cd "$BASE_DIR"
             return 0
-        else
-            echo -e "${RED}  ✗ $name process running but port $port not listening${NC}"
+        fi
+        sleep 2
+        elapsed=$((elapsed + 2))
+        
+        # Check if process is still alive
+        if ! ps -p $pid > /dev/null 2>&1; then
+            echo -e "${RED}  ✗ Process died while waiting for port to listen${NC}"
+            echo -e "${YELLOW}  Last 10 lines of log:${NC}"
+            tail -10 "$logfile" 2>/dev/null || echo "  (log file not found)"
             cd "$BASE_DIR"
             return 1
         fi
-    else
-        echo -e "${RED}  ✗ Failed to start $name${NC}"
-        tail -10 "$logfile"
-        cd "$BASE_DIR"
-        return 1
-    fi
+        
+        # Show progress for long waits
+        if [[ "$name" == *"Next.js"* ]] || [[ "$name" == *"Frontend"* ]]; then
+            echo -e "${YELLOW}  Still waiting... (${elapsed}s/${max_wait}s)${NC}"
+        fi
+    done
+    
+    # Timeout reached
+    echo -e "${RED}  ✗ Timeout: $name process running but port $port not listening after ${max_wait}s${NC}"
+    echo -e "${YELLOW}  Process may still be starting. Check logs at: $logfile${NC}"
+    echo -e "${YELLOW}  You can check status with: ps -p $pid && lsof -i:$port${NC}"
+    cd "$BASE_DIR"
+    return 1
 }
 
 # Initialize database
@@ -189,17 +321,20 @@ if [ -f "$BACKEND_DIR/terminal.py" ]; then
 fi
 
 # Start Frontend Server (Next.js)
+echo ""
 echo -e "${BLUE}Starting Next.js Frontend...${NC}"
 cd "$BASE_DIR/frontend-next"
 
 # Ensure .env.local exists
 if [ ! -f ".env.local" ]; then
+    echo -e "${YELLOW}Creating .env.local from .env.example...${NC}"
     cp .env.example .env.local
     sed -i "s|API_PROXY_TARGET=.*|API_PROXY_TARGET=http://localhost:$API_PORT|" .env.local
 fi
 
 # If custom domain is set, update WebSocket URLs
 if [ -n "$CUSTOM_DOMAIN" ]; then
+    echo -e "${BLUE}Configuring custom domain: $CUSTOM_DOMAIN${NC}"
     # For custom domain, assume reverse proxy on standard HTTPS ports
     # WebSocket URLs point to reverse proxy domain
     sed -i "s|NEXT_PUBLIC_MONITORING_WS_URL=.*|NEXT_PUBLIC_MONITORING_WS_URL=wss://$CUSTOM_DOMAIN/ws/monitoring|" .env.local
@@ -217,13 +352,112 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
+# Check if port is already in use before starting
+if check_port $FRONTEND_PORT; then
+    echo -e "${YELLOW}Port $FRONTEND_PORT is already in use. Attempting to free it...${NC}"
+    
+    # Try to identify what's using the port
+    echo -e "${YELLOW}Processes using port $FRONTEND_PORT:${NC}"
+    lsof -i:$FRONTEND_PORT 2>/dev/null || echo "  (unable to identify)"
+    
+    # Kill processes on the port
+    if lsof -ti:$FRONTEND_PORT >/dev/null 2>&1; then
+        lsof -ti:$FRONTEND_PORT | xargs kill -9 2>/dev/null || true
+        pkill -9 -f "npm run dev.*frontend-next" 2>/dev/null || true
+        pkill -9 -f "next dev.*$FRONTEND_PORT" 2>/dev/null || true
+        pkill -9 -f "\.bin/next dev" 2>/dev/null || true
+        fuser -k -9 $FRONTEND_PORT/tcp 2>/dev/null || true
+        sleep 2
+        
+        if check_port $FRONTEND_PORT; then
+            echo -e "${RED}Failed to free port $FRONTEND_PORT. Please manually kill the process.${NC}"
+            echo -e "${YELLOW}Run: lsof -i:$FRONTEND_PORT${NC}"
+            exit 1
+        else
+            echo -e "${GREEN}Port $FRONTEND_PORT freed successfully${NC}"
+        fi
+    fi
+fi
+
+echo ""
+# Use wrapper script to keep Next.js 16 dev server running in background
 start_service \
     "Next.js Frontend" \
-    "npm run dev" \
+    "$BASE_DIR/scripts/start-frontend.sh" \
     "$BASE_DIR/web.pid" \
     "$LOGS_DIR/web.log" \
     $FRONTEND_PORT \
-    "$BASE_DIR/frontend-next"
+    "$BASE_DIR"
+
+# Function to monitor and restart frontend if it exits
+monitor_frontend() {
+    local frontend_pidfile="$BASE_DIR/web.pid"
+    local restart_count=0
+    local max_restarts=10
+    
+    while true; do
+        sleep 5  # Check every 5 seconds
+        
+        # Check if frontend PID file exists and process is running
+        if [ -f "$frontend_pidfile" ]; then
+            local pid=$(cat "$frontend_pidfile")
+            if ! ps -p $pid > /dev/null 2>&1; then
+                echo ""
+                echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                echo -e "${YELLOW}Frontend process (PID: $pid) has exited unexpectedly!${NC}"
+                echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                rm -f "$frontend_pidfile"
+                
+                # Limit restart attempts to prevent infinite loops
+                if [ $restart_count -ge $max_restarts ]; then
+                    echo -e "${RED}Frontend has been restarted $max_restarts times. Stopping monitoring.${NC}"
+                    echo -e "${YELLOW}Check the logs at $LOGS_DIR/web.log for errors.${NC}"
+                    echo -e "${YELLOW}Manual restart required: cd $BASE_DIR && ./start-all.sh${NC}"
+                    break
+                fi
+                
+                # Check if port is in use and cleanup only if needed
+                if check_port $FRONTEND_PORT; then
+                    echo -e "${YELLOW}Port $FRONTEND_PORT is in use. Cleaning up before restart...${NC}"
+                    lsof -ti:$FRONTEND_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+                    pkill -9 -f "npm run dev.*frontend-next" 2>/dev/null || true
+                    pkill -9 -f "next dev.*$FRONTEND_PORT" 2>/dev/null || true
+                    fuser -k -9 $FRONTEND_PORT/tcp 2>/dev/null || true
+                    sleep 2
+                    
+                    # Verify port is free
+                    if check_port $FRONTEND_PORT; then
+                        echo -e "${RED}Cannot free port $FRONTEND_PORT for restart!${NC}"
+                        echo -e "${YELLOW}Skipping restart attempt. Will retry on next check.${NC}"
+                        continue
+                    fi
+                fi
+                
+                # Restart frontend
+                restart_count=$((restart_count + 1))
+                echo -e "${BLUE}Restarting frontend (attempt $restart_count/$max_restarts)...${NC}"
+                cd "$BASE_DIR"
+                nohup "$BASE_DIR/scripts/start-frontend.sh" > "$LOGS_DIR/web.log" 2>&1 &
+                local new_pid=$!
+                echo $new_pid > "$frontend_pidfile"
+                
+                # Wait and verify startup
+                sleep 5
+                if ps -p $new_pid > /dev/null 2>&1 && check_port $FRONTEND_PORT; then
+                    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo -e "${GREEN}Frontend restarted successfully! (PID: $new_pid)${NC}"
+                    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+                    echo ""
+                else
+                    echo -e "${RED}Failed to restart frontend!${NC}"
+                    echo -e "${YELLOW}Check logs: tail -f $LOGS_DIR/web.log${NC}"
+                    rm -f "$frontend_pidfile"
+                fi
+                cd "$BASE_DIR"
+            fi
+        fi
+    done
+}
 
 # Summary
 echo ""
@@ -260,3 +494,31 @@ echo -e "  Logs:    ${GREEN}tail -f $LOGS_DIR/*.log${NC}"
 echo ""
 echo -e "${YELLOW}Note: Next.js may take 10-30 seconds to compile and be ready.${NC}"
 echo ""
+echo -e "${BLUE}Frontend Monitoring:${NC}"
+echo -e "  ${GREEN}Monitoring frontend process and auto-restarting if it exits...${NC}"
+echo -e "  ${YELLOW}Press Ctrl+C to stop monitoring (services will continue running)${NC}"
+echo ""
+
+# Start frontend monitoring in background
+MONITOR_PID=$!
+monitor_frontend &
+MONITOR_PID=$!
+
+# Function to cleanup on exit
+cleanup() {
+    echo -e "${YELLOW}Stopping frontend monitoring...${NC}"
+    if [ -n "$MONITOR_PID" ] && ps -p $MONITOR_PID > /dev/null 2>&1; then
+        kill $MONITOR_PID 2>/dev/null || true
+    fi
+    echo -e "${GREEN}Services continue running. Use $BASE_DIR/stop-all.sh to stop all services.${NC}"
+    exit 0
+}
+
+# Set up signal handlers
+trap cleanup INT TERM
+
+echo -e "${GREEN}Frontend monitoring started. Press Ctrl+C to stop monitoring.${NC}"
+echo ""
+
+# Keep the main script running to maintain the monitoring
+wait $MONITOR_PID

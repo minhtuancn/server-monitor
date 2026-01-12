@@ -87,6 +87,7 @@ Last Updated: 2026-01-09
 - [UPGRADE_ROLLBACK.md](operations/UPGRADE_ROLLBACK.md) — Version upgrades & rollback
 - [DEPLOYMENT.md](operations/DEPLOYMENT.md) — Production deployment details
 - [SMOKE_TEST.md](operations/SMOKE_TEST.md) — Smoke testing checklist
+- [GITHUB_MCP_SETUP.md](operations/GITHUB_MCP_SETUP.md) — **GitHub MCP setup on LXC 231**
 
 **CI/CD & Release**
 

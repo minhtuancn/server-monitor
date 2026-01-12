@@ -8,7 +8,7 @@ import pytest
 import sys
 import os
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 import queue
 import threading
 
@@ -155,7 +155,7 @@ class TestTaskExecution:
     
     def test_timestamp_format(self):
         """Test timestamp format for task tracking"""
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
         
         assert "T" in timestamp
         assert timestamp.endswith("Z")

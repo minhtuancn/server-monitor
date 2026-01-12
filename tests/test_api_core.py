@@ -33,6 +33,12 @@ class MockRequest:
         self._response_code = None
         self._response_headers = {}
     
+    def makefile(self, mode='r', buffering=-1):
+        """Mock makefile method required by BaseHTTPRequestHandler"""
+        if 'r' in mode or 'b' in mode:
+            return self.rfile
+        return self.wfile
+    
     def send_response(self, code):
         self._response_code = code
     

@@ -3,6 +3,7 @@
 import { apiFetch } from "@/lib/api-client";
 import { Server, ServerNote, ServerInventory, Task } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SaveIcon from "@mui/icons-material/Save";
@@ -16,6 +17,7 @@ import StopIcon from "@mui/icons-material/Stop";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import {
   Alert,
   Box,
@@ -42,15 +44,21 @@ import {
   Tabs,
   TextField,
   Typography,
+  LinearProgress,
 } from "@mui/material";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
+import { ServerMetricsChart, MetricGauge } from "@/components/dashboard/server-metrics-chart";
+import DockerManagementTab from "@/components/servers/management/DockerManagementTab";
+import ServiceManagementTab from "@/components/servers/management/ServiceManagementTab";
+import NetworkManagementTab from "@/components/servers/management/NetworkManagementTab";
+import PowerManagementControls from "@/components/servers/management/PowerManagementControls";
 
 const noteSchema = z.object({
   content: z.string().min(3, "Note is too short"),
@@ -114,7 +122,35 @@ export default function ServerWorkspacePage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<ServerNote | null>(null);
-  const [noteFormData, setNoteFormData] = useState({ title: "", content: "" });
+  const [noteFormData, setNoteFormData] = useState({ title: "", description: "", content: "" });
+  const [noteTab, setNoteTab] = useState(0); // 0 = Edit, 1 = Preview
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFormData, setUploadFormData] = useState({ title: "", description: "" });
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(new Set());
+  const [viewNoteDialog, setViewNoteDialog] = useState(false);
+  const [viewingNote, setViewingNote] = useState<ServerNote | null>(null);
+  const [gaugeSize, setGaugeSize] = useState(160);
+  const [deleteNoteDialogOpen, setDeleteNoteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<number | null>(null);
+  const [cancelTaskDialogOpen, setCancelTaskDialogOpen] = useState(false);
+  const [taskToCancel, setTaskToCancel] = useState<string | null>(null);
+
+  const [metricsTimeframe, setMetricsTimeframe] = useState<"1h" | "6h" | "24h" | "7d" | "30d">("24h");
+
+  // Handle gauge size based on window width
+  useEffect(() => {
+    const handleResize = () => {
+      setGaugeSize(window.innerWidth < 600 ? 120 : 160);
+    };
+    
+    // Set initial size
+    handleResize();
+    
+    // Listen for resize
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const { data: server, isLoading: serverLoading } = useQuery<Server>({
     queryKey: ["server", serverId],
@@ -126,6 +162,16 @@ export default function ServerWorkspacePage() {
     queryKey: ["server-notes", serverId],
     queryFn: () => apiFetch<ServerNote[]>(`/api/servers/${serverId}/notes`),
     enabled: !!serverId,
+  });
+
+  const { data: metricsHistory, isLoading: metricsLoading } = useQuery({
+    queryKey: ["server-metrics-history", serverId, metricsTimeframe],
+    queryFn: () =>
+      apiFetch<any[]>(
+        `/api/servers/${serverId}/metrics/history?timeframe=${metricsTimeframe}&interval=5m`
+      ),
+    enabled: !!serverId && tabValue === 0,
+    refetchInterval: 60000, // Refetch every minute
   });
 
   const {
@@ -161,7 +207,7 @@ export default function ServerWorkspacePage() {
     queryKey: ["server-tasks", serverId],
     queryFn: () =>
       apiFetch<{ tasks: Task[] }>(`/api/tasks?server_id=${serverId}`),
-    enabled: !!serverId && tabValue === 2,
+    enabled: !!serverId && tabValue === 5,
     refetchInterval: (query) => {
       // Poll if any tasks are running or queued
       const hasActiveTasks = query.state.data?.tasks?.some(
@@ -227,7 +273,7 @@ export default function ServerWorkspacePage() {
   };
 
   const saveNoteMutation = useMutation({
-    mutationFn: async (data: { title: string; content: string }) => {
+    mutationFn: async (data: { title: string; description: string; content: string }) => {
       if (editingNote) {
         return apiFetch(`/api/servers/${serverId}/notes/${editingNote.id}`, {
           method: "PUT",
@@ -244,7 +290,8 @@ export default function ServerWorkspacePage() {
       queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
       setNoteDialogOpen(false);
       setEditingNote(null);
-      setNoteFormData({ title: "", content: "" });
+      setNoteFormData({ title: "", description: "", content: "" });
+      setNoteTab(0);
     },
   });
 
@@ -262,11 +309,16 @@ export default function ServerWorkspacePage() {
   const handleOpenNoteDialog = (note?: ServerNote) => {
     if (note) {
       setEditingNote(note);
-      setNoteFormData({ title: note.title || "", content: note.content });
+      setNoteFormData({ 
+        title: note.title || "", 
+        description: note.description || "", 
+        content: note.content 
+      });
     } else {
       setEditingNote(null);
-      setNoteFormData({ title: "", content: "" });
+      setNoteFormData({ title: "", description: "", content: "" });
     }
+    setNoteTab(0);
     setNoteDialogOpen(true);
   };
 
@@ -278,9 +330,80 @@ export default function ServerWorkspacePage() {
   };
 
   const handleDeleteNote = (noteId: number) => {
-    if (confirm("Are you sure you want to delete this note?")) {
-      deleteNoteMutation.mutate(noteId);
+    setNoteToDelete(noteId);
+    setDeleteNoteDialogOpen(true);
+  };
+
+  const confirmDeleteNote = async () => {
+    if (noteToDelete !== null) {
+      await deleteNoteMutation.mutateAsync(noteToDelete);
+      setDeleteNoteDialogOpen(false);
+      setNoteToDelete(null);
     }
+  };
+
+  const uploadFileMutation = useMutation({
+    mutationFn: async () => {
+      if (!uploadFile) return;
+      
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      if (uploadFormData.title) formData.append('title', uploadFormData.title);
+      if (uploadFormData.description) formData.append('description', uploadFormData.description);
+
+      const response = await fetch(`/api/servers/${serverId}/notes/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Upload failed');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["server-notes", serverId] });
+      setUploadDialogOpen(false);
+      setUploadFile(null);
+      setUploadFormData({ title: "", description: "" });
+    },
+  });
+
+  const handleFileUpload = () => {
+    if (!uploadFile) return;
+    uploadFileMutation.mutate();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith('.md')) {
+        alert('Please select a markdown file (.md)');
+        return;
+      }
+      setUploadFile(file);
+      // Auto-populate title from filename
+      const titleFromFile = file.name.replace('.md', '').replace(/[-_]/g, ' ');
+      setUploadFormData({ ...uploadFormData, title: titleFromFile });
+    }
+  };
+
+  const toggleNoteExpansion = (noteId: number) => {
+    const newExpanded = new Set(expandedNotes);
+    if (newExpanded.has(noteId)) {
+      newExpanded.delete(noteId);
+    } else {
+      newExpanded.add(noteId);
+    }
+    setExpandedNotes(newExpanded);
+  };
+
+  const handleViewNote = (note: ServerNote) => {
+    setViewingNote(note);
+    setViewNoteDialog(true);
   };
 
   const onCreateTask = async (values: TaskForm) => {
@@ -288,8 +411,15 @@ export default function ServerWorkspacePage() {
   };
 
   const handleCancelTask = (taskId: string) => {
-    if (confirm("Are you sure you want to cancel this task?")) {
-      cancelTaskMutation.mutate(taskId);
+    setTaskToCancel(taskId);
+    setCancelTaskDialogOpen(true);
+  };
+
+  const confirmCancelTask = async () => {
+    if (taskToCancel) {
+      await cancelTaskMutation.mutateAsync(taskToCancel);
+      setCancelTaskDialogOpen(false);
+      setTaskToCancel(null);
     }
   };
 
@@ -328,15 +458,29 @@ export default function ServerWorkspacePage() {
   return (
     <Stack spacing={3}>
       {/* Header */}
-      <Stack direction="row" alignItems="center" spacing={2}>
+      <Stack 
+        direction={{ xs: "column", sm: "row" }} 
+        alignItems={{ xs: "stretch", sm: "center" }} 
+        spacing={2}
+      >
         <Button
           component={Link}
           href="../dashboard"
           startIcon={<ArrowBackIcon />}
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+          aria-label="Go back to dashboard"
         >
           Back
         </Button>
-        <Typography variant="h5" fontWeight={700} sx={{ flexGrow: 1 }}>
+        <Typography 
+          variant="h5" 
+          fontWeight={700} 
+          sx={{ 
+            flexGrow: 1,
+            textAlign: { xs: "center", sm: "left" },
+            wordBreak: "break-word"
+          }}
+        >
           {server.name}
         </Typography>
         <Button
@@ -345,24 +489,32 @@ export default function ServerWorkspacePage() {
           startIcon={<TerminalIcon />}
           variant="outlined"
           size="small"
+          sx={{ width: { xs: "100%", sm: "auto" } }}
+          aria-label={`Open terminal for ${server.name}`}
         >
           Open Terminal
         </Button>
       </Stack>
 
       {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", overflowX: "auto" }}>
         <Tabs
           value={tabValue}
           onChange={(_, newValue) => setTabValue(newValue)}
           aria-label="server workspace tabs"
+          variant="scrollable"
+          scrollButtons="auto"
         >
           <Tab label="Overview" />
           <Tab label="Inventory" />
+          <Tab label="Docker" />
+          <Tab label="Services" />
+          <Tab label="Network" />
           <Tab label="Tasks" />
           <Tab label="Agent" />
           <Tab label="Terminal" />
           <Tab label="Notes" />
+          <Tab label="Power" />
         </Tabs>
       </Box>
 
@@ -370,6 +522,127 @@ export default function ServerWorkspacePage() {
       <TabPanel value={tabValue} index={0}>
         {/* Overview Tab */}
         <Grid container spacing={3}>
+          {/* Metric Gauges */}
+          {server.cpu !== undefined && server.memory !== undefined && server.disk !== undefined && (
+            <>
+              <Grid item xs={12} sm={6} md={4}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                      <Typography variant="h6" color="text.secondary">
+                        CPU Usage
+                      </Typography>
+                      <MetricGauge 
+                        value={server.cpu || 0} 
+                        max={100} 
+                        unit="%" 
+                        size={gaugeSize} 
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                      <Typography variant="h6" color="text.secondary">
+                        Memory Usage
+                      </Typography>
+                      <MetricGauge 
+                        value={server.memory || 0} 
+                        max={100} 
+                        unit="%" 
+                        size={gaugeSize} 
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} sm={6} md={4}>
+                <Card>
+                  <CardContent>
+                    <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                      <Typography variant="h6" color="text.secondary">
+                        Disk Usage
+                      </Typography>
+                      <MetricGauge 
+                        value={server.disk || 0} 
+                        max={100} 
+                        unit="%" 
+                        size={gaugeSize} 
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </>
+          )}
+
+          {/* Historical Metrics Chart */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Stack spacing={2}>
+                  <Stack 
+                    direction={{ xs: "column", sm: "row" }} 
+                    justifyContent="space-between" 
+                    alignItems={{ xs: "flex-start", sm: "center" }}
+                    spacing={2}
+                  >
+                    <Typography variant="h6">Historical Metrics</Typography>
+                    
+                    {/* Timeframe Selector */}
+                    <Stack 
+                      direction="row" 
+                      spacing={1} 
+                      sx={{ 
+                        overflowX: "auto",
+                        width: { xs: "100%", sm: "auto" }
+                      }}
+                    >
+                      {(["1h", "6h", "24h", "7d", "30d"] as const).map((tf) => (
+                        <Button
+                          key={tf}
+                          size="small"
+                          variant={metricsTimeframe === tf ? "contained" : "outlined"}
+                          onClick={() => setMetricsTimeframe(tf)}
+                        >
+                          {tf}
+                        </Button>
+                      ))}
+                    </Stack>
+                  </Stack>
+
+                  {metricsLoading && (
+                    <Box display="flex" justifyContent="center" p={4}>
+                      <CircularProgress />
+                    </Box>
+                  )}
+
+                  {metricsHistory && metricsHistory.length > 0 ? (
+                    <Box sx={{ 
+                      width: "100%", 
+                      height: { xs: 300, sm: 400 },
+                      overflowX: "auto"
+                    }}>
+                      <ServerMetricsChart data={metricsHistory} />
+                    </Box>
+                  ) : (
+                    !metricsLoading && (
+                      <Alert severity="info">
+                        No historical metrics data available yet. Metrics are collected every minute.
+                      </Alert>
+                    )
+                  )}
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Server Details */}
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
@@ -415,38 +688,47 @@ export default function ServerWorkspacePage() {
             </Card>
           </Grid>
 
-          {server.cpu !== undefined && (
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Current Metrics
-                  </Typography>
-                  <Divider sx={{ my: 2 }} />
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        CPU Usage
-                      </Typography>
-                      <Typography>{server.cpu}%</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Memory Usage
-                      </Typography>
-                      <Typography>{server.memory}%</Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        Disk Usage
-                      </Typography>
-                      <Typography>{server.disk}%</Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
+          {/* Connection Info */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Connection Info
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Port
+                    </Typography>
+                    <Typography>{server.port}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Username
+                    </Typography>
+                    <Typography>{server.username}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Agent Port
+                    </Typography>
+                    <Typography>{server.agent_port || 8083}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Last Seen
+                    </Typography>
+                    <Typography>
+                      {server.last_seen
+                        ? new Date(server.last_seen).toLocaleString()
+                        : "Never"}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
         </Grid>
       </TabPanel>
 
@@ -466,6 +748,7 @@ export default function ServerWorkspacePage() {
               }
               onClick={handleRefreshInventory}
               disabled={refreshInventoryMutation.isPending}
+              aria-label="Refresh system inventory data"
             >
               Refresh Inventory
             </Button>
@@ -808,9 +1091,37 @@ export default function ServerWorkspacePage() {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
+        {/* Docker Management Tab */}
+        <DockerManagementTab 
+          serverId={parseInt(serverId)} 
+          serverName={server.name} 
+        />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={3}>
+        {/* Services Management Tab */}
+        <ServiceManagementTab 
+          serverId={parseInt(serverId)} 
+          serverName={server.name} 
+        />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={4}>
+        {/* Network Management Tab */}
+        <NetworkManagementTab 
+          serverId={parseInt(serverId)} 
+          serverName={server.name} 
+        />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={5}>
         {/* Tasks Tab */}
         <Stack spacing={3}>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack 
+            direction={{ xs: "column", sm: "row" }} 
+            spacing={2} 
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               Remote Command Execution
             </Typography>
@@ -818,6 +1129,8 @@ export default function ServerWorkspacePage() {
               variant="contained"
               startIcon={<PlayArrowIcon />}
               onClick={() => setTaskDialogOpen(true)}
+              fullWidth={{ xs: true, sm: false }}
+              aria-label="Run new command on this server"
             >
               Run Command
             </Button>
@@ -828,14 +1141,14 @@ export default function ServerWorkspacePage() {
               <CircularProgress />
             </Box>
           ) : tasks && tasks.tasks && tasks.tasks.length > 0 ? (
-            <Card>
+            <Card sx={{ overflowX: "auto" }}>
               <Table>
                 <TableHead>
                   <TableRow>
                     <TableCell>Status</TableCell>
                     <TableCell>Command</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell>Duration</TableCell>
+                    <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>Created</TableCell>
+                    <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>Duration</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -854,7 +1167,7 @@ export default function ServerWorkspacePage() {
                           variant="body2"
                           sx={{
                             fontFamily: "monospace",
-                            maxWidth: "400px",
+                            maxWidth: { xs: "150px", sm: "400px" },
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -863,12 +1176,12 @@ export default function ServerWorkspacePage() {
                           {task.command}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: "none", sm: "table-cell" } }}>
                         <Typography variant="caption">
                           {new Date(task.created_at).toLocaleString()}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: "none", md: "table-cell" } }}>
                         <Typography variant="caption">
                           {task.finished_at && task.started_at
                             ? `${Math.round(
@@ -882,28 +1195,32 @@ export default function ServerWorkspacePage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => setSelectedTask(task)}
-                          >
-                            View
-                          </Button>
-                          {(task.status === "running" ||
-                            task.status === "queued") && (
+                          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                             <Button
                               size="small"
                               variant="outlined"
-                              color="error"
-                              startIcon={<StopIcon />}
-                              onClick={() => handleCancelTask(task.id)}
-                              disabled={cancelTaskMutation.isPending}
+                              onClick={() => setSelectedTask(task)}
+                              fullWidth
+                              aria-label={`View task details: ${task.command.substring(0, 30)}...`}
                             >
-                              Cancel
+                              View
                             </Button>
-                          )}
-                        </Stack>
+                            {(task.status === "running" ||
+                              task.status === "queued") && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<StopIcon />}
+                                onClick={() => handleCancelTask(task.id)}
+                                disabled={cancelTaskMutation.isPending}
+                                fullWidth
+                                aria-label={`Cancel task: ${task.command.substring(0, 30)}...`}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </Stack>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -919,12 +1236,12 @@ export default function ServerWorkspacePage() {
         </Stack>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={3}>
+      <TabPanel value={tabValue} index={6}>
         {/* Agent Management Tab */}
         <AgentManagement serverId={serverId} server={server} />
       </TabPanel>
 
-      <TabPanel value={tabValue} index={4}>
+      <TabPanel value={tabValue} index={7}>
         {/* Terminal Tab */}
         <Card>
           <CardContent>
@@ -941,6 +1258,7 @@ export default function ServerWorkspacePage() {
               href={`../../terminal?server=${server.id}`}
               startIcon={<TerminalIcon />}
               variant="contained"
+              aria-label={`Open web terminal for ${server.name}`}
             >
               Open Terminal
             </Button>
@@ -948,17 +1266,32 @@ export default function ServerWorkspacePage() {
         </Card>
       </TabPanel>
 
-      <TabPanel value={tabValue} index={5}>
+      <TabPanel value={tabValue} index={8}>
         {/* Notes Tab */}
         <Stack spacing={3}>
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack 
+            direction={{ xs: "column", sm: "row" }} 
+            spacing={2} 
+            alignItems={{ xs: "stretch", sm: "center" }}
+          >
             <Typography variant="h6" sx={{ flexGrow: 1 }}>
               Server Notes
             </Typography>
             <Button
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              onClick={() => setUploadDialogOpen(true)}
+              fullWidth={{ xs: true, sm: false }}
+              aria-label="Upload markdown file as note"
+            >
+              Upload .md File
+            </Button>
+            <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => handleOpenNoteDialog()}
+              fullWidth={{ xs: true, sm: false }}
+              aria-label="Add new note"
             >
               Add Note
             </Button>
@@ -969,54 +1302,129 @@ export default function ServerWorkspacePage() {
               <CircularProgress />
             </Box>
           ) : notes && notes.length > 0 ? (
-            <Grid container spacing={2}>
-              {notes.map((note) => (
-                <Grid item xs={12} key={note.id}>
-                  <Card variant="outlined">
+            <Stack spacing={2}>
+              {notes.map((note) => {
+                const isExpanded = expandedNotes.has(note.id);
+                const contentPreview = note.content.substring(0, 150);
+                const hasMore = note.content.length > 150;
+
+                return (
+                  <Card key={note.id} variant="outlined">
                     <CardContent>
-                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                        <Typography variant="h6" gutterBottom>
-                          {note.title || "Note"}
-                        </Typography>
-                        <Stack direction="row" spacing={1}>
-                          <Button
-                            size="small"
-                            startIcon={<EditIcon />}
-                            onClick={() => handleOpenNoteDialog(note)}
+                      <Stack spacing={2}>
+                        {/* Header */}
+                        <Stack 
+                          direction={{ xs: "column", sm: "row" }} 
+                          justifyContent="space-between" 
+                          alignItems={{ xs: "flex-start", sm: "center" }}
+                          spacing={1}
+                        >
+                          <Box sx={{ flexGrow: 1, width: { xs: "100%", sm: "auto" } }}>
+                            <Typography variant="h6" sx={{ wordBreak: "break-word" }}>
+                              {note.title || "Untitled Note"}
+                            </Typography>
+                            {note.description && (
+                              <Typography 
+                                variant="body2" 
+                                color="text.secondary" 
+                                sx={{ mt: 0.5, wordBreak: "break-word" }}
+                              >
+                                {note.description}
+                              </Typography>
+                            )}
+                          </Box>
+                          
+                          <Stack 
+                            direction="row" 
+                            spacing={1} 
+                            sx={{ width: { xs: "100%", sm: "auto" } }}
                           >
-                            Edit
-                          </Button>
-                          <Button
-                            size="small"
-                            color="error"
-                            startIcon={<DeleteIcon />}
-                            onClick={() => handleDeleteNote(note.id)}
-                            disabled={deleteNoteMutation.isPending}
-                          >
-                            Delete
-                          </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleViewNote(note)}
+                              sx={{ flex: { xs: 1, sm: "unset" } }}
+                              aria-label={`View note: ${note.title || 'Untitled'}`}
+                            >
+                              View
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<EditIcon />}
+                              onClick={() => handleOpenNoteDialog(note)}
+                              sx={{ flex: { xs: 1, sm: "unset" } }}
+                              aria-label={`Edit note: ${note.title || 'Untitled'}`}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => handleDeleteNote(note.id)}
+                              disabled={deleteNoteMutation.isPending}
+                              sx={{ flex: { xs: 1, sm: "unset" } }}
+                              aria-label={`Delete note: ${note.title || 'Untitled'}`}
+                            >
+                              Delete
+                            </Button>
+                          </Stack>
                         </Stack>
+
+                        <Divider />
+
+                        {/* Content Preview */}
+                        <Box>
+                          <Box 
+                            className="markdown-content" 
+                            sx={{ 
+                              "& p:last-child": { mb: 0 },
+                              maxHeight: isExpanded ? "none" : 100,
+                              overflow: "hidden",
+                              position: "relative"
+                            }}
+                          >
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {isExpanded ? note.content : contentPreview + (hasMore ? "..." : "")}
+                            </ReactMarkdown>
+                          </Box>
+                          
+                          {hasMore && (
+                            <Button
+                              size="small"
+                              onClick={() => toggleNoteExpansion(note.id)}
+                              sx={{ mt: 1 }}
+                            >
+                              {isExpanded ? "Show Less" : "Show More"}
+                            </Button>
+                          )}
+                        </Box>
+
+                        {/* Footer */}
+                        <Typography variant="caption" color="text.secondary">
+                          Last updated: {note.updated_at ? new Date(note.updated_at).toLocaleString() : (note.created_at ? new Date(note.created_at).toLocaleString() : "N/A")}
+                        </Typography>
                       </Stack>
-                      <Divider sx={{ mb: 2 }} />
-                      <Box sx={{ "& p:last-child": { mb: 0 } }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {note.content}
-                        </ReactMarkdown>
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: "block" }}>
-                        Last updated: {note.updated_at ? new Date(note.updated_at).toLocaleString() : (note.created_at ? new Date(note.created_at).toLocaleString() : "N/A")}
-                      </Typography>
                     </CardContent>
                   </Card>
-                </Grid>
-              ))}
-            </Grid>
+                );
+              })}
+            </Stack>
           ) : (
             <Alert severity="info">
               No notes yet. Click "Add Note" to create your first note.
             </Alert>
           )}
         </Stack>
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={9}>
+        {/* Power Management Tab */}
+        <PowerManagementControls 
+          serverId={parseInt(serverId)} 
+          serverName={server.name}
+          userRole="admin"
+        />
       </TabPanel>
 
       {/* Task Creation Dialog */}
@@ -1042,6 +1450,9 @@ export default function ServerWorkspacePage() {
               error={!!taskErrors.command}
               helperText={taskErrors.command?.message}
               sx={{ fontFamily: "monospace" }}
+              inputProps={{
+                'aria-label': 'Command to execute on server',
+              }}
             />
             <TextField
               label="Timeout (seconds)"
@@ -1050,6 +1461,9 @@ export default function ServerWorkspacePage() {
               {...taskRegister("timeout_seconds", { valueAsNumber: true })}
               error={!!taskErrors.timeout_seconds}
               helperText={taskErrors.timeout_seconds?.message || "Max: 600 seconds"}
+              inputProps={{
+                'aria-label': 'Command timeout in seconds',
+              }}
             />
             <FormControlLabel
               control={
@@ -1061,14 +1475,15 @@ export default function ServerWorkspacePage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setTaskDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleTaskSubmit(onCreateTask)}
-            disabled={taskIsSubmitting}
-            startIcon={<PlayArrowIcon />}
-          >
-            Run Command
-          </Button>
+            <Button
+              variant="contained"
+              onClick={handleTaskSubmit(onCreateTask)}
+              disabled={taskIsSubmitting}
+              startIcon={<PlayArrowIcon />}
+              aria-label="Execute command on server"
+            >
+              Run Command
+            </Button>
         </DialogActions>
       </Dialog>
 
@@ -1207,17 +1622,72 @@ export default function ServerWorkspacePage() {
               value={noteFormData.title}
               onChange={(e) => setNoteFormData({ ...noteFormData, title: e.target.value })}
               placeholder="Note title (optional)"
+              inputProps={{
+                'aria-label': 'Note title',
+              }}
             />
             <TextField
-              label="Content (Markdown supported)"
-              multiline
-              minRows={8}
+              label="Description"
               fullWidth
-              value={noteFormData.content}
-              onChange={(e) => setNoteFormData({ ...noteFormData, content: e.target.value })}
-              placeholder="# Heading&#10;&#10;Your note content here..."
-              helperText="Markdown formatting is supported (bold, italic, lists, code blocks, etc.)"
+              value={noteFormData.description}
+              onChange={(e) => setNoteFormData({ ...noteFormData, description: e.target.value })}
+              placeholder="Brief summary of this note"
+              helperText="Optional description to help identify this note"
+              inputProps={{
+                'aria-label': 'Note description',
+              }}
             />
+            
+            {/* Edit/Preview Tabs */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={noteTab} onChange={(_, v) => setNoteTab(v)}>
+                <Tab label="Edit" />
+                <Tab label="Preview" />
+              </Tabs>
+            </Box>
+
+            {noteTab === 0 && (
+              <TextField
+                label="Content (Markdown supported)"
+                multiline
+                minRows={12}
+                fullWidth
+                value={noteFormData.content}
+                onChange={(e) => setNoteFormData({ ...noteFormData, content: e.target.value })}
+                placeholder="# Heading&#10;&#10;Your note content here..."
+                helperText="Markdown formatting is supported (bold, italic, lists, code blocks, etc.)"
+                inputProps={{
+                  'aria-label': 'Note content in markdown format',
+                }}
+              />
+            )}
+
+            {noteTab === 1 && (
+              <Box 
+                sx={{ 
+                  minHeight: 300, 
+                  p: 2, 
+                  border: 1, 
+                  borderColor: 'divider', 
+                  borderRadius: 1,
+                  backgroundColor: 'background.paper',
+                  overflowY: 'auto',
+                  maxHeight: 500
+                }}
+              >
+                {noteFormData.content ? (
+                  <Box className="markdown-content" sx={{ "& p:last-child": { mb: 0 } }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {noteFormData.content}
+                    </ReactMarkdown>
+                  </Box>
+                ) : (
+                  <Typography color="text.secondary" fontStyle="italic">
+                    No content to preview. Switch to Edit tab to add content.
+                  </Typography>
+                )}
+              </Box>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -1227,11 +1697,169 @@ export default function ServerWorkspacePage() {
             onClick={handleSaveNote}
             disabled={!noteFormData.content.trim() || saveNoteMutation.isPending}
             startIcon={<SaveIcon />}
+            aria-label={editingNote ? "Update note" : "Save new note"}
           >
             {editingNote ? "Update" : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* File Upload Dialog */}
+      <Dialog
+        open={uploadDialogOpen}
+        onClose={() => setUploadDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Upload Markdown File</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Alert severity="info">
+              Upload a .md file to create a new note. The file content will be imported as the note content.
+            </Alert>
+            
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<UploadFileIcon />}
+              fullWidth
+            >
+              {uploadFile ? uploadFile.name : "Choose .md File"}
+              <input
+                type="file"
+                hidden
+                accept=".md"
+                onChange={handleFileSelect}
+              />
+            </Button>
+
+            {uploadFile && (
+              <>
+                <TextField
+                  label="Title (optional)"
+                  fullWidth
+                  value={uploadFormData.title}
+                  onChange={(e) => setUploadFormData({ ...uploadFormData, title: e.target.value })}
+                  placeholder="Will use filename if not provided"
+                  helperText="Optional custom title for this note"
+                />
+                <TextField
+                  label="Description (optional)"
+                  fullWidth
+                  value={uploadFormData.description}
+                  onChange={(e) => setUploadFormData({ ...uploadFormData, description: e.target.value })}
+                  placeholder="Brief summary of this note"
+                  helperText="Optional description to help identify this note"
+                />
+                <Alert severity="success">
+                  File selected: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(2)} KB)
+                </Alert>
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setUploadDialogOpen(false);
+            setUploadFile(null);
+            setUploadFormData({ title: "", description: "" });
+          }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleFileUpload}
+            disabled={!uploadFile || uploadFileMutation.isPending}
+            startIcon={<UploadFileIcon />}
+          >
+            {uploadFileMutation.isPending ? "Uploading..." : "Upload"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Note Dialog */}
+      <Dialog
+        open={viewNoteDialog}
+        onClose={() => setViewNoteDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {viewingNote?.title || "Untitled Note"}
+        </DialogTitle>
+        <DialogContent>
+          {viewingNote && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {viewingNote.description && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {viewingNote.description}
+                  </Typography>
+                  <Divider sx={{ my: 2 }} />
+                </Box>
+              )}
+              
+              <Box className="markdown-content">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {viewingNote.content}
+                </ReactMarkdown>
+              </Box>
+
+              <Divider sx={{ my: 2 }} />
+              
+              <Typography variant="caption" color="text.secondary">
+                Created: {viewingNote.created_at ? new Date(viewingNote.created_at).toLocaleString() : "N/A"}
+                {viewingNote.updated_at && (
+                  <> • Last updated: {new Date(viewingNote.updated_at).toLocaleString()}</>
+                )}
+              </Typography>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewNoteDialog(false)}>Close</Button>
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => {
+              setViewNoteDialog(false);
+              if (viewingNote) handleOpenNoteDialog(viewingNote);
+            }}
+          >
+            Edit
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Note Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteNoteDialogOpen}
+        onClose={() => {
+          setDeleteNoteDialogOpen(false);
+          setNoteToDelete(null);
+        }}
+        onConfirm={confirmDeleteNote}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
+        severity="error"
+        loading={deleteNoteMutation.isPending}
+      />
+
+      {/* Cancel Task Confirmation Dialog */}
+      <ConfirmDialog
+        open={cancelTaskDialogOpen}
+        onClose={() => {
+          setCancelTaskDialogOpen(false);
+          setTaskToCancel(null);
+        }}
+        onConfirm={confirmCancelTask}
+        title="Cancel Task"
+        message="Are you sure you want to cancel this task? The task execution will be stopped."
+        confirmText="Cancel Task"
+        severity="warning"
+        loading={cancelTaskMutation.isPending}
+      />
     </Stack>
   );
 }
@@ -1241,6 +1869,7 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
   const [installing, setInstalling] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const queryClient = useQueryClient();
+  const [uninstallConfirmOpen, setUninstallConfirmOpen] = useState(false);
 
   // Query agent status
   const { data: agentInfo, refetch: refetchAgentInfo } = useQuery({
@@ -1353,9 +1982,6 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
   // Uninstall agent mutation
   const uninstallMutation = useMutation({
     mutationFn: async () => {
-      if (!confirm("Are you sure you want to uninstall the agent? This will stop monitoring for this server.")) {
-        throw new Error("Cancelled");
-      }
       const response = await apiFetch<{ success: boolean; message?: string }>(
         `/api/remote/agent/uninstall/${serverId}`,
         { method: "POST" }
@@ -1366,8 +1992,17 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
       setLogs([]);
       refetchAgentInfo();
       queryClient.invalidateQueries({ queryKey: ["server", serverId] });
+      setUninstallConfirmOpen(false);
     },
   });
+
+  const handleUninstall = () => {
+    setUninstallConfirmOpen(true);
+  };
+
+  const confirmUninstall = async () => {
+    await uninstallMutation.mutateAsync();
+  };
 
   const handleInstall = () => {
     setLogs([]);
@@ -1443,6 +2078,7 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
                     variant="contained"
                     onClick={handleInstall}
                     disabled={installing || installMutation.isPending}
+                    aria-label={`Install monitoring agent on ${server.name}`}
                   >
                     {installing ? "Installing..." : "Install Agent"}
                   </Button>
@@ -1454,14 +2090,16 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
                       onClick={() => agentInfo.running ? stopMutation.mutate() : startMutation.mutate()}
                       disabled={stopMutation.isPending || startMutation.isPending}
                       startIcon={agentInfo.running ? <StopIcon /> : <PlayArrowIcon />}
+                      aria-label={agentInfo.running ? `Stop monitoring agent on ${server.name}` : `Start monitoring agent on ${server.name}`}
                     >
                       {agentInfo.running ? "Stop Agent" : "Start Agent"}
                     </Button>
                     <Button
                       variant="outlined"
                       color="error"
-                      onClick={() => uninstallMutation.mutate()}
+                      onClick={handleUninstall}
                       disabled={uninstallMutation.isPending}
+                      aria-label={`Uninstall monitoring agent from ${server.name}`}
                     >
                       Uninstall Agent
                     </Button>
@@ -1471,6 +2109,7 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
                   variant="outlined"
                   onClick={() => refetchAgentInfo()}
                   startIcon={<RefreshIcon />}
+                  aria-label="Refresh agent status"
                 >
                   Refresh Status
                 </Button>
@@ -1547,6 +2186,18 @@ function AgentManagement({ serverId, server }: { serverId: string; server: Serve
           </Card>
         </Grid>
       </Grid>
+
+      {/* Uninstall Confirmation Dialog */}
+      <ConfirmDialog
+        open={uninstallConfirmOpen}
+        onClose={() => setUninstallConfirmOpen(false)}
+        onConfirm={confirmUninstall}
+        title="Uninstall Agent"
+        message="Are you sure you want to uninstall the agent? This will stop monitoring for this server."
+        confirmText="Uninstall"
+        severity="error"
+        loading={uninstallMutation.isPending}
+      />
     </Stack>
   );
 }

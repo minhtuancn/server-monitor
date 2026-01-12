@@ -133,6 +133,7 @@ export default function EmailSettingsPage() {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, enabled: e.target.checked }))
                       }
+                      inputProps={{ 'aria-label': 'Enable or disable email alerts' }}
                     />
                   }
                   label={
@@ -162,6 +163,7 @@ export default function EmailSettingsPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, smtp_host: e.target.value }))}
                   placeholder="smtp.gmail.com"
                   helperText="Your SMTP server hostname"
+                  inputProps={{ 'aria-label': 'SMTP server hostname for sending emails' }}
                 />
               </Grid>
               <Grid item xs={12} md={4}>
@@ -175,6 +177,7 @@ export default function EmailSettingsPage() {
                   }
                   placeholder="587"
                   helperText="Usually 587 or 465"
+                  inputProps={{ 'aria-label': 'SMTP server port number' }}
                 />
               </Grid>
               
@@ -193,6 +196,7 @@ export default function EmailSettingsPage() {
                     setForm((prev) => ({ ...prev, smtp_username: e.target.value }))
                   }
                   placeholder="your-email@example.com"
+                  inputProps={{ 'aria-label': 'SMTP username for authentication' }}
                 />
               </Grid>
               <Grid item xs={12} md={6}>
@@ -206,6 +210,7 @@ export default function EmailSettingsPage() {
                   }
                   placeholder="••••••••"
                   helperText="Your SMTP password or app password"
+                  inputProps={{ 'aria-label': 'SMTP password or app password' }}
                 />
               </Grid>
               
@@ -233,19 +238,22 @@ export default function EmailSettingsPage() {
                   }
                   placeholder="admin@example.com, alerts@example.com"
                   helperText="Comma-separated list of email addresses to receive alerts"
+                  inputProps={{ 'aria-label': 'Email recipients for alerts (comma-separated)' }}
                 />
               </Grid>
             </Grid>
 
             <Divider />
 
-            <Box display="flex" justifyContent="flex-end" gap={2}>
+            <Box display="flex" justifyContent="flex-end" gap={2} flexWrap="wrap">
               <Button
                 variant="contained"
                 startIcon={<SaveIcon />}
                 onClick={handleSave}
                 disabled={mutation.isPending}
                 size="large"
+                aria-label="Save email settings configuration"
+                sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
               >
                 {mutation.isPending ? "Saving..." : "Save Settings"}
               </Button>

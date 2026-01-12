@@ -5,6 +5,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CategoryIcon from "@mui/icons-material/Category";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
   Alert,
   Box,
@@ -18,11 +19,13 @@ import {
   DialogTitle,
   IconButton,
   LinearProgress,
+  Paper,
   Stack,
   Tab,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Tabs,
@@ -67,6 +70,8 @@ export default function GroupsPage() {
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<Group | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -148,9 +153,16 @@ export default function GroupsPage() {
     saveMutation.mutate(formData);
   };
 
-  const handleDelete = (id: number, name: string) => {
-    if (confirm(`Delete group "${name}"? Items in this group will not be deleted.`)) {
-      deleteMutation.mutate(id);
+  const handleDelete = (group: Group) => {
+    setGroupToDelete(group);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (groupToDelete) {
+      deleteMutation.mutate(groupToDelete.id);
+      setDeleteConfirmOpen(false);
+      setGroupToDelete(null);
     }
   };
 
@@ -185,8 +197,14 @@ export default function GroupsPage() {
         </Typography>
       </Box>
 
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
+      <Box sx={{ borderBottom: 1, borderColor: "divider", overflowX: "auto" }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={(_, newValue) => setTabValue(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="Group types navigation tabs"
+        >
           <Tab label="Server Groups" />
           <Tab label="Note Groups" />
           <Tab label="Command Snippets" />
@@ -199,7 +217,7 @@ export default function GroupsPage() {
           <Card>
             <CardContent>
               <Stack spacing={3}>
-                <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
                   <Box>
                     <Typography variant="h6">{getTypeLabel(type)}</Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -210,6 +228,7 @@ export default function GroupsPage() {
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => handleOpenDialog()}
+                    aria-label={`Add new ${type} group`}
                   >
                     Add Group
                   </Button>
@@ -222,78 +241,161 @@ export default function GroupsPage() {
                     No groups created yet. Click "Add Group" to create your first group.
                   </Alert>
                 ) : (
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Color</TableCell>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell align="center">Items</TableCell>
-                        <TableCell>Created</TableCell>
-                        <TableCell align="right">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {groups.map((group) => (
-                        <TableRow key={group.id} hover>
-                          <TableCell>
-                            <Box
-                              sx={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 1,
-                                bgcolor: group.color || "#1976d2",
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body1" fontWeight={600}>
-                              {group.name}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {group.description || "-"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Chip
-                              label={group.item_count || 0}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="text.secondary">
-                              {group.created_at
-                                ? new Date(group.created_at).toLocaleDateString()
-                                : "-"}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Edit">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleOpenDialog(group)}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDelete(group.id, group.name)}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <>
+                    {/* Desktop Table View */}
+                    <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Color</TableCell>
+                            <TableCell>Name</TableCell>
+                            <TableCell>Description</TableCell>
+                            <TableCell align="center">Items</TableCell>
+                            <TableCell>Created</TableCell>
+                            <TableCell align="right">Actions</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {groups.map((group) => (
+                            <TableRow key={group.id} hover>
+                              <TableCell>
+                                <Box
+                                  sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 1,
+                                    bgcolor: group.color || "#1976d2",
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body1" fontWeight={600}>
+                                  {group.name}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" color="text.secondary">
+                                  {group.description || "-"}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={group.item_count || 0}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Typography variant="body2" color="text.secondary">
+                                  {group.created_at
+                                    ? new Date(group.created_at).toLocaleDateString()
+                                    : "-"}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Tooltip title="Edit">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(group)}
+                                    aria-label={`Edit group ${group.name}`}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleDelete(group)}
+                                    aria-label={`Delete group ${group.name}`}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+
+                    {/* Mobile Card View */}
+                    <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                      <Stack spacing={2}>
+                        {groups.map((group) => (
+                          <Card key={group.id} variant="outlined">
+                            <CardContent>
+                              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                                <Box display="flex" gap={2} flex={1}>
+                                  <Box
+                                    sx={{
+                                      width: 48,
+                                      height: 48,
+                                      borderRadius: 1,
+                                      bgcolor: group.color || "#1976d2",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                  <Box flex={1}>
+                                    <Typography variant="h6" fontWeight={700} gutterBottom>
+                                      {group.name}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {group.description || "No description"}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                              </Box>
+
+                              <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                                <Box display="flex" gap={2} flexWrap="wrap">
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                      Items
+                                    </Typography>
+                                    <Chip
+                                      label={group.item_count || 0}
+                                      size="small"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
+                                  </Box>
+                                  <Box>
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                      Created
+                                    </Typography>
+                                    <Typography variant="body2">
+                                      {group.created_at
+                                        ? new Date(group.created_at).toLocaleDateString()
+                                        : "-"}
+                                    </Typography>
+                                  </Box>
+                                </Box>
+
+                                <Box display="flex" gap={1}>
+                                  <IconButton
+                                    onClick={() => handleOpenDialog(group)}
+                                    color="primary"
+                                    aria-label={`Edit group ${group.name}`}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                  <IconButton
+                                    color="error"
+                                    onClick={() => handleDelete(group)}
+                                    aria-label={`Delete group ${group.name}`}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </Box>
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    </Box>
+                  </>
                 )}
               </Stack>
             </CardContent>
@@ -315,6 +417,10 @@ export default function GroupsPage() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
               autoFocus
+              inputProps={{ 
+                'aria-label': 'Group name for categorization',
+                'aria-required': true 
+              }}
             />
             <TextField
               fullWidth
@@ -323,12 +429,13 @@ export default function GroupsPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               multiline
               rows={2}
+              inputProps={{ 'aria-label': 'Optional description for this group' }}
             />
             <Box>
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Color
               </Typography>
-              <Box display="flex" gap={1} flexWrap="wrap">
+              <Box display="flex" gap={1} flexWrap="wrap" role="group" aria-label="Select group color">
                 {[
                   "#1976d2", // Blue
                   "#2e7d32", // Green
@@ -344,6 +451,16 @@ export default function GroupsPage() {
                   <Box
                     key={color}
                     onClick={() => setFormData({ ...formData, color })}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select ${color} color`}
+                    aria-pressed={formData.color === color}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setFormData({ ...formData, color });
+                      }
+                    }}
                     sx={{
                       width: 40,
                       height: 40,
@@ -355,6 +472,10 @@ export default function GroupsPage() {
                       "&:hover": {
                         opacity: 0.8,
                       },
+                      "&:focus": {
+                        outline: "2px solid #1976d2",
+                        outlineOffset: 2,
+                      },
                     }}
                   />
                 ))}
@@ -363,11 +484,12 @@ export default function GroupsPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleCloseDialog} aria-label="Cancel group creation">Cancel</Button>
           <Button
             variant="contained"
             onClick={handleSave}
             disabled={!formData.name.trim() || saveMutation.isPending}
+            aria-label={editingGroup ? "Update group" : "Create new group"}
           >
             {editingGroup ? "Update" : "Create"}
           </Button>
@@ -385,6 +507,20 @@ export default function GroupsPage() {
       {deleteMutation.isError && (
         <Alert severity="error">Failed to delete group. Please try again.</Alert>
       )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setGroupToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Group"
+        message={`Are you sure you want to delete the group "${groupToDelete?.name}"? Items in this group will not be deleted.`}
+        confirmText="Delete"
+        severity="warning"
+        loading={deleteMutation.isPending}
+      />
     </Stack>
   );
 }

@@ -30,7 +30,12 @@ import ssh_key_manager
 import inventory_collector
 from ssh_key_manager import get_decrypted_key
 import task_runner
-from observability import StructuredLogger, RequestContext, HealthCheck, get_metrics_collector
+from observability import (
+    StructuredLogger,
+    RequestContext,
+    HealthCheck,
+    get_metrics_collector,
+)
 import startup_validation
 from task_policy import get_task_policy
 from audit_cleanup import get_audit_cleanup_scheduler
@@ -169,7 +174,6 @@ def verify_auth_token(handler):
 
 
 class CentralAPIHandler(BaseHTTPRequestHandler):
-
     def __init__(self, *args, **kwargs):
         # Initialize request tracking
         self.request_id = None
@@ -325,13 +329,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             if not is_localhost:
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     self._finish_request(401)
                     return
 
                 if auth_result.get("role") not in ["admin"]:
                     self._set_headers(403)
-                    self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Admin access required"}).encode()
+                    )
                     self._finish_request(403)
                     return
 
@@ -354,7 +362,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             # Add active terminal sessions
             try:
-                metrics.active_terminal_sessions = db.get_active_terminal_sessions_count()
+                metrics.active_terminal_sessions = (
+                    db.get_active_terminal_sessions_count()
+                )
             except:
                 pass
 
@@ -392,13 +402,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -419,13 +433,21 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self._set_headers()
                 self.wfile.write(
                     json.dumps(
-                        {"valid": True, "username": auth_result.get("username"), "role": auth_result.get("role")}
+                        {
+                            "valid": True,
+                            "username": auth_result.get("username"),
+                            "role": auth_result.get("role"),
+                        }
                     ).encode()
                 )
                 self._finish_request(200, user_id=str(auth_result.get("user_id")))
             else:
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"valid": False, "error": auth_result.get("error")}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"valid": False, "error": auth_result.get("error")}
+                    ).encode()
+                )
                 self._finish_request(401)
             return
 
@@ -436,7 +458,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             user_id = auth_result.get("user_id")
@@ -454,12 +478,16 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             users = user_mgr.get_all_users()
@@ -475,11 +503,16 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     return
 
                 # Users can see their own data, admins can see anyone
-                if auth_result.get("role") != "admin" and auth_result.get("user_id") != user_id:
+                if (
+                    auth_result.get("role") != "admin"
+                    and auth_result.get("user_id") != user_id
+                ):
                     self._set_headers(403)
                     self.wfile.write(json.dumps({"error": "Access denied"}).encode())
                     return
@@ -510,7 +543,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             settings = settings_mgr.get_all_settings()
@@ -545,7 +580,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             query_params = parse_qs(urlparse(self.path).query)
@@ -603,7 +640,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             try:
@@ -653,11 +692,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             settings = db.get_domain_settings()
@@ -671,11 +714,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             from database_manager import db_manager
@@ -690,18 +737,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             from database_manager import db_manager
 
             backups = db_manager.list_backups()
             self._set_headers()
-            self.wfile.write(json.dumps({"backups": backups, "count": len(backups)}).encode())
+            self.wfile.write(
+                json.dumps({"backups": backups, "count": len(backups)}).encode()
+            )
             return
 
         elif path == "/api/database/storage":
@@ -709,11 +762,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             from database_manager import db_manager
@@ -729,11 +786,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -765,7 +826,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 },
                 "telegram": {
                     "enabled": bool(settings.get("telegram_enabled", False)),
-                    "configured": bool(telegram_cfg.get("bot_token") and telegram_cfg.get("chat_id")),
+                    "configured": bool(
+                        telegram_cfg.get("bot_token") and telegram_cfg.get("chat_id")
+                    ),
                 },
                 "slack": {
                     "enabled": bool(settings.get("slack_enabled", False)),
@@ -781,11 +844,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -804,11 +871,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -863,7 +934,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 auth_result = verify_auth_token(self)
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     return
 
                 try:
@@ -876,11 +949,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     else:
                         self._set_headers(404)
                         self.wfile.write(
-                            json.dumps({"error": "No inventory data found. Try refreshing inventory first."}).encode()
+                            json.dumps(
+                                {
+                                    "error": "No inventory data found. Try refreshing inventory first."
+                                }
+                            ).encode()
                         )
                 except ValueError:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Invalid server ID"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Invalid server ID"}).encode()
+                    )
                 return
 
             if len(parts) >= 4 and parts[3] == "notes":
@@ -889,7 +968,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 auth_result = verify_auth_token(self)
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     return
 
                 try:
@@ -899,7 +980,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(notes).encode())
                 except ValueError:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Invalid server ID"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Invalid server ID"}).encode()
+                    )
                 return
 
             # Get single server
@@ -945,7 +1028,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             try:
@@ -967,7 +1052,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             try:
@@ -989,7 +1076,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Parse format and parameters
@@ -1004,7 +1093,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             try:
                 if export_format == "csv":
-                    csv_data = db.export_monitoring_history_csv(server_id, start_date, end_date)
+                    csv_data = db.export_monitoring_history_csv(
+                        server_id, start_date, end_date
+                    )
                     self.send_response(200)
                     self.send_header("Content-type", "text/csv")
                     self.send_header(
@@ -1014,7 +1105,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(csv_data.encode("utf-8"))
                 elif export_format == "json":
-                    json_data = db.export_monitoring_history_json(server_id, start_date, end_date)
+                    json_data = db.export_monitoring_history_json(
+                        server_id, start_date, end_date
+                    )
                     self.send_response(200)
                     self.send_header("Content-type", "application/json")
                     self.send_header(
@@ -1025,7 +1118,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json_data.encode("utf-8"))
                 else:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Invalid format. Use csv or json"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "Invalid format. Use csv or json"}
+                        ).encode()
+                    )
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
@@ -1035,7 +1132,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Get query parameters
@@ -1100,14 +1199,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     try:
                         system_metrics = data.get("system", {})
                         cpu_usage = system_metrics.get("cpu", {}).get("usage", 0)
-                        memory_percent = system_metrics.get("memory", {}).get("percent", 0)
+                        memory_percent = system_metrics.get("memory", {}).get(
+                            "percent", 0
+                        )
                         disk_percent = system_metrics.get("disk", {}).get("percent", 0)
 
-                        server_metrics = {"cpu": cpu_usage, "memory": memory_percent, "disk": disk_percent}
+                        server_metrics = {
+                            "cpu": cpu_usage,
+                            "memory": memory_percent,
+                            "disk": disk_percent,
+                        }
 
                         # Check and send alerts if thresholds exceeded
                         alerts = alert_manager.check_server_thresholds(
-                            server_id=server_id, server_name=server["name"], metrics=server_metrics
+                            server_id=server_id,
+                            server_name=server["name"],
+                            metrics=server_metrics,
                         )
 
                         # Add alert info to response (optional)
@@ -1126,7 +1233,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self._set_headers(503)
                     self.wfile.write(
                         json.dumps(
-                            {"error": "Failed to get data from remote server", "details": result.get("error", "")}
+                            {
+                                "error": "Failed to get data from remote server",
+                                "details": result.get("error", ""),
+                            }
                         ).encode()
                     )
 
@@ -1173,14 +1283,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     try:
                         system_metrics = data.get("system", {})
                         cpu_usage = system_metrics.get("cpu", {}).get("usage", 0)
-                        memory_percent = system_metrics.get("memory", {}).get("percent", 0)
+                        memory_percent = system_metrics.get("memory", {}).get(
+                            "percent", 0
+                        )
                         disk_percent = system_metrics.get("disk", {}).get("percent", 0)
 
-                        server_metrics = {"cpu": cpu_usage, "memory": memory_percent, "disk": disk_percent}
+                        server_metrics = {
+                            "cpu": cpu_usage,
+                            "memory": memory_percent,
+                            "disk": disk_percent,
+                        }
 
                         # Check and send alerts if thresholds exceeded
                         alert_manager.check_server_thresholds(
-                            server_id=server["id"], server_name=server["name"], metrics=server_metrics
+                            server_id=server["id"],
+                            server_name=server["name"],
+                            metrics=server_metrics,
                         )
                     except Exception as e:
                         print(f"Alert checking error for server {server['id']}: {e}")
@@ -1245,7 +1363,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(snippet).encode())
                 else:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Snippet not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Snippet not found"}).encode()
+                    )
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({"error": "Invalid snippet ID"}).encode())
@@ -1257,14 +1377,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin and operator can view keys
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             try:
@@ -1273,21 +1399,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"keys": keys}).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to list keys: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to list keys: {str(e)}"}).encode()
+                )
 
         elif path.startswith("/api/ssh-keys/"):
             # Get single SSH key metadata
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin and operator can view keys
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             key_id = path.split("/")[-1]
@@ -1299,10 +1433,14 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(key).encode())
                 else:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "SSH key not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "SSH key not found"}).encode()
+                    )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get key: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get key: {str(e)}"}).encode()
+                )
 
         # ==================== TASKS (PHASE 4 MODULE 4) ====================
 
@@ -1311,7 +1449,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             role = auth_result.get("role", "viewer")
@@ -1349,18 +1489,29 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 self._set_headers()
                 self.wfile.write(
-                    json.dumps({"tasks": tasks, "count": len(tasks), "limit": limit, "offset": offset}).encode()
+                    json.dumps(
+                        {
+                            "tasks": tasks,
+                            "count": len(tasks),
+                            "limit": limit,
+                            "offset": offset,
+                        }
+                    ).encode()
                 )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get tasks: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get tasks: {str(e)}"}).encode()
+                )
 
         elif path.startswith("/api/tasks/") and not path.endswith("/cancel"):
             # Get single task by ID
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             role = auth_result.get("role", "viewer")
@@ -1379,14 +1530,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 # RBAC: admin sees all, operator/viewer sees only own tasks
                 if role != "admin" and task["user_id"] != user_id:
                     self._set_headers(403)
-                    self.wfile.write(json.dumps({"error": "Access denied. You can only view your own tasks"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "Access denied. You can only view your own tasks"}
+                        ).encode()
+                    )
                     return
 
                 self._set_headers()
                 self.wfile.write(json.dumps(task).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get task: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get task: {str(e)}"}).encode()
+                )
 
         # ==================== EMAIL ALERTS ====================
 
@@ -1395,18 +1552,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             config = email.get_email_config()
             if config:
                 # Hide password
-                config["smtp_password"] = "********" if config.get("smtp_password") else ""
+                config["smtp_password"] = (
+                    "********" if config.get("smtp_password") else ""
+                )
                 self._set_headers()
                 self.wfile.write(json.dumps(config).encode())
             else:
                 self._set_headers(404)
-                self.wfile.write(json.dumps({"error": "No email configuration found"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "No email configuration found"}).encode()
+                )
 
         # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
 
@@ -1415,14 +1578,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin and operator can view terminal sessions
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             try:
@@ -1445,7 +1614,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"sessions": sessions}).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get sessions: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get sessions: {str(e)}"}).encode()
+                )
 
         # ==================== AUDIT LOGS (Phase 4 Module 6) ====================
 
@@ -1454,14 +1625,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin can view audit logs
             role = auth_result.get("role", "user")
             if role != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin role required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Access denied. Admin role required"}).encode()
+                )
                 return
 
             try:
@@ -1486,11 +1661,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 self._set_headers()
                 self.wfile.write(
-                    json.dumps({"logs": logs, "count": len(logs), "limit": limit, "offset": offset}).encode()
+                    json.dumps(
+                        {
+                            "logs": logs,
+                            "count": len(logs),
+                            "limit": limit,
+                            "offset": offset,
+                        }
+                    ).encode()
                 )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get audit logs: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to get audit logs: {str(e)}"}
+                    ).encode()
+                )
 
         # ==================== WEBHOOKS MANAGEMENT ====================
 
@@ -1499,13 +1685,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -1523,7 +1713,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to get webhooks", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get webhooks: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get webhooks: {str(e)}"}).encode()
+                )
                 self._finish_request(500)
 
         elif path.startswith("/api/webhooks/") and "/deliveries" in path:
@@ -1531,13 +1723,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -1554,24 +1750,37 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 webhook = db.get_webhook(webhook_id)
                 if not webhook:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Webhook not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Webhook not found"}).encode()
+                    )
                     self._finish_request(404)
                     return
 
                 # Get deliveries
-                deliveries = db.get_webhook_deliveries(webhook_id=webhook_id, limit=min(limit, 100), offset=offset)
+                deliveries = db.get_webhook_deliveries(
+                    webhook_id=webhook_id, limit=min(limit, 100), offset=offset
+                )
 
                 self._set_headers()
                 self.wfile.write(
                     json.dumps(
-                        {"deliveries": deliveries, "count": len(deliveries), "limit": limit, "offset": offset}
+                        {
+                            "deliveries": deliveries,
+                            "count": len(deliveries),
+                            "limit": limit,
+                            "offset": offset,
+                        }
                     ).encode()
                 )
                 self._finish_request(200, user_id=str(auth_result.get("user_id")))
             except Exception as e:
                 logger.error("Failed to get webhook deliveries", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get deliveries: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to get deliveries: {str(e)}"}
+                    ).encode()
+                )
                 self._finish_request(500)
 
         elif path.startswith("/api/webhooks/") and path != "/api/webhooks":
@@ -1579,13 +1788,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -1595,7 +1808,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not webhook:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Webhook not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Webhook not found"}).encode()
+                    )
                     self._finish_request(404)
                     return
 
@@ -1609,7 +1824,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to get webhook", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get webhook: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to get webhook: {str(e)}"}).encode()
+                )
                 self._finish_request(500)
 
         elif path == "/api/export/audit/csv":
@@ -1617,14 +1834,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin can export audit logs
             role = auth_result.get("role", "user")
             if role != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin role required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Access denied. Admin role required"}).encode()
+                )
                 return
 
             try:
@@ -1680,25 +1901,42 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 )
                 self.wfile.write(csv_data.encode("utf-8"))
 
-                logger.info("Audit logs exported", format="csv", user_id=user_id_val, request_id=self.request_id)
+                logger.info(
+                    "Audit logs exported",
+                    format="csv",
+                    user_id=user_id_val,
+                    request_id=self.request_id,
+                )
             except Exception as e:
-                logger.error("Failed to export audit logs", error=str(e), request_id=self.request_id)
+                logger.error(
+                    "Failed to export audit logs",
+                    error=str(e),
+                    request_id=self.request_id,
+                )
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to export audit logs: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to export audit logs: {str(e)}"}
+                    ).encode()
+                )
 
         elif path == "/api/export/audit/json":
             # Export audit logs as JSON (admin only)
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin can export audit logs
             role = auth_result.get("role", "user")
             if role != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin role required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Access denied. Admin role required"}).encode()
+                )
                 return
 
             try:
@@ -1752,18 +1990,33 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 )
                 self.wfile.write(json_data.encode("utf-8"))
 
-                logger.info("Audit logs exported", format="json", user_id=user_id_val, request_id=self.request_id)
+                logger.info(
+                    "Audit logs exported",
+                    format="json",
+                    user_id=user_id_val,
+                    request_id=self.request_id,
+                )
             except Exception as e:
-                logger.error("Failed to export audit logs", error=str(e), request_id=self.request_id)
+                logger.error(
+                    "Failed to export audit logs",
+                    error=str(e),
+                    request_id=self.request_id,
+                )
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to export audit logs: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to export audit logs: {str(e)}"}
+                    ).encode()
+                )
 
         elif path == "/api/activity/recent":
             # Get recent activity for dashboard (all authenticated users) with caching (TTL: 15s)
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Get limit from query params
@@ -1813,7 +2066,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to get recent activity: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to get recent activity: {str(e)}"}
+                    ).encode()
+                )
 
         # ==================== OPENAPI / SWAGGER UI ====================
 
@@ -1823,7 +2080,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 import os
 
                 openapi_path = os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "openapi.yaml"
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "docs",
+                    "openapi.yaml",
                 )
                 if os.path.exists(openapi_path):
                     with open(openapi_path, "r") as f:
@@ -1832,10 +2091,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(openapi_content.encode())
                 else:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "OpenAPI specification not found"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "OpenAPI specification not found"}
+                        ).encode()
+                    )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to load OpenAPI spec: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to load OpenAPI spec: {str(e)}"}
+                    ).encode()
+                )
 
         elif path == "/docs" or path == "/api/docs":
             # Serve Swagger UI (public read access)
@@ -1904,14 +2171,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
         # ==================== TESTING ENDPOINTS (CI/DEV ONLY) ====================
         # Must be before security middleware to bypass rate limiting
 
-        if path == "/api/test/clear-rate-limit" and os.environ.get("CI", "").lower() in ("true", "1", "yes"):
+        if path == "/api/test/clear-rate-limit" and os.environ.get(
+            "CI", ""
+        ).lower() in ("true", "1", "yes"):
             # Clear rate limiter for testing
             # Only available in CI mode to prevent abuse
             try:
                 security.clear_rate_limit_state()
                 rate_limiter.clear_all()
                 self._set_headers(200)
-                self.wfile.write(json.dumps({"success": True, "message": "Rate limit state cleared"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": True, "message": "Rate limit state cleared"}
+                    ).encode()
+                )
                 self._finish_request(200)
             except Exception as e:
                 self._set_headers(500)
@@ -1943,12 +2216,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                             or security.InputSanitizer.validate_ip(value)
                         ):
                             self._set_headers(400)
-                            self.wfile.write(json.dumps({"error": "Invalid hostname or IP address"}).encode())
+                            self.wfile.write(
+                                json.dumps(
+                                    {"error": "Invalid hostname or IP address"}
+                                ).encode()
+                            )
                             return
                     elif key == "port":
                         if not security.InputSanitizer.validate_port(value):
                             self._set_headers(400)
-                            self.wfile.write(json.dumps({"error": "Invalid port number"}).encode())
+                            self.wfile.write(
+                                json.dumps({"error": "Invalid port number"}).encode()
+                            )
                             return
 
         # ==================== SETUP (PUBLIC) ====================
@@ -1959,13 +2238,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 users = user_mgr.get_all_users()
                 if len(users) > 0:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Setup already completed"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Setup already completed"}).encode()
+                    )
                     self._finish_request(400)
                     return
                 required = ["username", "email", "password"]
                 if not data or not all(k in data for k in required):
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Missing required fields"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Missing required fields"}).encode()
+                    )
                     self._finish_request(400)
                     return
                 success, message, user_id = user_mgr.create_user(
@@ -1986,11 +2269,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         }
                     )
                     self._set_headers(201)
-                    self.wfile.write(json.dumps({"success": True, "user": user, "token": token}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"success": True, "user": user, "token": token}
+                        ).encode()
+                    )
                     self._finish_request(201, user_id=str(user["id"]))
                 else:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"success": False, "error": message}).encode())
+                    self.wfile.write(
+                        json.dumps({"success": False, "error": message}).encode()
+                    )
                     self._finish_request(400)
             except Exception as e:
                 self._set_headers(500)
@@ -2007,7 +2296,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if not username or not password:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Username and password required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Username and password required"}).encode()
+                )
                 return
 
             # Try new user management system first
@@ -2022,7 +2313,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         {
                             "success": True,
                             "token": token,
-                            "username": user_data.get("username"),  # For backward compatibility
+                            "username": user_data.get(
+                                "username"
+                            ),  # For backward compatibility
                             "role": user_data.get("role"),  # For backward compatibility
                             "user": user_data,
                             "message": message,
@@ -2037,7 +2330,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(result).encode())
                 else:
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"success": False, "error": message}).encode())
+                    self.wfile.write(
+                        json.dumps({"success": False, "error": message}).encode()
+                    )
             return
 
         elif path == "/api/auth/logout":
@@ -2074,14 +2369,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             required = ["name", "type"]
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields: name, type"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Missing required fields: name, type"}
+                    ).encode()
+                )
                 return
 
             valid_types = ["servers", "notes", "snippets", "inventory"]
             if data["type"] not in valid_types:
                 self._set_headers(400)
                 self.wfile.write(
-                    json.dumps({"error": f'Invalid type. Must be one of: {", ".join(valid_types)}'}).encode()
+                    json.dumps(
+                        {
+                            "error": f"Invalid type. Must be one of: {', '.join(valid_types)}"
+                        }
+                    ).encode()
                 )
                 return
 
@@ -2109,14 +2412,26 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 self._set_headers(201)
                 self.wfile.write(
-                    json.dumps({"success": True, "message": "Group created successfully", "id": group_id}).encode()
+                    json.dumps(
+                        {
+                            "success": True,
+                            "message": "Group created successfully",
+                            "id": group_id,
+                        }
+                    ).encode()
                 )
             except sqlite3.IntegrityError:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Group name already exists for this type"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Group name already exists for this type"}
+                    ).encode()
+                )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Database error: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Database error: {str(e)}"}).encode()
+                )
             return
 
         # ==================== USER MANAGEMENT ====================
@@ -2125,13 +2440,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Create new user (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             required = ["username", "email", "password", "role"]
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Missing required fields"}).encode()
+                )
                 return
 
             success, message, user_id = user_mgr.create_user(
@@ -2144,10 +2463,16 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if success:
                 self._set_headers(201)
-                self.wfile.write(json.dumps({"success": True, "message": message, "user_id": user_id}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": True, "message": message, "user_id": user_id}
+                    ).encode()
+                )
             else:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"success": False, "error": message}).encode())
+                self.wfile.write(
+                    json.dumps({"success": False, "error": message}).encode()
+                )
             return
 
         elif path.startswith("/api/users/") and path.endswith("/change-password"):
@@ -2155,7 +2480,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             user_id = int(path.split("/")[-2])
 
             # Users can change their own password, admins can change anyone's
-            if auth_result.get("role") != "admin" and auth_result.get("user_id") != user_id:
+            if (
+                auth_result.get("role") != "admin"
+                and auth_result.get("user_id") != user_id
+            ):
                 self._set_headers(403)
                 self.wfile.write(json.dumps({"error": "Access denied"}).encode())
                 return
@@ -2163,13 +2491,19 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             required = ["old_password", "new_password"]
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Missing required fields"}).encode()
+                )
                 return
 
-            success, message = user_mgr.change_password(user_id, data["old_password"], data["new_password"])
+            success, message = user_mgr.change_password(
+                user_id, data["old_password"], data["new_password"]
+            )
 
             self._set_headers(200 if success else 400)
-            self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+            self.wfile.write(
+                json.dumps({"success": success, "message": message}).encode()
+            )
             return
 
         # ==================== SYSTEM SETTINGS ====================
@@ -2178,24 +2512,36 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Update system settings (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
-            success, message, failed = settings_mgr.update_multiple_settings(data, user_id=auth_result.get("user_id"))
+            success, message, failed = settings_mgr.update_multiple_settings(
+                data, user_id=auth_result.get("user_id")
+            )
 
             if success:
                 self._set_headers()
-                self.wfile.write(json.dumps({"success": True, "message": message}).encode())
+                self.wfile.write(
+                    json.dumps({"success": True, "message": message}).encode()
+                )
             else:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"success": False, "error": message, "failed": failed}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": False, "error": message, "failed": failed}
+                    ).encode()
+                )
             return
 
         elif path.startswith("/api/settings/") and path != "/api/settings":
             # Update single setting
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             key = path.split("/")[-1]
@@ -2206,10 +2552,14 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Value is required"}).encode())
                 return
 
-            success, message = settings_mgr.update_setting(key, value, user_id=auth_result.get("user_id"))
+            success, message = settings_mgr.update_setting(
+                key, value, user_id=auth_result.get("user_id")
+            )
 
             self._set_headers(200 if success else 400)
-            self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+            self.wfile.write(
+                json.dumps({"success": success, "message": message}).encode()
+            )
             return
 
         # ==================== DATABASE MANAGEMENT ====================
@@ -2218,7 +2568,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Create manual backup (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             from database_manager import db_manager
@@ -2234,13 +2586,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Restore from backup (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             filename = data.get("filename")
             if not filename:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Backup filename is required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Backup filename is required"}).encode()
+                )
                 return
 
             from database_manager import db_manager
@@ -2260,21 +2616,34 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Missing required fields"}).encode()
+                )
                 return
 
             # Validate host (IP or hostname)
             host = data["host"]
-            if not (security.InputSanitizer.validate_ip(host) or security.InputSanitizer.validate_hostname(host)):
+            if not (
+                security.InputSanitizer.validate_ip(host)
+                or security.InputSanitizer.validate_hostname(host)
+            ):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Invalid IP address or hostname format"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Invalid IP address or hostname format"}
+                    ).encode()
+                )
                 return
 
             # Validate port if provided
             port = data.get("port", 22)
             if not security.InputSanitizer.validate_port(port):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Invalid port number. Must be between 1 and 65535"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Invalid port number. Must be between 1 and 65535"}
+                    ).encode()
+                )
                 return
 
             # Validate agent_port if provided
@@ -2282,7 +2651,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             if not security.InputSanitizer.validate_port(agent_port):
                 self._set_headers(400)
                 self.wfile.write(
-                    json.dumps({"error": "Invalid agent port number. Must be between 1 and 65535"}).encode()
+                    json.dumps(
+                        {
+                            "error": "Invalid agent port number. Must be between 1 and 65535"
+                        }
+                    ).encode()
                 )
                 return
 
@@ -2317,7 +2690,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Missing required fields"}).encode()
+                )
                 return
 
             result = ssh.test_connection(
@@ -2338,7 +2713,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             parts = [p for p in path.split("/") if p]
@@ -2348,7 +2725,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     required = ["title"]
                     if not all(k in data for k in required):
                         self._set_headers(400)
-                        self.wfile.write(json.dumps({"error": "Missing title"}).encode())
+                        self.wfile.write(
+                            json.dumps({"error": "Missing title"}).encode()
+                        )
                         return
 
                     result = db.add_server_note(
@@ -2362,13 +2741,21 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(result).encode())
                 except ValueError:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Invalid server ID"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Invalid server ID"}).encode()
+                    )
                 except Exception as e:
                     self._set_headers(500)
-                    self.wfile.write(json.dumps({"error": f"Failed to add note: {str(e)}"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": f"Failed to add note: {str(e)}"}).encode()
+                    )
                 return
 
-        elif path.startswith("/api/servers/") and "/tasks" in path and not "/inventory" in path:
+        elif (
+            path.startswith("/api/servers/")
+            and "/tasks" in path
+            and not "/inventory" in path
+        ):
             # POST /api/servers/:id/tasks
             # Create a new task for command execution
             parts = path.split("/")
@@ -2379,12 +2766,18 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 role = auth_result.get("role", "viewer")
                 if role not in ["admin", "operator"]:
                     self._set_headers(403)
-                    self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "Access denied. Admin or operator role required"}
+                        ).encode()
+                    )
                     return
 
                 # Rate limit: 20 requests per minute per user
                 user_id = auth_result.get("user_id")
-                allowed, rate_info = check_endpoint_rate_limit("task_create", str(user_id))
+                allowed, rate_info = check_endpoint_rate_limit(
+                    "task_create", str(user_id)
+                )
                 if not allowed:
                     self._set_headers(
                         429,
@@ -2396,7 +2789,12 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         },
                     )
                     self.wfile.write(
-                        json.dumps({"error": "Rate limit exceeded", "retry_after": rate_info["retry_after"]}).encode()
+                        json.dumps(
+                            {
+                                "error": "Rate limit exceeded",
+                                "retry_after": rate_info["retry_after"],
+                            }
+                        ).encode()
                     )
                     self._finish_request(429, user_id=str(user_id))
                     return
@@ -2405,7 +2803,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 command = data.get("command", "").strip()
                 if not command:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Command is required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Command is required"}).encode()
+                    )
                     self._finish_request(400, user_id=str(auth_result.get("user_id")))
                     return
 
@@ -2413,7 +2813,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if len(command) > TASK_COMMAND_MAX_LENGTH:
                     self._set_headers(400)
                     self.wfile.write(
-                        json.dumps({"error": f"Command too long (max {TASK_COMMAND_MAX_LENGTH} characters)"}).encode()
+                        json.dumps(
+                            {
+                                "error": f"Command too long (max {TASK_COMMAND_MAX_LENGTH} characters)"
+                            }
+                        ).encode()
                     )
                     self._finish_request(400, user_id=str(auth_result.get("user_id")))
                     return
@@ -2458,14 +2862,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     timeout_seconds = int(timeout_seconds)
                     if timeout_seconds < 1 or timeout_seconds > 600:
                         self._set_headers(400)
-                        self.wfile.write(json.dumps({"error": "Timeout must be between 1 and 600 seconds"}).encode())
+                        self.wfile.write(
+                            json.dumps(
+                                {"error": "Timeout must be between 1 and 600 seconds"}
+                            ).encode()
+                        )
                         return
 
                     # Check if server exists
                     server = db.get_server(server_id)
                     if not server:
                         self._set_headers(404)
-                        self.wfile.write(json.dumps({"error": "Server not found"}).encode())
+                        self.wfile.write(
+                            json.dumps({"error": "Server not found"}).encode()
+                        )
                         return
 
                     # Create task
@@ -2492,7 +2902,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                             target_id=str(server_id),
                             meta={
                                 "task_id": task_id,
-                                "command_preview": command[:TASK_COMMAND_PREVIEW_LENGTH],
+                                "command_preview": command[
+                                    :TASK_COMMAND_PREVIEW_LENGTH
+                                ],
                                 "timeout_seconds": timeout_seconds,
                                 "store_output": store_output,
                             },
@@ -2512,14 +2924,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         )
                     else:
                         self._set_headers(500)
-                        self.wfile.write(json.dumps({"error": result.get("error", "Failed to create task")}).encode())
+                        self.wfile.write(
+                            json.dumps(
+                                {"error": result.get("error", "Failed to create task")}
+                            ).encode()
+                        )
 
                 except ValueError as e:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": f"Invalid input: {str(e)}"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": f"Invalid input: {str(e)}"}).encode()
+                    )
                 except Exception as e:
                     self._set_headers(500)
-                    self.wfile.write(json.dumps({"error": f"Failed to create task: {str(e)}"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": f"Failed to create task: {str(e)}"}
+                        ).encode()
+                    )
                 return
 
         # ==================== SERVER INVENTORY (Phase 4 Module 3) ====================
@@ -2530,14 +2952,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Check role (admin or operator)
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             parts = [p for p in path.split("/") if p]
@@ -2545,7 +2973,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 server_id = int(parts[2])
 
                 # Rate limit: 10 requests per minute per server
-                allowed, rate_info = check_endpoint_rate_limit("inventory_refresh", str(server_id))
+                allowed, rate_info = check_endpoint_rate_limit(
+                    "inventory_refresh", str(server_id)
+                )
                 if not allowed:
                     self._set_headers(
                         429,
@@ -2557,7 +2987,12 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         },
                     )
                     self.wfile.write(
-                        json.dumps({"error": "Rate limit exceeded", "retry_after": rate_info["retry_after"]}).encode()
+                        json.dumps(
+                            {
+                                "error": "Rate limit exceeded",
+                                "retry_after": rate_info["retry_after"],
+                            }
+                        ).encode()
                     )
                     return
 
@@ -2585,7 +3020,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 # Save to database
                 result = db.save_server_inventory(
-                    server_id=server_id, inventory_json=json.dumps(inventory), save_snapshot=True
+                    server_id=server_id,
+                    inventory_json=json.dumps(inventory),
+                    save_snapshot=True,
                 )
 
                 if result["success"]:
@@ -2595,7 +3032,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         action="inventory.refresh",
                         target_type="server",
                         target_id=str(server_id),
-                        meta={"server_name": server.get("name"), "collected_at": result["collected_at"]},
+                        meta={
+                            "server_name": server.get("name"),
+                            "collected_at": result["collected_at"],
+                        },
                         ip=self.client_address[0],
                         user_agent=self.headers.get("User-Agent", ""),
                     )
@@ -2615,7 +3055,12 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     self._set_headers(500)
                     self.wfile.write(
                         json.dumps(
-                            {"success": False, "error": result.get("error", "Failed to save inventory")}
+                            {
+                                "success": False,
+                                "error": result.get(
+                                    "error", "Failed to save inventory"
+                                ),
+                            }
                         ).encode()
                     )
 
@@ -2624,7 +3069,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Invalid server ID"}).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to refresh inventory: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to refresh inventory: {str(e)}"}
+                    ).encode()
+                )
             return
 
         # ==================== REMOTE AGENT MANAGEMENT ====================
@@ -2899,7 +3348,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
             if not all(k in data for k in required):
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields: name, command"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Missing required fields: name, command"}
+                    ).encode()
+                )
                 return
 
             result = db.add_snippet(
@@ -2920,34 +3373,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(result).encode())
 
         # ==================== SSH KEY MANAGEMENT ====================
+        # NOTE: The old file-based SSH key endpoint has been replaced by the
+        # encrypted key vault endpoint below (line ~2995). This old endpoint is
+        # commented out to avoid conflicts.
 
-        elif path == "/api/ssh-keys":
-            # Create new SSH key
-            required = ["name", "private_key_path"]
+        # OLD ENDPOINT (DEPRECATED - Use key vault endpoint instead)
+        # elif path == "/api/ssh-keys":
+        #     # Create new SSH key (OLD: requires file path)
+        #     required = ["name", "private_key_path"]
+        #     if not all(k in data for k in required):
+        #         self._set_headers(400)
+        #         self.wfile.write(json.dumps({"error": "Missing required fields: name, private_key_path"}).encode())
+        #         return
+        #     result = db.add_ssh_key(...)
+        #     ...
 
-            if not all(k in data for k in required):
-                self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Missing required fields: name, private_key_path"}).encode())
-                return
-
-            result = db.add_ssh_key(
-                name=data["name"],
-                private_key_path=data["private_key_path"],
-                description=data.get("description", ""),
-                key_type=data.get("key_type", "rsa"),
-                public_key=data.get("public_key", ""),
-                passphrase=data.get("passphrase", ""),
-                created_by=auth_result.get("user_id"),
-            )
-
-            if result["success"]:
-                self._set_headers(201)
-            else:
-                self._set_headers(400)
-
-            self.wfile.write(json.dumps(result).encode())
-
-        elif path.startswith("/api/ssh-keys/") and path.endswith("/test"):
+        if path.startswith("/api/ssh-keys/") and path.endswith("/test"):
             # Test SSH key connection
             key_id = path.split("/")[-2]
 
@@ -2957,7 +3398,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not key:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "SSH key not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "SSH key not found"}).encode()
+                    )
                     return
 
                 # Get test host from request data
@@ -2967,7 +3410,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not test_host:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Missing host parameter"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Missing host parameter"}).encode()
+                    )
                     return
 
                 # Test connection
@@ -2997,14 +3442,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin and operator can create keys
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             try:
@@ -3019,7 +3470,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not private_key:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Private key is required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Private key is required"}).encode()
+                    )
                     return
 
                 # Get user ID from auth
@@ -3027,7 +3480,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 # Create encrypted key
                 result = ssh_key_manager.create_key(
-                    name=name, private_key=private_key, description=description, user_id=user_id
+                    name=name,
+                    private_key=private_key,
+                    description=description,
+                    user_id=user_id,
                 )
 
                 # Add audit log
@@ -3041,7 +3497,13 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 self._set_headers(201)
                 self.wfile.write(
-                    json.dumps({"success": True, "message": "SSH key created successfully", "key": result}).encode()
+                    json.dumps(
+                        {
+                            "success": True,
+                            "message": "SSH key created successfully",
+                            "key": result,
+                        }
+                    ).encode()
                 )
 
             except ValueError as e:
@@ -3049,7 +3511,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": str(e)}).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to create key: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to create key: {str(e)}"}).encode()
+                )
 
         # ==================== TASKS (PHASE 4 MODULE 4) ====================
 
@@ -3059,7 +3523,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             role = auth_result.get("role", "viewer")
@@ -3081,14 +3547,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if role != "admin" and task["user_id"] != user_id:
                     self._set_headers(403)
                     self.wfile.write(
-                        json.dumps({"error": "Access denied. You can only cancel your own tasks"}).encode()
+                        json.dumps(
+                            {
+                                "error": "Access denied. You can only cancel your own tasks"
+                            }
+                        ).encode()
                     )
                     return
 
                 # Can only cancel queued or running tasks
                 if task["status"] not in ["queued", "running"]:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": f'Cannot cancel task in status: {task["status"]}'}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": f"Cannot cancel task in status: {task['status']}"}
+                        ).encode()
+                    )
                     return
 
                 # Cancel the task
@@ -3106,21 +3580,31 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         target_id=task_id,
                         meta={
                             "server_id": task["server_id"],
-                            "command_preview": task["command"][:TASK_COMMAND_PREVIEW_LENGTH],
+                            "command_preview": task["command"][
+                                :TASK_COMMAND_PREVIEW_LENGTH
+                            ],
                         },
                         ip=self.client_address[0],
                         user_agent=self.headers.get("User-Agent", ""),
                     )
 
                     self._set_headers()
-                    self.wfile.write(json.dumps({"success": True, "message": "Task cancelled successfully"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"success": True, "message": "Task cancelled successfully"}
+                        ).encode()
+                    )
                 else:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "Task is not currently running"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Task is not currently running"}).encode()
+                    )
 
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to cancel task: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to cancel task: {str(e)}"}).encode()
+                )
 
         # ==================== TERMINAL SESSIONS (Phase 4 Module 2) ====================
 
@@ -3129,14 +3613,20 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result["valid"] or auth_result.get("role") == "public":
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 return
 
             # Only admin and operator can stop terminal sessions
             role = auth_result.get("role", "user")
             if role not in ["admin", "operator"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Access denied. Admin or operator role required"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Access denied. Admin or operator role required"}
+                    ).encode()
+                )
                 return
 
             try:
@@ -3148,14 +3638,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not session:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Session not found or already closed"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "Session not found or already closed"}
+                        ).encode()
+                    )
                     return
 
                 # Check ownership (operators can only stop their own sessions)
                 user_id = auth_result.get("user_id")
                 if role == "operator" and session.get("user_id") != user_id:
                     self._set_headers(403)
-                    self.wfile.write(json.dumps({"error": "Access denied. Can only stop your own sessions"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": "Access denied. Can only stop your own sessions"}
+                        ).encode()
+                    )
                     return
 
                 # Stop the session
@@ -3168,18 +3666,31 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         action="terminal.stop",
                         target_type="session",
                         target_id=session_id,
-                        meta={"stopped_by": "api", "server_id": session.get("server_id")},
+                        meta={
+                            "stopped_by": "api",
+                            "server_id": session.get("server_id"),
+                        },
                     )
 
                     self._set_headers()
-                    self.wfile.write(json.dumps({"success": True, "message": "Session stopped successfully"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"success": True, "message": "Session stopped successfully"}
+                        ).encode()
+                    )
                 else:
                     self._set_headers(500)
-                    self.wfile.write(json.dumps({"error": f'Failed to stop session: {result.get("error")}'}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"error": f"Failed to stop session: {result.get('error')}"}
+                        ).encode()
+                    )
 
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to stop session: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to stop session: {str(e)}"}).encode()
+                )
 
         # ==================== EMAIL ALERTS ====================
 
@@ -3224,7 +3735,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Save Telegram config (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -3239,25 +3752,34 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+                self.wfile.write(
+                    json.dumps({"success": False, "error": str(e)}).encode()
+                )
             return
 
         elif path == "/api/slack/config":
             # Save Slack config (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
                 from slack_integration import save_slack_config
 
-                result = save_slack_config(webhook_url=data.get("webhook_url", ""), enabled=data.get("enabled", True))
+                result = save_slack_config(
+                    webhook_url=data.get("webhook_url", ""),
+                    enabled=data.get("enabled", True),
+                )
                 self._set_headers()
                 self.wfile.write(json.dumps(result).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+                self.wfile.write(
+                    json.dumps({"success": False, "error": str(e)}).encode()
+                )
             return
 
         # ==================== NOTIFICATION TEST ====================
@@ -3265,7 +3787,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Send a test notification via selected channel (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             channel = (data.get("channel") or "email").lower()
@@ -3292,7 +3816,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Save domain configuration settings (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -3308,7 +3834,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(result).encode())
             except Exception as e:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+                self.wfile.write(
+                    json.dumps({"success": False, "error": str(e)}).encode()
+                )
             return
 
         # ==================== WEBHOOKS MANAGEMENT ====================
@@ -3318,13 +3846,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -3335,7 +3867,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
 
                 if not name or not url:
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "name and url are required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "name and url are required"}).encode()
+                    )
                     self._finish_request(400)
                     return
 
@@ -3382,7 +3916,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to create webhook", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to create webhook: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to create webhook: {str(e)}"}
+                    ).encode()
+                )
                 self._finish_request(500)
             return
 
@@ -3391,13 +3929,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             auth_result = verify_auth_token(self)
             if not auth_result.get("valid"):
                 self._set_headers(401)
-                self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Authentication required"}).encode()
+                )
                 self._finish_request(401)
                 return
 
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -3415,7 +3957,12 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     },
                 )
                 self.wfile.write(
-                    json.dumps({"error": "Rate limit exceeded", "retry_after": rate_info["retry_after"]}).encode()
+                    json.dumps(
+                        {
+                            "error": "Rate limit exceeded",
+                            "retry_after": rate_info["retry_after"],
+                        }
+                    ).encode()
                 )
                 self._finish_request(429, user_id=str(user_id))
                 return
@@ -3428,7 +3975,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 webhook = db.get_webhook(webhook_id)
                 if not webhook:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Webhook not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Webhook not found"}).encode()
+                    )
                     self._finish_request(404)
                     return
 
@@ -3480,7 +4029,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to test webhook", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to test webhook: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to test webhook: {str(e)}"}).encode()
+                )
                 self._finish_request(500)
             return
 
@@ -3536,7 +4087,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if not update_fields:
                     conn.close()
                     self._set_headers(400)
-                    self.wfile.write(json.dumps({"error": "No fields to update"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "No fields to update"}).encode()
+                    )
                     return
 
                 update_fields.append("updated_at = CURRENT_TIMESTAMP")
@@ -3550,16 +4103,24 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 conn.close()
 
                 self._set_headers()
-                self.wfile.write(json.dumps({"success": True, "message": "Group updated successfully"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": True, "message": "Group updated successfully"}
+                    ).encode()
+                )
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({"error": "Invalid group ID"}).encode())
             except sqlite3.IntegrityError:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"error": "Group name already exists"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Group name already exists"}).encode()
+                )
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Database error: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Database error: {str(e)}"}).encode()
+                )
             return
 
         # ==================== USER MANAGEMENT ====================
@@ -3571,13 +4132,17 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Users can't change their own role
             if "role" in data:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Cannot change your own role"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Cannot change your own role"}).encode()
+                )
                 return
 
             success, message = user_mgr.update_user(user_id, **data)
 
             self._set_headers(200 if success else 400)
-            self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+            self.wfile.write(
+                json.dumps({"success": success, "message": message}).encode()
+            )
             return
 
         elif path.startswith("/api/users/") and not path.endswith("/change-password"):
@@ -3588,10 +4153,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 # Check permissions
                 if "role" in data and auth_result.get("role") != "admin":
                     self._set_headers(403)
-                    self.wfile.write(json.dumps({"error": "Only admins can change roles"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Only admins can change roles"}).encode()
+                    )
                     return
 
-                if auth_result.get("role") != "admin" and auth_result.get("user_id") != user_id:
+                if (
+                    auth_result.get("role") != "admin"
+                    and auth_result.get("user_id") != user_id
+                ):
                     self._set_headers(403)
                     self.wfile.write(json.dumps({"error": "Access denied"}).encode())
                     return
@@ -3599,7 +4169,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 success, message = user_mgr.update_user(user_id, **data)
 
                 self._set_headers(200 if success else 400)
-                self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+                self.wfile.write(
+                    json.dumps({"success": success, "message": message}).encode()
+                )
                 return
 
             except ValueError:
@@ -3618,7 +4190,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 auth_result = verify_auth_token(self)
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     return
 
                 try:
@@ -3646,10 +4220,15 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 if "host" in data:
                     host = data["host"]
                     if not (
-                        security.InputSanitizer.validate_ip(host) or security.InputSanitizer.validate_hostname(host)
+                        security.InputSanitizer.validate_ip(host)
+                        or security.InputSanitizer.validate_hostname(host)
                     ):
                         self._set_headers(400)
-                        self.wfile.write(json.dumps({"error": "Invalid IP address or hostname format"}).encode())
+                        self.wfile.write(
+                            json.dumps(
+                                {"error": "Invalid IP address or hostname format"}
+                            ).encode()
+                        )
                         return
 
                 # Validate port if provided
@@ -3657,7 +4236,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     if not security.InputSanitizer.validate_port(data["port"]):
                         self._set_headers(400)
                         self.wfile.write(
-                            json.dumps({"error": "Invalid port number. Must be between 1 and 65535"}).encode()
+                            json.dumps(
+                                {
+                                    "error": "Invalid port number. Must be between 1 and 65535"
+                                }
+                            ).encode()
                         )
                         return
 
@@ -3666,7 +4249,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     if not security.InputSanitizer.validate_port(data["agent_port"]):
                         self._set_headers(400)
                         self.wfile.write(
-                            json.dumps({"error": "Invalid agent port number. Must be between 1 and 65535"}).encode()
+                            json.dumps(
+                                {
+                                    "error": "Invalid agent port number. Must be between 1 and 65535"
+                                }
+                            ).encode()
                         )
                         return
 
@@ -3703,30 +4290,52 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Update channel enable flags (admin only)
             if auth_result.get("role") not in ["admin"]:
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             updates = {}
             try:
-                if "email" in data and isinstance(data["email"], dict) and "enabled" in data["email"]:
+                if (
+                    "email" in data
+                    and isinstance(data["email"], dict)
+                    and "enabled" in data["email"]
+                ):
                     updates["smtp_enabled"] = bool(data["email"]["enabled"])
-                if "telegram" in data and isinstance(data["telegram"], dict) and "enabled" in data["telegram"]:
+                if (
+                    "telegram" in data
+                    and isinstance(data["telegram"], dict)
+                    and "enabled" in data["telegram"]
+                ):
                     updates["telegram_enabled"] = bool(data["telegram"]["enabled"])
-                if "slack" in data and isinstance(data["slack"], dict) and "enabled" in data["slack"]:
+                if (
+                    "slack" in data
+                    and isinstance(data["slack"], dict)
+                    and "enabled" in data["slack"]
+                ):
                     updates["slack_enabled"] = bool(data["slack"]["enabled"])
             except Exception:
                 pass
 
             if not updates:
                 self._set_headers(400)
-                self.wfile.write(json.dumps({"success": False, "error": "No valid updates provided"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": False, "error": "No valid updates provided"}
+                    ).encode()
+                )
                 return
 
             success, message, failed = settings_mgr.update_multiple_settings(
                 updates, user_id=auth_result.get("user_id")
             )
             self._set_headers(200 if success else 400)
-            self.wfile.write(json.dumps({"success": success, "message": message, "failed": failed}).encode())
+            self.wfile.write(
+                json.dumps(
+                    {"success": success, "message": message, "failed": failed}
+                ).encode()
+            )
             self._finish_request(200 if success else 400)
 
         # ==================== WEBHOOKS MANAGEMENT ====================
@@ -3735,7 +4344,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # PUT /api/webhooks/{id} - Update webhook (admin only)
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -3746,7 +4357,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 webhook = db.get_webhook(webhook_id)
                 if not webhook:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Webhook not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Webhook not found"}).encode()
+                    )
                     self._finish_request(404)
                     return
 
@@ -3789,7 +4402,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to update webhook", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to update webhook: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to update webhook: {str(e)}"}
+                    ).encode()
+                )
                 self._finish_request(500)
             return
 
@@ -3817,7 +4434,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Delete user (admin only)
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             try:
@@ -3825,7 +4444,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 success, message = user_mgr.delete_user(user_id)
 
                 self._set_headers(200 if success else 400)
-                self.wfile.write(json.dumps({"success": success, "message": message}).encode())
+                self.wfile.write(
+                    json.dumps({"success": success, "message": message}).encode()
+                )
                 return
 
             except ValueError:
@@ -3844,7 +4465,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 auth_result = verify_auth_token(self)
                 if not auth_result.get("valid"):
                     self._set_headers(401)
-                    self.wfile.write(json.dumps({"error": "Authentication required"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Authentication required"}).encode()
+                    )
                     return
 
                 try:
@@ -3877,7 +4500,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Delete backup (admin only)
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 return
 
             filename = path.split("/")[-1]
@@ -3915,13 +4540,19 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 conn.close()
 
                 self._set_headers()
-                self.wfile.write(json.dumps({"success": True, "message": "Group deleted successfully"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"success": True, "message": "Group deleted successfully"}
+                    ).encode()
+                )
             except ValueError:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({"error": "Invalid group ID"}).encode())
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Database error: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Database error: {str(e)}"}).encode()
+                )
             return
 
         elif path.startswith("/api/snippets/"):
@@ -3944,7 +4575,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # Only admin can delete keys
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required to delete keys"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": "Admin access required to delete keys"}
+                    ).encode()
+                )
                 return
 
             key_id = path.split("/")[-1]
@@ -3963,14 +4598,22 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                     )
 
                     self._set_headers()
-                    self.wfile.write(json.dumps({"success": True, "message": "SSH key deleted successfully"}).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {"success": True, "message": "SSH key deleted successfully"}
+                        ).encode()
+                    )
                 else:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "SSH key not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "SSH key not found"}).encode()
+                    )
 
             except Exception as e:
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to delete key: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": f"Failed to delete key: {str(e)}"}).encode()
+                )
 
         # ==================== WEBHOOKS MANAGEMENT ====================
 
@@ -3978,7 +4621,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             # DELETE /api/webhooks/{id} - Delete webhook (admin only)
             if auth_result.get("role") != "admin":
                 self._set_headers(403)
-                self.wfile.write(json.dumps({"error": "Admin access required"}).encode())
+                self.wfile.write(
+                    json.dumps({"error": "Admin access required"}).encode()
+                )
                 self._finish_request(403)
                 return
 
@@ -3989,7 +4634,9 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                 webhook = db.get_webhook(webhook_id)
                 if not webhook:
                     self._set_headers(404)
-                    self.wfile.write(json.dumps({"error": "Webhook not found"}).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Webhook not found"}).encode()
+                    )
                     self._finish_request(404)
                     return
 
@@ -4003,7 +4650,10 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
                         action=EventTypes.WEBHOOK_DELETED,
                         target_type="webhook",
                         target_id=webhook_id,
-                        meta={"webhook_name": webhook["name"], "webhook_url": webhook["url"]},
+                        meta={
+                            "webhook_name": webhook["name"],
+                            "webhook_url": webhook["url"],
+                        },
                         ip=self.client_address[0] if self.client_address else None,
                         username=auth_result.get("username"),
                         severity=EventSeverity.INFO,
@@ -4019,7 +4669,11 @@ class CentralAPIHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.error("Failed to delete webhook", error=str(e))
                 self._set_headers(500)
-                self.wfile.write(json.dumps({"error": f"Failed to delete webhook: {str(e)}"}).encode())
+                self.wfile.write(
+                    json.dumps(
+                        {"error": f"Failed to delete webhook: {str(e)}"}
+                    ).encode()
+                )
                 self._finish_request(500)
             return
 
@@ -4060,7 +4714,9 @@ def graceful_shutdown(signum, frame):
                 db.end_terminal_session(session["id"], status="interrupted")
             logger.info(f"Marked {len(sessions)} terminal sessions as interrupted")
         except Exception as e:
-            logger.error("Failed to mark terminal sessions as interrupted", error=str(e))
+            logger.error(
+                "Failed to mark terminal sessions as interrupted", error=str(e)
+            )
 
         # Mark running tasks as interrupted
         logger.info("Marking running tasks as interrupted")
@@ -4068,7 +4724,9 @@ def graceful_shutdown(signum, frame):
             tasks = db.get_tasks(status="running")
             for task in tasks:
                 db.update_task_status(
-                    task_id=task["id"], status="interrupted", finished_at=datetime.utcnow().isoformat() + "Z"
+                    task_id=task["id"],
+                    status="interrupted",
+                    finished_at=datetime.utcnow().isoformat() + "Z",
                 )
             logger.info(f"Marked {len(tasks)} tasks as interrupted")
         except Exception as e:
@@ -4157,17 +4815,25 @@ if __name__ == "__main__":
     print("╚══════════════════════════════════════════════════════════╝")
     print(f"\n🚀 Server running on http://0.0.0.0:{PORT}")
     print("🔒 Authentication: Enabled (sessions expire after 7 days)")
-    print(f'🧹 Cleaned up {cleanup_result["deleted"]} expired sessions')
+    print(f"🧹 Cleaned up {cleanup_result['deleted']} expired sessions")
     if recovery_result["total_recovered"] > 0:
-        print(f'🔄 Recovered {recovery_result["total_recovered"]} interrupted tasks/sessions')
+        print(
+            f"🔄 Recovered {recovery_result['total_recovered']} interrupted tasks/sessions"
+        )
     if plugin_manager.enabled:
-        plugins_list = ", ".join(plugin_manager.plugins.keys()) if plugin_manager.plugins else "none"
+        plugins_list = (
+            ", ".join(plugin_manager.plugins.keys())
+            if plugin_manager.plugins
+            else "none"
+        )
         print(f"🔌 Plugins: {len(plugin_manager.plugins)} loaded ({plugins_list})")
     print("\n📡 API Endpoints:")
     print("   Observability (Phase 6):")
     print(f"   • GET  /api/health                 - Liveness check (public)")
     print(f"   • GET  /api/ready                  - Readiness check (public)")
-    print(f"   • GET  /api/metrics                - Prometheus/JSON metrics (admin/localhost)")
+    print(
+        f"   • GET  /api/metrics                - Prometheus/JSON metrics (admin/localhost)"
+    )
     print(f"   Auth:")
     print(f"   • POST /api/auth/login             - Admin login")
     print(f"   • POST /api/auth/logout            - Admin logout")
@@ -4185,10 +4851,14 @@ if __name__ == "__main__":
     print(f"   Agent:")
     print(f"   • POST /api/remote/agent/deploy/<id>    - Deploy agent to server (auth)")
     print(f"   • POST /api/remote/agent/start/<id>     - Start agent on server (auth)")
-    print(f"   • POST /api/remote/agent/install/<id>   - Install agent with systemd (auth)")
+    print(
+        f"   • POST /api/remote/agent/install/<id>   - Install agent with systemd (auth)"
+    )
     print(f"   • POST /api/remote/agent/uninstall/<id> - Uninstall agent (auth)")
     print(f"   • POST /api/remote/agent/info/<id>      - Get agent status (auth)")
-    print(f"   • POST /api/remote/check-port/<id>      - Check port availability (auth)")
+    print(
+        f"   • POST /api/remote/check-port/<id>      - Check port availability (auth)"
+    )
     print(f"   • POST /api/remote/suggest-port/<id>    - Suggest available port (auth)")
     print(f"   • POST /api/remote/action/<id>          - Execute remote action (auth)")
     print(f"   Snippets:")
@@ -4208,8 +4878,12 @@ if __name__ == "__main__":
     print(f"   • POST /api/terminal/sessions/<id>/stop - Stop terminal session (auth)")
     print(f"\n   Audit Logs (Phase 4 Module 6):")
     print(f"   • GET  /api/audit-logs             - Get audit logs (admin only)")
-    print(f"   • GET  /api/export/audit/csv       - Export audit logs as CSV (admin only)")
-    print(f"   • GET  /api/export/audit/json      - Export audit logs as JSON (admin only)")
+    print(
+        f"   • GET  /api/export/audit/csv       - Export audit logs as CSV (admin only)"
+    )
+    print(
+        f"   • GET  /api/export/audit/json      - Export audit logs as JSON (admin only)"
+    )
     print(f"\n   Documentation:")
     print(f"   • GET  /docs                       - Swagger UI (API documentation)")
     print(f"   • GET  /api/openapi.yaml           - OpenAPI specification")

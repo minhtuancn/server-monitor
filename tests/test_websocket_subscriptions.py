@@ -42,8 +42,8 @@ class TestWebSocketConnection:
         # Create async iterator that yields nothing (connection only)
         async def async_iter():
             return
-            yield  # Make it a generator
-        mock_ws.__aiter__ = lambda: async_iter()
+            yield
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         # Handle client connection (will exit immediately after welcome)
         await websocket_server.handle_client(mock_ws, '/ws')
@@ -69,14 +69,16 @@ class TestWebSocketConnection:
         mock_ws.remote_address = ('127.0.0.1', 12346)
         mock_ws.send = AsyncMock()
         
+        # Create async iterator that waits indefinitely (until cancelled)
         async def async_iter():
-            return
-            yield
-        mock_ws.__aiter__ = lambda: async_iter()
+            while True:
+                await asyncio.sleep(1)
+                yield  # Never actually yields anything
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         # Start task
         task = asyncio.create_task(websocket_server.handle_client(mock_ws, '/ws'))
-        await asyncio.sleep(0.01)  # Let it run briefly
+        await asyncio.sleep(0.05)  # Let it run briefly to add client
         
         # Check client was added
         assert mock_ws in websocket_server.connected_clients
@@ -101,7 +103,7 @@ class TestWebSocketConnection:
         ping_msg = json.dumps({"type": "ping"})
         async def async_iter():
             yield ping_msg
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         await websocket_server.handle_client(mock_ws, '/ws')
         
@@ -135,7 +137,7 @@ class TestWebSocketSubscriptions:
         })
         async def async_iter():
             yield subscribe_msg
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         await websocket_server.handle_client(mock_ws, '/ws')
         
@@ -166,7 +168,7 @@ class TestWebSocketSubscriptions:
         })
         async def async_iter():
             yield unsubscribe_msg
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         await websocket_server.handle_client(mock_ws, '/ws')
         
@@ -195,7 +197,7 @@ class TestWebSocketSubscriptions:
         })
         async def async_iter():
             yield invalid_msg
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         await websocket_server.handle_client(mock_ws, '/ws')
         
@@ -230,7 +232,7 @@ class TestWebSocketBroadcast:
         websocket_server.client_subscriptions[client_id] = {1, 2}  # Subscribe to servers 1, 2
         
         # Mock database and SSH functions
-        with patch('websocket_server.db.list_servers') as mock_list_servers, \
+        with patch('websocket_server.db.get_servers') as mock_list_servers, \
              patch('websocket_server.db.get_server') as mock_get_server, \
              patch('websocket_server.ssh.get_remote_agent_data') as mock_ssh:
             
@@ -291,7 +293,7 @@ class TestWebSocketBroadcast:
         websocket_server.connected_clients.add(mock_ws)
         # No subscription set - should receive all
         
-        with patch('websocket_server.db.list_servers') as mock_list_servers, \
+        with patch('websocket_server.db.get_servers') as mock_list_servers, \
              patch('websocket_server.db.get_server') as mock_get_server, \
              patch('websocket_server.ssh.get_remote_agent_data') as mock_ssh:
             
@@ -338,7 +340,7 @@ class TestWebSocketErrorHandling:
         invalid_json = "{ this is not json }"
         async def async_iter():
             yield invalid_json
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         await websocket_server.handle_client(mock_ws, '/ws')
         
@@ -363,7 +365,7 @@ class TestWebSocketErrorHandling:
         async def async_iter():
             return
             yield
-        mock_ws.__aiter__ = lambda: async_iter()
+        mock_ws.__aiter__ = lambda *args: async_iter()
         
         # Add client and subscription
         websocket_server.connected_clients.add(mock_ws)

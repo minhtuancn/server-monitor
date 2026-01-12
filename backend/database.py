@@ -248,6 +248,7 @@ def init_database():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_used TIMESTAMP,
+            deleted_at TIMESTAMP,
             FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
         )
     """

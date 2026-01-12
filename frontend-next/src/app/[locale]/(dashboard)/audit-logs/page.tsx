@@ -141,12 +141,12 @@ export default function AuditLogsPage() {
         </Box>
         <Box display="flex" gap={1}>
           <Tooltip title="Export as CSV">
-            <IconButton onClick={handleExportCSV} color="primary" disabled={logs.length === 0}>
+            <IconButton onClick={handleExportCSV} color="primary" disabled={logs.length === 0} aria-label="Export audit logs as CSV file">
               <DownloadIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Refresh">
-            <IconButton onClick={() => refetch()} color="primary">
+            <IconButton onClick={() => refetch()} color="primary" aria-label="Refresh audit logs">
               <RefreshIcon />
             </IconButton>
           </Tooltip>
@@ -164,6 +164,7 @@ export default function AuditLogsPage() {
                   label="Action"
                   value={actionFilter}
                   onChange={(e) => setActionFilter(e.target.value)}
+                  aria-label="Filter audit logs by action type"
                 >
                   <MenuItem value="">
                     <em>All Actions</em>
@@ -187,6 +188,7 @@ export default function AuditLogsPage() {
                   label="Target Type"
                   value={targetTypeFilter}
                   onChange={(e) => setTargetTypeFilter(e.target.value)}
+                  aria-label="Filter audit logs by target type"
                 >
                   <MenuItem value="">
                     <em>All Types</em>
@@ -206,6 +208,7 @@ export default function AuditLogsPage() {
                 onChange={(e) => setStartDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 200 }}
+                inputProps={{ 'aria-label': 'Filter audit logs from start date' }}
               />
 
               <TextField
@@ -215,6 +218,7 @@ export default function AuditLogsPage() {
                 onChange={(e) => setEndDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 sx={{ minWidth: 200 }}
+                inputProps={{ 'aria-label': 'Filter audit logs until end date' }}
               />
             </Box>
 
@@ -228,6 +232,7 @@ export default function AuditLogsPage() {
                   setStartDate("");
                   setEndDate("");
                 }}
+                aria-label="Clear all audit log filters"
               >
                 Clear Filters
               </Button>
@@ -257,16 +262,17 @@ export default function AuditLogsPage() {
 
       {!isLoading && !error && logs.length > 0 && (
         <>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
             <Typography variant="body2" color="text.secondary">
               Showing {logs.length} log entries
             </Typography>
-            <Button variant="outlined" size="small" onClick={handleExportJSON}>
+            <Button variant="outlined" size="small" onClick={handleExportJSON} aria-label="Export audit logs as JSON file">
               Export JSON
             </Button>
           </Box>
 
-          <TableContainer component={Paper}>
+          {/* Desktop Table View */}
+          <TableContainer component={Paper} sx={{ display: { xs: 'none', md: 'block' } }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -315,7 +321,7 @@ export default function AuditLogsPage() {
                     </TableCell>
                     <TableCell align="right">
                       <Tooltip title="View Details">
-                        <IconButton onClick={() => handleViewDetails(log)} size="small">
+                        <IconButton onClick={() => handleViewDetails(log)} size="small" aria-label={`View details for ${log.action} by ${log.username || `User #${log.user_id}`}`}>
                           <InfoIcon />
                         </IconButton>
                       </Tooltip>
@@ -325,6 +331,72 @@ export default function AuditLogsPage() {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Mobile Card View */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            <Stack spacing={2}>
+              {logs.map((log) => (
+                <Card key={log.id} variant="outlined">
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                      <Box flex={1}>
+                        <Typography variant="subtitle1" fontWeight={700} gutterBottom>
+                          {log.action}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {log.username || `User #${log.user_id}`}
+                        </Typography>
+                      </Box>
+                      <IconButton 
+                        onClick={() => handleViewDetails(log)} 
+                        size="small" 
+                        color="primary"
+                        aria-label={`View details for ${log.action}`}
+                      >
+                        <InfoIcon />
+                      </IconButton>
+                    </Box>
+
+                    <Stack spacing={1}>
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Timestamp
+                        </Typography>
+                        <Typography variant="body2">
+                          {formatDate(log.created_at)}
+                        </Typography>
+                      </Box>
+
+                      <Box display="flex" justifyContent="space-between" gap={2}>
+                        <Box flex={1}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Target
+                          </Typography>
+                          <Typography variant="body2">
+                            {log.target_type || "N/A"}
+                          </Typography>
+                          {log.target_id && (
+                            <Typography variant="caption" color="text.secondary" fontFamily="monospace">
+                              ID: {log.target_id}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        <Box flex={1}>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            IP Address
+                          </Typography>
+                          <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: "break-all", fontSize: "0.75rem" }}>
+                            {log.ip || "N/A"}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Box>
         </>
       )}
 
