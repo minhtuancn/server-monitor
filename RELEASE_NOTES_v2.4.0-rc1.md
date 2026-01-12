@@ -95,6 +95,33 @@ cd /opt/server-monitor/e2e-tests
 
 ---
 
+## 🔧 CI/CD Improvements (Added Jan 12, 2026)
+
+### GitHub Actions Workflow Optimization:
+- **Reduced workflow count**: 9 → 5 workflows (44% reduction)
+- **Reduced code**: 4,339 → 510 lines (88% reduction)
+- **Manual trigger support**: All 5 workflows now support `workflow_dispatch`
+- **Path filters**: Workflows only run when relevant files change
+- **Better E2E strategy**: Tests only on push to main (not blocking PRs)
+- **Non-blocking security scans**: Weekly scans with detailed reports
+
+### Workflow Changes:
+- ✅ **Rewrote** `ci.yml` - Backend CI (4 jobs: lint, unit-tests, api-health-check, summary)
+- ✅ **Rewrote** `frontend-ci.yml` - Frontend CI (4 jobs: lint, build, e2e-smoke-tests, summary)
+- ✅ **Simplified** `security-scan.yml` - Security scanning (3 jobs, non-blocking)
+- ✅ **Kept** `codeql.yml` - CodeQL analysis (already optimal)
+- ✅ **Kept** `dependency-review.yml` - Dependency review (already optimal)
+- ❌ **Deleted** `ci-cd.yml`, `manual-project-review*.yml`, `full-review.yml` (3,829 lines removed)
+
+### Benefits:
+- Faster CI/CD pipeline execution
+- Better developer experience (manual triggers)
+- Clear pass/fail indicators with detailed summaries
+- Artifact uploads for debugging (logs, reports, screenshots)
+- Less maintenance burden (simpler workflows)
+
+---
+
 ## 🔒 Security & Repository
 
 ### Security Enhancements:
