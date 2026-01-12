@@ -191,10 +191,15 @@ export default function HealthDashboardPage() {
               color={autoRefresh ? "primary" : "default"}
               onClick={() => setAutoRefresh(!autoRefresh)}
               size="small"
+              aria-label={autoRefresh ? "Disable automatic health data refresh" : "Enable automatic health data refresh"}
             />
           </Tooltip>
           <Tooltip title="Refresh now">
-            <IconButton onClick={() => refetch()} size="small">
+            <IconButton 
+              onClick={() => refetch()} 
+              size="small"
+              aria-label="Refresh health data immediately"
+            >
               <RefreshIcon />
             </IconButton>
           </Tooltip>

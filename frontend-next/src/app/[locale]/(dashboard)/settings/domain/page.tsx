@@ -138,6 +138,9 @@ export default function DomainSettingsPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, domain_name: e.target.value }))}
                   placeholder="example.com"
                   helperText="Your custom domain name (without http:// or https://)"
+                  inputProps={{
+                    'aria-label': 'Enter custom domain name for the server monitor application'
+                  }}
                 />
               </Grid>
             </Grid>
@@ -173,6 +176,9 @@ export default function DomainSettingsPage() {
                       onChange={(e) =>
                         setForm((prev) => ({ ...prev, ssl_enabled: e.target.checked ? 1 : 0 }))
                       }
+                      inputProps={{
+                        'aria-label': 'Enable or disable SSL/TLS encryption for secure HTTPS connections'
+                      }}
                     />
                   }
                   label={
@@ -203,6 +209,9 @@ export default function DomainSettingsPage() {
                         value={form.ssl_type ?? data?.ssl_type ?? "none"}
                         label="SSL Type"
                         onChange={(e) => setForm((prev) => ({ ...prev, ssl_type: e.target.value }))}
+                        inputProps={{
+                          'aria-label': 'Select SSL certificate type: None, Let\'s Encrypt, Custom, or Cloudflare'
+                        }}
                       >
                         <MenuItem value="none">None</MenuItem>
                         <MenuItem value="letsencrypt">Let's Encrypt (Free)</MenuItem>
@@ -220,6 +229,9 @@ export default function DomainSettingsPage() {
                           onChange={(e) =>
                             setForm((prev) => ({ ...prev, auto_renew: e.target.checked ? 1 : 0 }))
                           }
+                          inputProps={{
+                            'aria-label': 'Enable or disable automatic SSL certificate renewal'
+                          }}
                         />
                       }
                       label={
@@ -251,6 +263,9 @@ export default function DomainSettingsPage() {
                           onChange={(e) => setForm((prev) => ({ ...prev, cert_path: e.target.value }))}
                           placeholder="/path/to/certificate.crt"
                           helperText="Full path to SSL certificate file"
+                          inputProps={{
+                            'aria-label': 'Enter file path to SSL certificate file on server'
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -261,6 +276,9 @@ export default function DomainSettingsPage() {
                           onChange={(e) => setForm((prev) => ({ ...prev, key_path: e.target.value }))}
                           placeholder="/path/to/private.key"
                           helperText="Full path to private key file"
+                          inputProps={{
+                            'aria-label': 'Enter file path to SSL private key file on server'
+                          }}
                         />
                       </Grid>
                     </>
@@ -278,6 +296,7 @@ export default function DomainSettingsPage() {
                 onClick={handleSave}
                 disabled={mutation.isPending}
                 size="large"
+                aria-label="Save domain and SSL configuration settings"
               >
                 {mutation.isPending ? "Saving..." : "Save Settings"}
               </Button>

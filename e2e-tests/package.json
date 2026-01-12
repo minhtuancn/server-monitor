@@ -1,0 +1,34 @@
+{
+  "name": "server-monitor-e2e-tests",
+  "version": "2.4.0",
+  "description": "End-to-end tests for Server Monitor application using Playwright",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:mobile": "playwright test --project='Mobile Chrome (iPhone SE)' --project='Mobile Chrome (iPhone 12)'",
+    "test:desktop": "playwright test --project='Desktop Chrome' --project='Desktop Firefox'",
+    "test:accessibility": "playwright test tests/accessibility.spec.ts",
+    "test:responsive": "playwright test tests/mobile-responsive.spec.ts",
+    "test:touch": "playwright test tests/touch-targets.spec.ts",
+    "test:visual": "playwright test tests/visual-regression.spec.ts",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen http://172.22.0.103:9081"
+  },
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "accessibility",
+    "mobile-responsive"
+  ],
+  "author": "Server Monitor Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  }
+}

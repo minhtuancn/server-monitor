@@ -9,6 +9,8 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   Dialog,
   DialogActions,
@@ -148,6 +150,7 @@ export default function SSHKeysPage() {
           }}
           disabled={isLoading}
           size="large"
+          aria-label="Add new SSH private key to vault"
         >
           Add SSH Key
         </Button>
@@ -206,6 +209,7 @@ export default function SSHKeysPage() {
             startIcon={<AddIcon />}
             onClick={() => setOpenAddDialog(true)}
             size="large"
+            aria-label="Add your first SSH private key"
           >
             Add SSH Key
           </Button>
@@ -213,116 +217,204 @@ export default function SSHKeysPage() {
       )}
 
       {!isLoading && !error && keys.length > 0 && (
-        <TableContainer
-          component={Paper}
-          sx={{ borderRadius: 2, boxShadow: 2 }}
-        >
-          <Table>
-            <TableHead>
-              <TableRow sx={{ bgcolor: "action.hover" }}>
-                <TableCell>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Name
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Type
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Fingerprint
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Created By
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Created At
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">
-                  <Typography variant="subtitle2" fontWeight={700}>
-                    Actions
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {keys.map((key) => (
-                <TableRow
-                  key={key.id}
-                  hover
-                  sx={{
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                    },
-                  }}
-                >
+        <>
+          {/* Desktop Table View */}
+          <TableContainer
+            component={Paper}
+            sx={{ borderRadius: 2, boxShadow: 2, display: { xs: 'none', md: 'block' } }}
+          >
+            <Table>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "action.hover" }}>
                   <TableCell>
-                    <Box>
-                      <Typography variant="body1" fontWeight={600}>
-                        {key.name}
-                      </Typography>
-                      {key.description && (
-                        <Typography variant="body2" color="text.secondary">
-                          {key.description}
-                        </Typography>
-                      )}
-                    </Box>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Name
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={key.key_type?.toUpperCase() || "RSA"}
-                      size="small"
-                      color={getKeyTypeColor(key.key_type)}
-                      sx={{ fontWeight: 600 }}
-                    />
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Type
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    <Tooltip title={key.fingerprint || ""}>
-                      <Typography
-                        variant="body2"
-                        fontFamily="monospace"
-                        sx={{
-                          maxWidth: 300,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {key.fingerprint || "N/A"}
-                      </Typography>
-                    </Tooltip>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Fingerprint
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{key.created_by || "Unknown"}</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Created By
+                    </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {formatDate(key.created_at)}
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Created At
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Tooltip title="Delete Key (Admin Only)">
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      Actions
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {keys.map((key) => (
+                  <TableRow
+                    key={key.id}
+                    hover
+                    sx={{
+                      "&:hover": {
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body1" fontWeight={600}>
+                          {key.name}
+                        </Typography>
+                        {key.description && (
+                          <Typography variant="body2" color="text.secondary">
+                            {key.description}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={key.key_type?.toUpperCase() || "RSA"}
+                        size="small"
+                        color={getKeyTypeColor(key.key_type)}
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title={key.fingerprint || ""}>
+                        <Typography
+                          variant="body2"
+                          fontFamily="monospace"
+                          sx={{
+                            maxWidth: 300,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {key.fingerprint || "N/A"}
+                        </Typography>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{key.created_by || "Unknown"}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(key.created_at)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Delete Key (Admin Only)">
+                        <IconButton
+                          onClick={() => setDeleteConfirmId(key.id)}
+                          color="error"
+                          size="small"
+                          aria-label={`Delete SSH key ${key.name}`}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Mobile Card View */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            <Stack spacing={2}>
+              {keys.map((key) => (
+                <Card key={key.id} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <CardContent>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                      <Box flex={1}>
+                        <Typography variant="h6" fontWeight={700} gutterBottom>
+                          {key.name}
+                        </Typography>
+                        {key.description && (
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            {key.description}
+                          </Typography>
+                        )}
+                      </Box>
                       <IconButton
                         onClick={() => setDeleteConfirmId(key.id)}
                         color="error"
-                        size="small"
+                        aria-label={`Delete SSH key ${key.name}`}
+                        sx={{ ml: 1 }}
                       >
                         <DeleteIcon />
                       </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
+                    </Box>
+
+                    <Stack spacing={1.5}>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" color="text.secondary" sx={{ minWidth: 90 }}>
+                          Type:
+                        </Typography>
+                        <Chip
+                          label={key.key_type?.toUpperCase() || "RSA"}
+                          size="small"
+                          color={getKeyTypeColor(key.key_type)}
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </Box>
+
+                      <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          Fingerprint:
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          fontFamily="monospace"
+                          sx={{
+                            wordBreak: "break-all",
+                            bgcolor: "action.hover",
+                            p: 1,
+                            borderRadius: 1,
+                            fontSize: "0.75rem"
+                          }}
+                        >
+                          {key.fingerprint || "N/A"}
+                        </Typography>
+                      </Box>
+
+                      <Box display="flex" justifyContent="space-between" flexWrap="wrap" gap={1}>
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Created By
+                          </Typography>
+                          <Typography variant="body2">
+                            {key.created_by || "Unknown"}
+                          </Typography>
+                        </Box>
+                        <Box textAlign="right">
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            Created At
+                          </Typography>
+                          <Typography variant="body2">
+                            {formatDate(key.created_at)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            </Stack>
+          </Box>
+        </>
       )}
 
       <Dialog open={openAddDialog} onClose={() => !addMutation.isPending && setOpenAddDialog(false)} maxWidth="md" fullWidth>
@@ -341,11 +433,16 @@ export default function SSHKeysPage() {
             <TextField label="Key Name" required fullWidth value={newKey.name}
               onChange={(e) => setNewKey((prev) => ({ ...prev, name: e.target.value }))}
               placeholder="e.g., Production Server Key" helperText="A unique name to identify this key"
+              inputProps={{ 
+                'aria-label': 'SSH key name for identification',
+                'aria-required': true 
+              }}
             />
 
             <TextField label="Description (Optional)" fullWidth multiline rows={2} value={newKey.description}
               onChange={(e) => setNewKey((prev) => ({ ...prev, description: e.target.value }))}
               placeholder="Optional description for this key"
+              inputProps={{ 'aria-label': 'Optional description for SSH key' }}
             />
 
             <TextField label="Private Key" required fullWidth multiline rows={12} value={newKey.private_key}
@@ -353,6 +450,10 @@ export default function SSHKeysPage() {
               placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"
               helperText="Paste your SSH private key here. Supports RSA, ED25519, ECDSA formats."
               sx={{ "& .MuiInputBase-input": { fontFamily: "monospace", fontSize: "0.875rem" } }}
+              inputProps={{ 
+                'aria-label': 'SSH private key content in PEM format',
+                'aria-required': true 
+              }}
             />
 
             <Alert severity="info">
@@ -363,9 +464,10 @@ export default function SSHKeysPage() {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenAddDialog(false)} disabled={addMutation.isPending}>Cancel</Button>
+          <Button onClick={() => setOpenAddDialog(false)} disabled={addMutation.isPending} aria-label="Cancel adding SSH key">Cancel</Button>
           <Button onClick={() => { setFormError(null); addMutation.mutate(); }} variant="contained"
             disabled={addMutation.isPending || !newKey.name.trim() || !newKey.private_key.trim()}
+            aria-label="Submit and save SSH key to encrypted vault"
           >
             {addMutation.isPending ? "Adding..." : "Add Key"}
           </Button>
@@ -381,9 +483,10 @@ export default function SSHKeysPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmId(null)} disabled={deleteMutation.isPending}>Cancel</Button>
+          <Button onClick={() => setDeleteConfirmId(null)} disabled={deleteMutation.isPending} aria-label="Cancel deletion">Cancel</Button>
           <Button onClick={() => { if (deleteConfirmId) deleteMutation.mutate(deleteConfirmId); }}
             variant="contained" color="error" disabled={deleteMutation.isPending}
+            aria-label="Confirm SSH key deletion"
           >
             {deleteMutation.isPending ? "Deleting..." : "Delete"}
           </Button>
