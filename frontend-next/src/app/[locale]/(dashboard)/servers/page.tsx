@@ -12,6 +12,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import {
   Alert,
+  AlertTitle,
   Box,
   Button,
   Card,
@@ -46,7 +47,13 @@ export default function ServersPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serverToDelete, setServerToDelete] = useState<Server | null>(null);
 
-  const { data: servers, isLoading } = useQuery<Server[]>({
+  const {
+    data: servers,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Server[]>({
     queryKey: ["servers"],
     queryFn: () => apiFetch<Server[]>("/api/servers"),
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -106,6 +113,9 @@ export default function ServersPage() {
         return "default";
     }
   };
+
+  const errorMessage =
+    error instanceof Error && error.message ? error.message : "Please try again in a moment.";
 
   return (
     <Stack spacing={3}>
@@ -206,6 +216,20 @@ export default function ServersPage() {
         {isLoading ? (
           <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress />
+          </Box>
+        ) : isError ? (
+          <Box p={4}>
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" size="small" onClick={() => refetch()}>
+                  Retry
+                </Button>
+              }
+            >
+              <AlertTitle>Unable to load servers</AlertTitle>
+              {errorMessage}
+            </Alert>
           </Box>
         ) : filteredServers && filteredServers.length > 0 ? (
           <>
